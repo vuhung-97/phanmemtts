@@ -12,6 +12,7 @@ from audio import exporter
 from audio.player import AudioPlayer
 from audio.speed import apply_speed
 from core.models import SentenceItem, TimelineMap
+from core.text_processor import build_sentences
 from engine.model_manager import ModelManager
 from engine.tts_engine import TtsEngine
 from ui import theme
@@ -334,6 +335,10 @@ class MainWindow(ctk.CTk):
             self._messages.put(("status", "Đang khởi tạo engine...", theme.TEXT_DIM))
 
             sample_rate = engine.sample_rate
+            sentences_count = len(build_sentences(text))
+            if sentences_count == 0:
+                self._messages.put(("stream_empty",))
+                return
             # Luôn sinh bản gốc 1.0x — speed áp bằng time-stretch để giữ bản gốc
             stream_gen = engine.synthesize_stream(text, speed=1.0)
 
@@ -359,19 +364,15 @@ class MainWindow(ctk.CTk):
                                        sample_rate=sample_rate)
                 self._messages.put(("stream_base", wave, timeline, speed))
 
-            first_item = next(stream_gen, None)
-            if first_item is None:
-                self._messages.put(("stream_empty",))
-                return
+            # Gửi stream_start ngay (generator nay trễ 1 câu vì lookahead nối pause-pad)
+            self._messages.put(("stream_start", sample_rate, sentences_count, text))
+            self._messages.put(("status",
+                                f"Đang tổng hợp câu 1/{sentences_count}...",
+                                theme.TEXT_DIM))
             if self._stop_event.is_set():
                 post_base()
                 self._messages.put(("stream_stopped",))
                 return
-
-            timed, piece, cur, tot = first_item
-            self._messages.put(("stream_start", sample_rate, tot, text))
-            timed_out, piece_out = push_base(timed, piece)
-            self._messages.put(("stream_chunk", timed_out, piece_out, cur, tot))
 
             for timed, piece, cur, tot in stream_gen:
                 if self._stop_event.is_set():
