@@ -128,7 +128,7 @@ class Sidebar(ctk.CTkFrame):
 
         self.speed_combo = ctk.CTkComboBox(
             self, height=32, state="readonly",
-            values=["0.75x", "1.0x", "1.25x", "1.5x"],
+            values=["0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x"],
             command=self._speed_changed, corner_radius=6,
             fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
             button_color=theme.SURFACE, button_hover_color=theme.ACCENT,

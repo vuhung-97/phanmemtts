@@ -68,4 +68,17 @@ class VieneuTTS:
                                    sample_rate=self.sample_rate)
         audio = self._vieneu.infer(text, voice=self._voice, speed=speed)
         samples = np.asarray(audio, dtype=np.float32).reshape(-1)
+        samples = self._apply_speed(samples, speed)
         return SimpleNamespace(samples=samples, sample_rate=self.sample_rate)
+
+    @staticmethod
+    def _apply_speed(samples: np.ndarray, speed: float) -> np.ndarray:
+        """Speed thật: model không hỗ trợ -> time-stretch sau khi sinh (giữ cao độ)."""
+        if abs(speed - 1.0) < 0.01 or len(samples) < 1024:
+            return samples
+        try:
+            from librosa import effects
+            out = effects.time_stretch(samples, rate=float(speed))
+            return np.asarray(out, dtype=np.float32)
+        except Exception:
+            return samples   # fail-safe: giữ audio gốc, không crash export
