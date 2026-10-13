@@ -16,6 +16,7 @@ class SyncTextbox(ctk.CTkTextbox):
         kwargs.setdefault("font", (theme.FONT_FAMILY, theme.FONT_SIZE + 2))
         kwargs.setdefault("wrap", "word")
         kwargs.setdefault("fg_color", theme.SURFACE)
+        kwargs.setdefault("text_color", theme.TEXT)
         kwargs.setdefault("border_width", 1)
         kwargs.setdefault("border_color", theme.SIDEBAR_DIVIDER)
         super().__init__(master, **kwargs)

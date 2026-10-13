@@ -33,7 +33,7 @@ class MainWindow(ctk.CTk):
         self.title(f"{version.__app_name__} - v{version.__version__}")
         self.geometry("1100x720")
         self.minsize(860, 560)
-        ctk.set_appearance_mode("light")
+        ctk.set_appearance_mode("dark")
         self.configure(fg_color=theme.BG)
 
         self._model_manager = ModelManager()

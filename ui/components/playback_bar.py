@@ -54,16 +54,16 @@ class PlaybackBar(ctk.CTkFrame):
         self.total_label.grid(row=0, column=2, padx=(6, 12), pady=(10, 2), sticky="e")
 
         btn_kw = dict(
-            width=86, height=32, fg_color=theme.SURFACE, border_width=1,
+            width=86, height=32, fg_color=theme.BUTTON_BG, border_width=1,
             border_color=theme.SIDEBAR_DIVIDER, text_color=theme.TEXT,
-            hover_color=theme.HOVER_BG,
+            hover_color=theme.BUTTON_HOVER,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
         self.prev_btn = ctk.CTkButton(self, text="⏮ Câu trước", command=self._on_prev, **btn_kw)
         self.rew_btn = ctk.CTkButton(self, text="⏪ -5s", command=lambda: self._skip(-5), **btn_kw)
         self.toggle_btn = ctk.CTkButton(
-            self, text="▶ Phát", width=120, height=32, fg_color=theme.ACCENT,
-            hover_color=theme.ACCENT_HOVER, command=self._on_toggle,
+            self, text="▶ Phát", width=120, height=32, fg_color=theme.BUTTON_BG,
+            hover_color=theme.BUTTON_HOVER, command=self._on_toggle,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
         )
         self.fwd_btn = ctk.CTkButton(self, text="⏩ +5s", command=lambda: self._skip(5), **btn_kw)

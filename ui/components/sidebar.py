@@ -58,8 +58,8 @@ class Sidebar(ctk.CTkFrame):
 
         # ── Mở file ──
         ctk.CTkButton(
-            self, text="📁  Mở file", height=36, fg_color=theme.ACCENT,
-            hover_color=theme.ACCENT_HOVER, corner_radius=8,
+            self, text="📁  Mở file", height=36, fg_color=theme.BUTTON_BG,
+            hover_color=theme.BUTTON_HOVER, corner_radius=8,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
             command=self._on_open_file,
         ).grid(row=row, column=0, padx=16, pady=(16, 0), sticky="ew")
@@ -74,6 +74,9 @@ class Sidebar(ctk.CTkFrame):
         self.voice_combo = ctk.CTkComboBox(
             self, height=32, state="readonly", values=["(chưa có model)"],
             command=self._voice_changed, corner_radius=6,
+            fg_color=theme.SURFACE, text_color=theme.TEXT,
+            button_color=theme.BUTTON_BG, button_hover_color=theme.BUTTON_HOVER,
+            dropdown_fg_color=theme.SURFACE, dropdown_text_color=theme.TEXT,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
             dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
@@ -105,6 +108,8 @@ class Sidebar(ctk.CTkFrame):
         # ── Ô nhập câu test ──
         self.test_entry = ctk.CTkEntry(
             self, height=30, corner_radius=6,
+            fg_color=theme.SURFACE, text_color=theme.TEXT,
+            border_color=theme.SIDEBAR_DIVIDER,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
             placeholder_text="Nhập câu test...",
         )
@@ -123,6 +128,9 @@ class Sidebar(ctk.CTkFrame):
             self, height=32, state="readonly",
             values=["0.75x", "1.0x", "1.25x", "1.5x"],
             command=self._speed_changed, corner_radius=6,
+            fg_color=theme.SURFACE, text_color=theme.TEXT,
+            button_color=theme.BUTTON_BG, button_hover_color=theme.BUTTON_HOVER,
+            dropdown_fg_color=theme.SURFACE, dropdown_text_color=theme.TEXT,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
             dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
@@ -135,7 +143,7 @@ class Sidebar(ctk.CTkFrame):
         # ── Chuyển đổi / Xuất ──
         self.convert_btn = ctk.CTkButton(
             self, text="⚡  Chuyển đổi", height=38, fg_color=theme.SUCCESS,
-            hover_color="#3d9a6c", corner_radius=8,
+            hover_color=theme.SUCCESS_HOVER, corner_radius=8,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
             command=self._on_convert,
         )

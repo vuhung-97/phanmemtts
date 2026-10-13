@@ -26,7 +26,7 @@ class SegmentTimeline(ctk.CTkFrame):
 
     def __init__(self, master,
                  on_change: Callable[[float, float], None] | None = None) -> None:
-        super().__init__(master, fg_color=theme.SURFACE, corner_radius=6,
+        super().__init__(master, fg_color=theme.TIMELINE_BG, corner_radius=6,
                          height=_HEIGHT + 8)
         self.grid_propagate(False)
         self._on_change = on_change
@@ -39,7 +39,7 @@ class SegmentTimeline(ctk.CTkFrame):
         self._drag_offset: float = 0.0
 
         self._canvas = ctk.CTkCanvas(
-            self, highlightthickness=0, bg=theme.SURFACE, height=_HEIGHT,
+            self, highlightthickness=0, bg=theme.TIMELINE_BG, height=_HEIGHT,
         )
         self._canvas.grid(row=0, column=0, sticky="nsew", padx=2, pady=(2, 0))
         self.grid_columnconfigure(0, weight=1)
@@ -173,11 +173,11 @@ class SegmentTimeline(ctk.CTkFrame):
             return
 
         # Background
-        c.create_rectangle(0, 0, W, H, fill=theme.SURFACE, outline="")
+        c.create_rectangle(0, 0, W, H, fill=theme.TIMELINE_BG, outline="")
 
         if self._peaks is None or len(self._peaks) == 0 or self._duration <= 0:
             c.create_text(W // 2, H // 2, text="Chọn file nhạc...",
-                          fill=theme.TEXT_DIM,
+                          fill=theme.TIMELINE_TEXT,
                           font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1))
             return
 
@@ -192,7 +192,7 @@ class SegmentTimeline(ctk.CTkFrame):
             x = i * W / n
             h = max(1, peak * (H - 16))
             in_sel = start_x <= x + bar_w / 2 <= end_x
-            color = theme.ACCENT if in_sel else theme.WAVE_DIM
+            color = theme.TIMELINE_TEXT if in_sel else theme.WAVE_DIM
             c.create_rectangle(x, mid_y - h / 2, x + bar_w, mid_y + h / 2,
                                fill=color, outline="")
 
@@ -210,10 +210,10 @@ class SegmentTimeline(ctk.CTkFrame):
 
         # Time labels
         c.create_text(start_x, H - 2, text=_fmt(self._start),
-                      fill=theme.ACCENT, anchor="n",
+                      fill=theme.TEXT, anchor="n",
                       font=(theme.FONT_FAMILY, 9, "bold"))
         c.create_text(end_x, H - 2, text=_fmt(self._end),
-                      fill=theme.ACCENT, anchor="n",
+                      fill=theme.TEXT, anchor="n",
                       font=(theme.FONT_FAMILY, 9, "bold"))
 
     def _draw_handle(self, c, x: float, H: int, is_start: bool) -> None:

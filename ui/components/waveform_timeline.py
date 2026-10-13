@@ -21,8 +21,9 @@ class WaveformTimeline(ctk.CTkFrame):
     """Waveform hiển thị — chỉ xem, không kéo thả. Seek qua PlaybackBar."""
 
     def __init__(self, master) -> None:
-        super().__init__(master, fg_color=theme.SURFACE, corner_radius=8,
-                         height=_HEIGHT)
+        super().__init__(master, fg_color=theme.TIMELINE_BG, corner_radius=8,
+                         height=_HEIGHT,
+                         border_width=1, border_color=theme.TIMELINE_BORDER)
         self.grid_propagate(False)
 
         self._peaks: np.ndarray | None = None
@@ -31,7 +32,7 @@ class WaveformTimeline(ctk.CTkFrame):
         self._position: float = 0.0
 
         self._canvas = ctk.CTkCanvas(
-            self, highlightthickness=0, bg=theme.SURFACE, height=_HEIGHT,
+            self, highlightthickness=0, bg=theme.TIMELINE_BG, height=_HEIGHT,
         )
         self._canvas.grid(row=0, column=0, sticky="nsew")
         self.grid_columnconfigure(0, weight=1)
@@ -95,11 +96,11 @@ class WaveformTimeline(ctk.CTkFrame):
         wave_h = _WAVEFORM_AREA
 
         # Background
-        c.create_rectangle(0, 0, W, H, fill=theme.SURFACE, outline="")
+        c.create_rectangle(0, 0, W, H, fill=theme.TIMELINE_BG, outline="")
 
         if self._peaks is None or len(self._peaks) == 0:
             c.create_text(W // 2, H // 2, text="Chưa có âm thanh",
-                          fill=theme.TEXT_DIM,
+                          fill=theme.TIMELINE_TEXT,
                           font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1))
             return
 
@@ -112,7 +113,7 @@ class WaveformTimeline(ctk.CTkFrame):
         for i, peak in enumerate(self._peaks):
             x = i * W / n
             h = max(1, peak * (wave_h - 8))
-            color = theme.ACCENT if x <= playhead_px else theme.TEXT_DIM
+            color = theme.TIMELINE_TEXT if x <= playhead_px else "#e6eefb"
             c.create_rectangle(x, mid_y - h / 2, x + bar_w, mid_y + h / 2,
                                fill=color, outline="")
 
@@ -120,15 +121,16 @@ class WaveformTimeline(ctk.CTkFrame):
         for start_sec, end_sec in self._sentence_bounds:
             sx = start_sec / self._duration * W if self._duration > 0 else 0
             if 0 < sx < W:
-                c.create_line(sx, 0, sx, wave_h + 4, fill="#555577", width=1)
+                c.create_line(sx, 0, sx, wave_h + 4, fill=theme.TIMELINE_DIM,
+                              width=1)
 
         # Playhead
         if playhead_px > 0:
             c.create_line(playhead_px, 0, playhead_px, wave_h + 6,
-                          fill=theme.ACCENT, width=2)
+                          fill="#0d1728", width=2)
             # Triangle nhỏ trên đầu
             c.create_polygon(playhead_px - 4, 0, playhead_px + 4, 0,
-                             playhead_px, 7, fill=theme.ACCENT, outline="")
+                             playhead_px, 7, fill="#0d1728", outline="")
 
         # Time ruler
         self._draw_ruler(c, W, H)
@@ -151,7 +153,7 @@ class WaveformTimeline(ctk.CTkFrame):
             x = t / self._duration * W
             if 0 <= x <= W:
                 c.create_line(x, tick_y - 5, x, tick_y,
-                              fill=theme.TEXT_DIM, width=1)
+                              fill=theme.TIMELINE_TEXT, width=1)
                 if x < 30:
                     anchor, x_draw = "w", max(x, 1)
                 elif x > W - 30:
@@ -159,6 +161,6 @@ class WaveformTimeline(ctk.CTkFrame):
                 else:
                     anchor, x_draw = "center", x
                 c.create_text(x_draw, text_y, text=_format_time(t),
-                              fill=theme.TEXT_DIM, anchor=anchor,
-                              font=(theme.FONT_FAMILY, 9))
+                              fill=theme.TIMELINE_TEXT, anchor=anchor,
+                              font=(theme.FONT_FAMILY, 9, "bold"))
             t += step

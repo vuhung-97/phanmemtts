@@ -140,6 +140,8 @@ class MergeDialog(ctk.CTkToplevel):
 
         self.crossfade_entry = ctk.CTkEntry(
             xf_row, width=80, height=32,
+            fg_color=theme.SURFACE, text_color=theme.TEXT,
+            border_color=theme.SIDEBAR_DIVIDER,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
             placeholder_text="0.5",
         )
@@ -160,7 +162,7 @@ class MergeDialog(ctk.CTkToplevel):
         self._section("Timeline output", row)
         row += 1
         self._out_canvas = ctk.CTkCanvas(
-            self, highlightthickness=0, bg=theme.SURFACE, height=_OUT_H,
+            self, highlightthickness=0, bg=theme.TIMELINE_BG, height=_OUT_H,
         )
         self._out_canvas.grid(row=row, column=0, padx=20, pady=(2, 4),
                               sticky="ew")
@@ -168,8 +170,8 @@ class MergeDialog(ctk.CTkToplevel):
         row += 1
 
         self._out_ruler = ctk.CTkLabel(
-            self, text="", text_color=theme.TEXT_DIM,
-            font=(theme.FONT_FAMILY, 9),
+            self, text="", text_color=theme.TIMELINE_TEXT,
+            font=(theme.FONT_FAMILY, 9, "bold"),
         )
         self._out_ruler.grid(row=row, column=0, padx=20, sticky="w")
         row += 1
@@ -191,7 +193,7 @@ class MergeDialog(ctk.CTkToplevel):
 
         self.merge_btn = ctk.CTkButton(
             btn_row, text="💾  Ghép & Xuất file", width=300, height=36,
-            fg_color=theme.SUCCESS, hover_color="#3d9a6c", corner_radius=8,
+            fg_color=theme.SUCCESS, hover_color=theme.SUCCESS_HOVER, corner_radius=8,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
             command=self._start_merge,
         )
@@ -416,6 +418,11 @@ class MergeDialog(ctk.CTkToplevel):
                 self._voice_btn_row, state="readonly",
                 values=self._export_history,
                 command=self._on_history_pick, height=28, width=240,
+                fg_color=theme.SURFACE, text_color=theme.TEXT,
+                button_color=theme.BUTTON_BG,
+                button_hover_color=theme.BUTTON_HOVER,
+                dropdown_fg_color=theme.SURFACE,
+                dropdown_text_color=theme.TEXT,
                 font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
                 dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
             )
@@ -526,7 +533,7 @@ class MergeDialog(ctk.CTkToplevel):
         if W <= 1:
             return
 
-        c.create_rectangle(0, 0, W, H, fill=theme.SURFACE, outline="")
+        c.create_rectangle(0, 0, W, H, fill=theme.TIMELINE_BG, outline="")
 
         fade = self._get_crossfade()
         intro_dur = 0.0
@@ -547,7 +554,7 @@ class MergeDialog(ctk.CTkToplevel):
 
         if intro_dur <= 0 and voice_dur <= 0 and outro_dur <= 0:
             c.create_text(W // 2, H // 2, text="Chọn file để xem timeline",
-                          fill=theme.TEXT_DIM,
+                          fill=theme.TIMELINE_TEXT,
                           font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1))
             self._out_ruler.configure(text="")
             return
