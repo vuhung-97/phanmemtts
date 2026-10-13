@@ -33,13 +33,15 @@ class MainWindow(ctk.CTk):
         self.title(f"{version.__app_name__} - v{version.__version__}")
         self.geometry("1100x720")
         self.minsize(860, 560)
-        ctk.set_appearance_mode("dark")
+        ctk.set_appearance_mode("light")
+        self.configure(fg_color=theme.BG)
 
         self._model_manager = ModelManager()
         self._player = AudioPlayer()
         self._messages: queue.Queue = queue.Queue()
         self._worker: threading.Thread | None = None
         self._busy = False
+        self._stop_event = threading.Event()
 
         self._waveform: np.ndarray | None = None
         self._timeline: TimelineMap | None = None
@@ -67,6 +69,7 @@ class MainWindow(ctk.CTk):
             on_voice_change=self._on_voice_change,
             on_speed_change=self._on_speed_change,
             on_convert=self._start_convert,
+            on_stop=self._stop_convert,
             on_export=self._start_export,
             on_manage_voices=self._open_voice_manager,
             on_test_voice=self._test_voice,
@@ -239,6 +242,7 @@ class MainWindow(ctk.CTk):
         self._current_sentence = -1
         self._stream_has_started_playing = False
         self.waveform_timeline.clear()
+        self._stop_event.clear()
 
         self._set_busy(True)
         self.sidebar.set_status("Đang chuẩn bị mô hình...", theme.TEXT_DIM)
@@ -246,8 +250,18 @@ class MainWindow(ctk.CTk):
             target=self._convert_worker, args=(model, text, speed), daemon=True,
         ).start()
 
+    def _stop_convert(self) -> None:
+        """Dừng tiến trình tạo âm thanh."""
+        if not self._busy:
+            return
+        self._stop_event.set()
+        self.sidebar.set_status("Đang dừng...", theme.TEXT_DIM)
+
     def _convert_worker(self, model, text: str, speed: float) -> None:
         try:
+            if self._stop_event.is_set():
+                self._messages.put(("stream_stopped",))
+                return
             tts = self._model_manager.load_tts(model)
             engine = TtsEngine(tts)
             self._messages.put(("status", "Đang khởi tạo engine...", theme.TEXT_DIM))
@@ -259,12 +273,18 @@ class MainWindow(ctk.CTk):
             if first_item is None:
                 self._messages.put(("stream_empty",))
                 return
+            if self._stop_event.is_set():
+                self._messages.put(("stream_stopped",))
+                return
 
             timed, piece, cur, tot = first_item
             self._messages.put(("stream_start", sample_rate, tot, text))
             self._messages.put(("stream_chunk", timed, piece, cur, tot))
 
             for timed, piece, cur, tot in stream_gen:
+                if self._stop_event.is_set():
+                    self._messages.put(("stream_stopped",))
+                    return
                 self._messages.put(("stream_chunk", timed, piece, cur, tot))
 
             self._messages.put(("stream_end",))
@@ -419,6 +439,12 @@ class MainWindow(ctk.CTk):
                     f"Hoàn tất! {len(self._timeline.sentences)} câu, {dur:.1f} giây.",
                     theme.SUCCESS,
                 )
+        elif kind == "stream_stopped":
+            self._player.stop()
+            self._set_busy(False)
+            n = len(self._timeline.sentences) if self._timeline else 0
+            self.sidebar.set_status(
+                f"Đã dừng chuyển đổi. Đã tạo {n} câu.", theme.TEXT_DIM)
         elif kind == "exported":
             _, path = message
             self._export_history.append(path)

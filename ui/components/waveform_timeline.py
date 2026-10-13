@@ -6,9 +6,9 @@ import customtkinter as ctk
 from ui import theme
 
 _NUM_BARS = 300
-_HEIGHT = 64
-_WAVEFORM_AREA = 40   # px trên cho waveform
-_RULER_AREA = 18      # px dưới cho time ruler
+_HEIGHT = 80
+_WAVEFORM_AREA = 50   # px trên cho waveform
+_RULER_AREA = 28      # px dưới cho time ruler
 
 
 def _format_time(seconds: float) -> str:
@@ -137,21 +137,24 @@ class WaveformTimeline(ctk.CTkFrame):
     def _draw_ruler(self, c, W: int, y: int) -> None:
         if self._duration <= 0:
             return
-        # Chọn step phù hợp
-        if self._duration <= 20:
-            step = 5
-        elif self._duration <= 60:
-            step = 10
-        elif self._duration <= 180:
-            step = 30
+        # Chọn step sao cho nhãn cách nhau tối thiểu ~60px
+        for step in (5, 10, 15, 30, 60, 120, 300, 600):
+            if step / self._duration * W >= 60:
+                break
         else:
-            step = 60
+            step = 600
         t = 0.0
-        while t <= self._duration:
+        while t <= self._duration + 0.01:
             x = t / self._duration * W
             if 0 <= x <= W:
-                c.create_line(x, y - 4, x, y, fill=theme.TEXT_DIM, width=1)
-                c.create_text(x, y + 10, text=_format_time(t),
-                              fill=theme.TEXT_DIM,
+                c.create_line(x, y - 5, x, y, fill=theme.TEXT_DIM, width=1)
+                if x < 30:
+                    anchor = "w"
+                elif x > W - 30:
+                    anchor = "e"
+                else:
+                    anchor = "center"
+                c.create_text(x, y + 11, text=_format_time(t),
+                              fill=theme.TEXT_DIM, anchor=anchor,
                               font=(theme.FONT_FAMILY, 9))
             t += step

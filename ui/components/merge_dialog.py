@@ -14,7 +14,6 @@ from ui.components.segment_timeline import SegmentTimeline
 
 AUDIO_FILTER = [("Audio", "*.mp3;*.wav"), ("MP3", "*.mp3"), ("WAV", "*.wav"),
                 ("Tất cả", "*.*")]
-CROSSFADE_OPTIONS = ["0.0s", "0.3s", "0.5s", "1.0s"]
 
 _OUT_H = 56
 _INTRO_COLOR = "#3d5a80"
@@ -29,6 +28,12 @@ def _fmt(sec: float) -> str:
     return f"{m}:{s:02.0f}" if m > 0 else f"{s:.1f}s"
 
 
+def _fmt_clock(seconds: float) -> str:
+    seconds = max(int(seconds), 0)
+    m, s = divmod(seconds, 60)
+    return f"{m:02d}:{s:02d}"
+
+
 class MergeDialog(ctk.CTkToplevel):
     """Popup ghép nhạc — mỗi track có SegmentTimeline kéo thả."""
 
@@ -36,8 +41,8 @@ class MergeDialog(ctk.CTkToplevel):
                  on_merged=None) -> None:
         super().__init__(master)
         self.title("🎵 Ghép nhạc vào file âm thanh")
-        self.geometry("600x900")
-        self.minsize(540, 700)
+        self.geometry("640x1010")
+        self.minsize(560, 880)
         self.configure(fg_color=theme.DIALOG_BG)
         self.transient(master)
         self.grab_set()
@@ -45,6 +50,12 @@ class MergeDialog(ctk.CTkToplevel):
         self._on_merged = on_merged
         self._messages: queue.Queue = queue.Queue()
         self._busy = False
+
+        # Preview player (tua được)
+        from audio.player import AudioPlayer
+        self._preview_player = AudioPlayer()
+        self._preview_active = False
+        self._slider_updating = False
 
         self._voice_path: str | None = None
         self._voice_duration: float = 0.0
@@ -115,18 +126,28 @@ class MergeDialog(ctk.CTkToplevel):
                                             row, default_vol=70)
         row += 2
 
-        # ── Crossfade ──
-        self._section("Chuyển đoạn (crossfade)", row)
+        # ── Crossfade (nhập số tự do, đơn vị giây) ──
+        self._section("Chuyển đoạn (crossfade, giây)", row)
         row += 1
-        self.crossfade_combo = ctk.CTkComboBox(
-            self, state="readonly", values=CROSSFADE_OPTIONS,
-            width=120, height=32, command=lambda _: self._update_output_timeline(),
+        xf_row = ctk.CTkFrame(self, fg_color="transparent")
+        xf_row.grid(row=row, column=0, padx=20, pady=(2, 8), sticky="w")
+
+        self.crossfade_entry = ctk.CTkEntry(
+            xf_row, width=80, height=32,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
-            dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
+            placeholder_text="0.5",
         )
-        self.crossfade_combo.set("0.5s")
-        self.crossfade_combo.grid(row=row, column=0, padx=20, pady=(2, 8),
-                                  sticky="w")
+        self.crossfade_entry.insert(0, "0.5")
+        self.crossfade_entry.grid(row=0, column=0, padx=(0, 6))
+        self.crossfade_entry.bind("<KeyRelease>",
+                                  lambda _: self._update_output_timeline())
+        self.crossfade_entry.bind("<FocusOut>",
+                                  lambda _: self._update_output_timeline())
+
+        ctk.CTkLabel(xf_row, text="giây — nhập bất kỳ giá trị nào (vd: 0.8, 2.5)",
+                     text_color=theme.TEXT_DIM,
+                     font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1)).grid(
+            row=0, column=1, sticky="w")
         row += 1
 
         # ── Output timeline ──
@@ -168,6 +189,38 @@ class MergeDialog(ctk.CTkToplevel):
             command=self._start_merge,
         )
         self.merge_btn.grid(row=0, column=1, padx=(4, 0), sticky="ew")
+        row += 1
+
+        # ── Thanh tua khi nghe thử ──
+        seek_row = ctk.CTkFrame(self, fg_color=theme.SURFACE, corner_radius=8)
+        seek_row.grid(row=row, column=0, padx=20, pady=(4, 4), sticky="ew")
+        seek_row.grid_columnconfigure(1, weight=1)
+
+        self._prev_cur = ctk.CTkLabel(seek_row, text="00:00", width=50,
+                                      text_color=theme.TEXT,
+                                      font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"))
+        self._prev_cur.grid(row=0, column=0, padx=(10, 4), pady=8, sticky="w")
+
+        self._seek_slider = ctk.CTkSlider(
+            seek_row, from_=0.0, to=1.0, state="disabled",
+            progress_color=theme.ACCENT, button_color=theme.ACCENT,
+            command=self._on_seek_slider,
+        )
+        self._seek_slider.set(0.0)
+        self._seek_slider.grid(row=0, column=1, padx=4, pady=8, sticky="ew")
+
+        self._prev_total = ctk.CTkLabel(seek_row, text="00:00", width=50,
+                                        text_color=theme.TEXT_DIM,
+                                        font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"))
+        self._prev_total.grid(row=0, column=2, padx=(4, 4), pady=8, sticky="e")
+
+        self._stop_preview_btn = ctk.CTkButton(
+            seek_row, text="⏹", width=36, height=28, state="disabled",
+            fg_color="transparent", border_width=1, border_color=theme.ERROR,
+            text_color=theme.ERROR, hover_color=theme.SURFACE, corner_radius=6,
+            command=self._stop_preview,
+        )
+        self._stop_preview_btn.grid(row=0, column=3, padx=(0, 10), pady=8)
         row += 1
 
         # ── Status ──
@@ -332,6 +385,13 @@ class MergeDialog(ctk.CTkToplevel):
 
     # ── Config ──
 
+    def _get_crossfade(self) -> float:
+        try:
+            v = float(self.crossfade_entry.get().strip() or "0")
+        except ValueError:
+            v = 0.5
+        return max(0.0, min(v, 10.0))
+
     def _make_segment(self, key: str) -> TrackSegment | None:
         path = getattr(self, f"_{key}_path")
         if not path:
@@ -352,7 +412,7 @@ class MergeDialog(ctk.CTkToplevel):
             intro_volume=self._intro_refs["slider"].get() / 100.0,
             bg_volume=self._bg_refs["slider"].get() / 100.0,
             outro_volume=self._outro_refs["slider"].get() / 100.0,
-            crossfade_sec=float(self.crossfade_combo.get().replace("s", "")),
+            crossfade_sec=self._get_crossfade(),
         )
 
     # ── Output timeline ──
@@ -367,7 +427,7 @@ class MergeDialog(ctk.CTkToplevel):
 
         c.create_rectangle(0, 0, W, H, fill=theme.SURFACE, outline="")
 
-        fade = float(self.crossfade_combo.get().replace("s", ""))
+        fade = self._get_crossfade()
         intro_dur = 0.0
         bg_dur = 0.0
         outro_dur = 0.0
@@ -391,8 +451,9 @@ class MergeDialog(ctk.CTkToplevel):
             self._out_ruler.configure(text="")
             return
 
-        # Tổng thời lượng output
-        total = max(intro_dur + voice_dur + outro_dur - 2 * fade, 0.1)
+        # Tổng thời lượng output (trừ crossfade theo số điểm nối thực tế)
+        joins = (1 if intro_dur > 0 else 0) + (1 if outro_dur > 0 else 0)
+        total = max(intro_dur + voice_dur + outro_dur - joins * fade, 0.1)
 
         # Vẽ blocks
         margin = 4
@@ -437,7 +498,7 @@ class MergeDialog(ctk.CTkToplevel):
                 f"Outro {_fmt(intro_dur + voice_dur)}→{_fmt(total)}")
         self._out_ruler.configure(text="  |  ".join(ruler_parts))
 
-    # ── Preview ──
+    # ── Preview (nghe thử + tua) ──
 
     def _preview(self) -> None:
         if self._busy:
@@ -452,15 +513,71 @@ class MergeDialog(ctk.CTkToplevel):
 
     def _preview_worker(self, config) -> None:
         try:
-            import sounddevice as sd
             waveform, sr = mixer.merge(config)
-            sd.stop()
-            sd.play(waveform, sr)
-            self._messages.put(("status", "Đang phát nghe thử...", theme.SUCCESS))
+            self._messages.put(("preview_ready", waveform, sr))
         except Exception as exc:
             self._messages.put(("error", str(exc)))
+
+    def _start_preview_playback(self, waveform, sr: int) -> None:
+        self._set_busy(False)
+        self._preview_player.stop()
+        self._preview_player.load(waveform, sr, has_more=False)
+        self._preview_player.play()
+        duration = len(waveform) / sr if sr > 0 else 0.0
+        self._slider_updating = True
+        try:
+            self._seek_slider.configure(to=max(duration, 0.001), state="normal")
+            self._seek_slider.set(0.0)
         finally:
-            self._messages.put(("done",))
+            self._slider_updating = False
+        self._prev_cur.configure(text="00:00")
+        self._prev_total.configure(text=_fmt_clock(duration))
+        self._stop_preview_btn.configure(state="normal")
+        self._preview_active = True
+        self._set_status("Đang phát nghe thử — kéo thanh để tua.",
+                         theme.SUCCESS)
+
+    def _on_seek_slider(self, value: float) -> None:
+        if self._slider_updating or not self._preview_active:
+            return
+        self._preview_player.seek(float(value))
+        self._prev_cur.configure(text=_fmt_clock(float(value)))
+
+    def _stop_preview(self) -> None:
+        self._preview_player.stop()
+        self._preview_active = False
+        self._slider_updating = True
+        try:
+            self._seek_slider.set(0.0)
+            self._seek_slider.configure(state="disabled")
+        finally:
+            self._slider_updating = False
+        self._prev_cur.configure(text="00:00")
+        self._stop_preview_btn.configure(state="disabled")
+        self._set_status("Đã dừng nghe thử.", theme.TEXT_DIM)
+
+    def _update_preview_tick(self) -> None:
+        if not self._preview_active:
+            return
+        ended = self._preview_player.update()
+        if self._preview_player.is_playing or self._preview_player.is_buffering:
+            pos = self._preview_player.get_position()
+            self._slider_updating = True
+            try:
+                self._seek_slider.set(pos)
+            finally:
+                self._slider_updating = False
+            self._prev_cur.configure(text=_fmt_clock(pos))
+        if ended:
+            self._preview_active = False
+            self._slider_updating = True
+            try:
+                self._seek_slider.set(0.0)
+                self._seek_slider.configure(state="disabled")
+            finally:
+                self._slider_updating = False
+            self._prev_cur.configure(text="00:00")
+            self._stop_preview_btn.configure(state="disabled")
 
     # ── Merge & Export ──
 
@@ -518,6 +635,9 @@ class MergeDialog(ctk.CTkToplevel):
                     _, dur = msg
                     self._voice_duration = dur
                     self._update_output_timeline()
+                elif kind == "preview_ready":
+                    _, waveform, sr = msg
+                    self._start_preview_playback(waveform, sr)
                 elif kind == "status":
                     _, text, color = msg
                     self._set_status(text, color)
@@ -536,12 +656,12 @@ class MergeDialog(ctk.CTkToplevel):
                     self._set_busy(False)
         except queue.Empty:
             pass
+        self._update_preview_tick()
         self.after(80, self._poll_messages)
 
     def _on_close(self) -> None:
         try:
-            import sounddevice as sd
-            sd.stop()
+            self._preview_player.quit()
         except Exception:
             pass
         self.destroy()

@@ -23,7 +23,8 @@ class PlaybackBar(ctk.CTkFrame):
         on_prev_sentence: Callable[[], None],
         on_next_sentence: Callable[[], None],
     ) -> None:
-        super().__init__(master, fg_color=theme.SURFACE, corner_radius=10)
+        super().__init__(master, fg_color=theme.SURFACE, corner_radius=10,
+                         border_width=1, border_color=theme.SIDEBAR_DIVIDER)
         self._on_toggle = on_toggle
         self._on_seek = on_seek
         self._on_prev = on_prev_sentence
@@ -54,8 +55,8 @@ class PlaybackBar(ctk.CTkFrame):
 
         btn_kw = dict(
             width=86, height=32, fg_color=theme.SURFACE, border_width=1,
-            border_color=theme.HIGHLIGHT_BG, text_color=theme.TEXT,
-            hover_color=theme.HIGHLIGHT_BG,
+            border_color=theme.SIDEBAR_DIVIDER, text_color=theme.TEXT,
+            hover_color=theme.HOVER_BG,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
         self.prev_btn = ctk.CTkButton(self, text="⏮ Câu trước", command=self._on_prev, **btn_kw)

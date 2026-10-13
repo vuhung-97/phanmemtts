@@ -192,7 +192,7 @@ class SegmentTimeline(ctk.CTkFrame):
             x = i * W / n
             h = max(1, peak * (H - 16))
             in_sel = start_x <= x + bar_w / 2 <= end_x
-            color = theme.ACCENT if in_sel else "#555577"
+            color = theme.ACCENT if in_sel else theme.WAVE_DIM
             c.create_rectangle(x, mid_y - h / 2, x + bar_w, mid_y + h / 2,
                                fill=color, outline="")
 

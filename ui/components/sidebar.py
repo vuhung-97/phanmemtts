@@ -24,6 +24,7 @@ class Sidebar(ctk.CTkFrame):
         on_voice_change: Callable[[str], None],
         on_speed_change: Callable[[float], None],
         on_convert: Callable[[], None],
+        on_stop: Callable[[], None],
         on_export: Callable[[], None],
         on_manage_voices: Callable[[], None],
         on_test_voice: Callable[[], None],
@@ -36,6 +37,7 @@ class Sidebar(ctk.CTkFrame):
         self._on_voice_change = on_voice_change
         self._on_speed_change = on_speed_change
         self._on_convert = on_convert
+        self._on_stop = on_stop
         self._on_export = on_export
         self._on_manage_voices = on_manage_voices
         self._on_test_voice = on_test_voice
@@ -140,6 +142,16 @@ class Sidebar(ctk.CTkFrame):
         self.convert_btn.grid(row=row, column=0, padx=16, pady=(8, 4), sticky="ew")
         row += 1
 
+        self._stop_row = row
+        self.stop_btn = ctk.CTkButton(
+            self, text="⏹  Dừng tạo âm thanh", height=34, fg_color=theme.ERROR,
+            hover_color="#b91c1c", corner_radius=8,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
+            command=self._on_stop,
+        )
+        # Chỉ grid khi đang bận (xem set_busy)
+        row += 1
+
         self.export_btn = ctk.CTkButton(
             self, text="💾  Xuất file", height=34,
             fg_color="transparent", border_width=1, border_color=theme.ACCENT,
@@ -202,6 +214,11 @@ class Sidebar(ctk.CTkFrame):
         self.convert_btn.configure(state=state)
         self.export_btn.configure(state=state)
         self.merge_btn.configure(state=state)
+        if busy:
+            self.stop_btn.grid(row=self._stop_row, column=0, padx=16,
+                               pady=(0, 4), sticky="ew")
+        else:
+            self.stop_btn.grid_remove()
 
     def set_status(self, message: str, color: str = theme.TEXT_DIM) -> None:
         self.status_label.configure(text=message, text_color=color)
