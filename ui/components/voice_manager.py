@@ -88,8 +88,7 @@ class VoiceManagerDialog(ctk.CTkToplevel):
 
         # Status chung (thêm/xuất/xóa)
         self.status_label = ctk.CTkLabel(
-            self, text="Giọng tùy chỉnh: tạo file trên máy khỏe bằng tools/tao_giong.py, "
-                       "rồi bấm ＋ để nhập vào máy này.",
+            self, text="",
             text_color=theme.TEXT_DIM,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1), wraplength=480,
             justify="left",
@@ -304,9 +303,7 @@ class ImportVoiceDialog(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             self,
-            text="Tạo file bằng tools/tao_giong.py trên máy khỏe, rồi copy "
-                 "file .json sang máy này.\nMẫu: 5–30 giây, 1 người nói rõ, "
-                 "ít tiếng ồn/nhạc.",
+            text="",
             text_color=theme.TEXT_DIM, font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
             wraplength=440, justify="left",
         ).grid(row=1, column=0, padx=20, pady=(0, 10), sticky="w")
