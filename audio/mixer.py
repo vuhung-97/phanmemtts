@@ -19,6 +19,32 @@ def load_audio(path: str | Path, target_sr: int = 0) -> tuple[np.ndarray, int]:
     return mono, sr
 
 
+def get_peaks(path: str | Path, num_bars: int = 200) -> tuple[np.ndarray, float]:
+    """Đọc file, trả về (peaks array 0..1, total_duration_sec) — dùng vẽ waveform mini."""
+    data, sr = sf.read(str(path), dtype="float32", always_2d=True)
+    mono = np.mean(data, axis=1)
+    duration = len(mono) / sr if sr > 0 else 0.0
+    bucket_size = max(1, len(mono) // num_bars)
+    peaks = np.array([
+        np.max(np.abs(mono[i:i + bucket_size]))
+        for i in range(0, len(mono), bucket_size)
+    ])[:num_bars]
+    if peaks.max() > 0:
+        peaks = peaks / peaks.max()
+    return peaks.astype(np.float32), duration
+
+
+def extract_segment(audio: np.ndarray, sr: int,
+                    start_sec: float, end_sec: float | None) -> np.ndarray:
+    """Cắt đoạn [start_sec, end_sec] từ audio. end_sec=None = đến hết."""
+    start = max(0, int(start_sec * sr))
+    end = int(end_sec * sr) if end_sec else len(audio)
+    end = min(end, len(audio))
+    if start >= end:
+        return np.zeros(0, dtype=np.float32)
+    return audio[start:end].copy()
+
+
 def loop_to_length(audio: np.ndarray, target_samples: int) -> np.ndarray:
     """Lặp nhạc nền cho đủ target_samples."""
     if len(audio) == 0:
@@ -55,20 +81,23 @@ def merge(config) -> tuple[np.ndarray, int]:
     """Ghép nhạc vào file gốc. Trả về (waveform float32 mono, sample_rate)."""
     voice, sr = load_audio(config.voice_path)
 
-    # Nhạc nền: loop + volume
-    if config.bg_path:
-        bg, _ = load_audio(config.bg_path, target_sr=sr)
-        bg = loop_to_length(bg, len(voice))
-        bg = apply_volume(bg, config.bg_volume)
-        voice = mix_background(voice, bg)
+    # Nhạc nền: extract segment → loop → volume
+    if config.bg:
+        raw, _ = load_audio(config.bg.path, target_sr=sr)
+        seg = extract_segment(raw, sr, config.bg.start_sec, config.bg.end_sec)
+        seg = loop_to_length(seg, len(voice))
+        seg = apply_volume(seg, config.bg_volume)
+        voice = mix_background(voice, seg)
 
     # Intro / Outro
     intro = outro = None
-    if config.intro_path:
-        intro, _ = load_audio(config.intro_path, target_sr=sr)
+    if config.intro:
+        raw, _ = load_audio(config.intro.path, target_sr=sr)
+        intro = extract_segment(raw, sr, config.intro.start_sec, config.intro.end_sec)
         intro = apply_volume(intro, config.intro_volume)
-    if config.outro_path:
-        outro, _ = load_audio(config.outro_path, target_sr=sr)
+    if config.outro:
+        raw, _ = load_audio(config.outro.path, target_sr=sr)
+        outro = extract_segment(raw, sr, config.outro.start_sec, config.outro.end_sec)
         outro = apply_volume(outro, config.outro_volume)
 
     # Nối với crossfade

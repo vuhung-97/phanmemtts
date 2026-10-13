@@ -19,6 +19,7 @@ from ui.components.sidebar import Sidebar
 from ui.components.playback_bar import PlaybackBar
 from ui.components.sync_textbox import SyncTextbox
 from ui.components.voice_manager import VoiceManagerDialog
+from ui.components.waveform_timeline import WaveformTimeline
 
 TICK_MS = 40
 BUFFER_TRIGGER_SENTENCES = 5
@@ -77,10 +78,15 @@ class MainWindow(ctk.CTk):
         main = ctk.CTkFrame(self, fg_color="transparent")
         main.grid(row=0, column=1, sticky="nsew", padx=(0, 14), pady=14)
         main.grid_rowconfigure(0, weight=1)
+        main.grid_rowconfigure(1, weight=0)
+        main.grid_rowconfigure(2, weight=0)
         main.grid_columnconfigure(0, weight=1)
 
         self.textbox = SyncTextbox(main, on_text_changed=self._on_text_changed)
         self.textbox.grid(row=0, column=0, sticky="nsew")
+
+        self.waveform_timeline = WaveformTimeline(main)
+        self.waveform_timeline.grid(row=1, column=0, sticky="ew", pady=(6, 0))
 
         self.playback_bar = PlaybackBar(
             main,
@@ -89,7 +95,7 @@ class MainWindow(ctk.CTk):
             on_prev_sentence=self._prev_sentence,
             on_next_sentence=self._next_sentence,
         )
-        self.playback_bar.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        self.playback_bar.grid(row=2, column=0, sticky="ew", pady=(6, 0))
 
     # ── Scan & voice management ──
 
@@ -232,6 +238,7 @@ class MainWindow(ctk.CTk):
         self._synth_text = None
         self._current_sentence = -1
         self._stream_has_started_playing = False
+        self.waveform_timeline.clear()
 
         self._set_busy(True)
         self.sidebar.set_status("Đang chuẩn bị mô hình...", theme.TEXT_DIM)
@@ -335,6 +342,7 @@ class MainWindow(ctk.CTk):
         self.textbox.clear_highlight()
         self.playback_bar.set_duration(0.0)
         self.playback_bar.set_playing(False)
+        self.waveform_timeline.clear()
         self.sidebar.set_status(status, theme.TEXT_DIM)
 
     def _set_busy(self, busy: bool) -> None:
@@ -381,6 +389,8 @@ class MainWindow(ctk.CTk):
             self._player.append_audio(piece)
             current_duration = len(self._waveform) / self._timeline.sample_rate
             self.playback_bar.set_duration(current_duration)
+            self.waveform_timeline.set_audio(
+                self._waveform, self._timeline.sample_rate, self._timeline.sentences)
 
             if not self._stream_has_started_playing:
                 if cur >= BUFFER_TRIGGER_SENTENCES or cur == tot:
@@ -433,12 +443,14 @@ class MainWindow(ctk.CTk):
             self.playback_bar.set_playing(True)
             position = self._player.get_position()
             self.playback_bar.set_position(position)
+            self.waveform_timeline.update_position(position)
             self._highlight_at(position)
 
         if ended:
             self.playback_bar.set_playing(False)
             self.textbox.clear_highlight()
             self.playback_bar.set_position(0.0)
+            self.waveform_timeline.update_position(0.0)
 
         self.after(TICK_MS, self._tick)
 

@@ -8,23 +8,36 @@ import customtkinter as ctk
 import numpy as np
 
 from audio import exporter, mixer
-from core.models import MusicMergeConfig
+from core.models import MusicMergeConfig, TrackSegment
 from ui import theme
+from ui.components.segment_timeline import SegmentTimeline
 
 AUDIO_FILTER = [("Audio", "*.mp3;*.wav"), ("MP3", "*.mp3"), ("WAV", "*.wav"),
                 ("Tất cả", "*.*")]
 CROSSFADE_OPTIONS = ["0.0s", "0.3s", "0.5s", "1.0s"]
 
+_OUT_H = 56
+_INTRO_COLOR = "#3d5a80"
+_VOICE_COLOR = "#4caf7d"
+_OUTRO_COLOR = "#e8a04a"
+
+
+def _fmt(sec: float) -> str:
+    sec = max(0.0, sec)
+    m = int(sec // 60)
+    s = sec - m * 60
+    return f"{m}:{s:02.0f}" if m > 0 else f"{s:.1f}s"
+
 
 class MergeDialog(ctk.CTkToplevel):
-    """Popup ghép nhạc vào file âm thanh."""
+    """Popup ghép nhạc — mỗi track có SegmentTimeline kéo thả."""
 
     def __init__(self, master, export_history: list[str] | None = None,
                  on_merged=None) -> None:
         super().__init__(master)
         self.title("🎵 Ghép nhạc vào file âm thanh")
-        self.geometry("560x680")
-        self.minsize(480, 560)
+        self.geometry("600x900")
+        self.minsize(540, 700)
         self.configure(fg_color=theme.DIALOG_BG)
         self.transient(master)
         self.grab_set()
@@ -34,9 +47,15 @@ class MergeDialog(ctk.CTkToplevel):
         self._busy = False
 
         self._voice_path: str | None = None
+        self._voice_duration: float = 0.0
+
+        # intro / bg / outro
         self._intro_path: str | None = None
         self._bg_path: str | None = None
         self._outro_path: str | None = None
+        self._intro_dur: float = 0.0
+        self._bg_dur: float = 0.0
+        self._outro_dur: float = 0.0
 
         self._build_ui(export_history or [])
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -76,24 +95,24 @@ class MergeDialog(ctk.CTkToplevel):
 
         self.voice_label = ctk.CTkLabel(
             self, text="Chưa chọn file", text_color=theme.TEXT_DIM, anchor="w",
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1), wraplength=520,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1), wraplength=560,
         )
         self.voice_label.grid(row=row + 1, column=0, padx=20, sticky="w")
         row += 2
 
         # ── Intro ──
-        self._intro_label = self._track_row("Nhạc mở đầu (intro)", row,
-                                            default_vol=70)
+        self._intro_label = self._track_row("intro", "Nhạc mở đầu (intro)",
+                                            row, default_vol=70)
         row += 2
 
         # ── Background ──
-        self._bg_label = self._track_row("Nhạc nền (tự lặp)", row,
-                                         default_vol=15)
+        self._bg_label = self._track_row("bg", "Nhạc nền (tự lặp)",
+                                         row, default_vol=15)
         row += 2
 
         # ── Outro ──
-        self._outro_label = self._track_row("Nhạc kết thúc (outro)", row,
-                                            default_vol=70)
+        self._outro_label = self._track_row("outro", "Nhạc kết thúc (outro)",
+                                            row, default_vol=70)
         row += 2
 
         # ── Crossfade ──
@@ -101,7 +120,7 @@ class MergeDialog(ctk.CTkToplevel):
         row += 1
         self.crossfade_combo = ctk.CTkComboBox(
             self, state="readonly", values=CROSSFADE_OPTIONS,
-            width=120, height=32, command=lambda _: None,
+            width=120, height=32, command=lambda _: self._update_output_timeline(),
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
             dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
@@ -110,9 +129,27 @@ class MergeDialog(ctk.CTkToplevel):
                                   sticky="w")
         row += 1
 
+        # ── Output timeline ──
+        self._section("Timeline output", row)
+        row += 1
+        self._out_canvas = ctk.CTkCanvas(
+            self, highlightthickness=0, bg=theme.SURFACE, height=_OUT_H,
+        )
+        self._out_canvas.grid(row=row, column=0, padx=20, pady=(2, 4),
+                              sticky="ew")
+        self._out_canvas.bind("<Configure>", lambda _: self._update_output_timeline())
+        row += 1
+
+        self._out_ruler = ctk.CTkLabel(
+            self, text="", text_color=theme.TEXT_DIM,
+            font=(theme.FONT_FAMILY, 9),
+        )
+        self._out_ruler.grid(row=row, column=0, padx=20, sticky="w")
+        row += 1
+
         # ── Buttons ──
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
-        btn_row.grid(row=row, column=0, padx=20, pady=(4, 4), sticky="ew")
+        btn_row.grid(row=row, column=0, padx=20, pady=(8, 4), sticky="ew")
         btn_row.grid_columnconfigure((0, 1), weight=1)
 
         self.preview_btn = ctk.CTkButton(
@@ -136,7 +173,7 @@ class MergeDialog(ctk.CTkToplevel):
         # ── Status ──
         self.status_label = ctk.CTkLabel(
             self, text="", text_color=theme.TEXT_DIM, anchor="w",
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE), wraplength=520,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE), wraplength=560,
         )
         self.status_label.grid(row=100, column=0, padx=20, pady=(8, 16),
                                sticky="sew")
@@ -148,13 +185,15 @@ class MergeDialog(ctk.CTkToplevel):
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
         ).grid(row=row, column=0, padx=20, pady=(8, 0), sticky="w")
 
-    def _track_row(self, title: str, row: int, default_vol: int) -> ctk.CTkLabel:
+    def _track_row(self, key: str, title: str, row: int,
+                   default_vol: int) -> ctk.CTkLabel:
         self._section(title, row)
 
         body = ctk.CTkFrame(self, fg_color=theme.SURFACE, corner_radius=8)
         body.grid(row=row + 1, column=0, padx=20, pady=(2, 4), sticky="ew")
         body.grid_columnconfigure(0, weight=1)
 
+        # Top: path + buttons
         top = ctk.CTkFrame(body, fg_color="transparent")
         top.grid(row=0, column=0, padx=10, pady=(8, 2), sticky="ew")
         top.grid_columnconfigure(0, weight=1)
@@ -169,26 +208,32 @@ class MergeDialog(ctk.CTkToplevel):
             top, text="📁", width=36, height=28,
             fg_color="transparent", border_width=1, border_color=theme.ACCENT,
             text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=6,
-            command=lambda: self._browse_track(title),
+            command=lambda k=key: self._browse_track(k),
         ).grid(row=0, column=1, padx=(0, 4))
 
         ctk.CTkButton(
             top, text="✕", width=28, height=28,
             fg_color="transparent", border_width=1, border_color=theme.ERROR,
             text_color=theme.ERROR, hover_color=theme.SURFACE, corner_radius=6,
-            command=lambda: self._clear_track(title),
+            command=lambda k=key, lbl=path_label: self._clear_track(k, lbl),
         ).grid(row=0, column=2)
 
+        # SegmentTimeline
+        timeline = SegmentTimeline(body, on_change=lambda s, e, k=key:
+                                   self._on_segment_change(k))
+        timeline.grid(row=1, column=0, padx=10, pady=(2, 2), sticky="ew")
+
+        # Volume + duration
         vol_row = ctk.CTkFrame(body, fg_color="transparent")
-        vol_row.grid(row=1, column=0, padx=10, pady=(2, 8), sticky="ew")
-        vol_row.grid_columnconfigure(0, weight=1)
+        vol_row.grid(row=2, column=0, padx=10, pady=(2, 8), sticky="ew")
+        vol_row.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(vol_row, text="Volume:", text_color=theme.TEXT_DIM,
                      font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1)).grid(
             row=0, column=0, sticky="w")
 
         slider = ctk.CTkSlider(
-            vol_row, from_=0, to=100, number_of_steps=20, width=180,
+            vol_row, from_=0, to=100, number_of_steps=20, width=140,
         )
         slider.set(default_vol)
         slider.grid(row=0, column=1, padx=(4, 6))
@@ -201,16 +246,35 @@ class MergeDialog(ctk.CTkToplevel):
         slider.configure(command=lambda v, lbl=pct_label: lbl.configure(
             text=f"{int(float(v))}%"))
 
-        # Lưu tham chiếu
-        title_key = title.lower()
-        if "intro" in title_key or "mở đầu" in title_key:
-            self._intro_slider, self._intro_pct = slider, pct_label
-        elif "nền" in title_key or "background" in title_key:
-            self._bg_slider, self._bg_pct = slider, pct_label
+        dur_label = ctk.CTkLabel(vol_row, text="Đoạn: —",
+                                 text_color=theme.TEXT_DIM, width=80,
+                                 font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1))
+        dur_label.grid(row=0, column=3, padx=(8, 0))
+
+        # Lưu refs
+        refs = {
+            "path_label": path_label,
+            "timeline": timeline,
+            "slider": slider,
+            "pct": pct_label,
+            "dur": dur_label,
+        }
+        if key == "intro":
+            self._intro_refs = refs
+        elif key == "bg":
+            self._bg_refs = refs
         else:
-            self._outro_slider, self._outro_pct = slider, pct_label
+            self._outro_refs = refs
 
         return path_label
+
+    # ── Segment change callback ──
+
+    def _on_segment_change(self, key: str) -> None:
+        refs = getattr(self, f"_{key}_refs")
+        start, end = refs["timeline"].get_range()
+        refs["dur"].configure(text=f"Đoạn: {end - start:.1f}s")
+        self._update_output_timeline()
 
     # ── Chọn file ──
 
@@ -226,36 +290,55 @@ class MergeDialog(ctk.CTkToplevel):
             self._voice_path = path
             self.voice_label.configure(text=path, text_color=theme.TEXT)
             self.voice_combo.set(path.split("/")[-1].split("\\")[-1])
+            threading.Thread(target=self._load_voice_dur_worker,
+                             args=(path,), daemon=True).start()
 
-    def _browse_track(self, title: str) -> None:
-        path = filedialog.askopenfilename(title=f"Chọn nhạc: {title}",
-                                          filetypes=AUDIO_FILTER)
+    def _load_voice_dur_worker(self, path: str) -> None:
+        try:
+            _, sr = mixer.load_audio(path)
+            import soundfile as sf
+            info = sf.info(path)
+            dur = info.duration
+            self._messages.put(("voice_dur", dur))
+        except Exception as exc:
+            self._messages.put(("error", str(exc)))
+
+    def _browse_track(self, key: str) -> None:
+        path = filedialog.askopenfilename(
+            title=f"Chọn nhạc: {key}", filetypes=AUDIO_FILTER)
         if not path:
             return
-        name = title.lower()
-        if "mở đầu" in name or "intro" in name:
-            self._intro_path = path
-            self._intro_label.configure(text=path, text_color=theme.TEXT)
-        elif "nền" in name or "background" in name:
-            self._bg_path = path
-            self._bg_label.configure(text=path, text_color=theme.TEXT)
-        else:
-            self._outro_path = path
-            self._outro_label.configure(text=path, text_color=theme.TEXT)
+        refs = getattr(self, f"_{key}_refs")
+        refs["path_label"].configure(text=path, text_color=theme.TEXT)
+        setattr(self, f"_{key}_path", path)
+        threading.Thread(target=self._load_peaks_worker,
+                         args=(path, key), daemon=True).start()
 
-    def _clear_track(self, title: str) -> None:
-        name = title.lower()
-        if "mở đầu" in name or "intro" in name:
-            self._intro_path = None
-            self._intro_label.configure(text="Chưa chọn", text_color=theme.TEXT_DIM)
-        elif "nền" in name or "background" in name:
-            self._bg_path = None
-            self._bg_label.configure(text="Chưa chọn", text_color=theme.TEXT_DIM)
-        else:
-            self._outro_path = None
-            self._outro_label.configure(text="Chưa chọn", text_color=theme.TEXT_DIM)
+    def _load_peaks_worker(self, path: str, key: str) -> None:
+        try:
+            peaks, duration = mixer.get_peaks(path, num_bars=150)
+            self._messages.put(("peaks", key, peaks, duration))
+        except Exception as exc:
+            self._messages.put(("error", str(exc)))
+
+    def _clear_track(self, key: str, path_label) -> None:
+        setattr(self, f"_{key}_path", None)
+        setattr(self, f"_{key}_dur", 0.0)
+        path_label.configure(text="Chưa chọn", text_color=theme.TEXT_DIM)
+        refs = getattr(self, f"_{key}_refs")
+        refs["timeline"].clear()
+        refs["dur"].configure(text="Đoạn: —")
+        self._update_output_timeline()
 
     # ── Config ──
+
+    def _make_segment(self, key: str) -> TrackSegment | None:
+        path = getattr(self, f"_{key}_path")
+        if not path:
+            return None
+        refs = getattr(self, f"_{key}_refs")
+        start, end = refs["timeline"].get_range()
+        return TrackSegment(path=path, start_sec=start, end_sec=end)
 
     def _build_config(self) -> MusicMergeConfig | None:
         if not self._voice_path:
@@ -263,14 +346,96 @@ class MergeDialog(ctk.CTkToplevel):
             return None
         return MusicMergeConfig(
             voice_path=self._voice_path,
-            intro_path=self._intro_path,
-            bg_path=self._bg_path,
-            outro_path=self._outro_path,
-            intro_volume=self._intro_slider.get() / 100.0,
-            bg_volume=self._bg_slider.get() / 100.0,
-            outro_volume=self._outro_slider.get() / 100.0,
+            intro=self._make_segment("intro"),
+            bg=self._make_segment("bg"),
+            outro=self._make_segment("outro"),
+            intro_volume=self._intro_refs["slider"].get() / 100.0,
+            bg_volume=self._bg_refs["slider"].get() / 100.0,
+            outro_volume=self._outro_refs["slider"].get() / 100.0,
             crossfade_sec=float(self.crossfade_combo.get().replace("s", "")),
         )
+
+    # ── Output timeline ──
+
+    def _update_output_timeline(self) -> None:
+        c = self._out_canvas
+        c.delete("all")
+        W = c.winfo_width()
+        H = c.winfo_height()
+        if W <= 1:
+            return
+
+        c.create_rectangle(0, 0, W, H, fill=theme.SURFACE, outline="")
+
+        fade = float(self.crossfade_combo.get().replace("s", ""))
+        intro_dur = 0.0
+        bg_dur = 0.0
+        outro_dur = 0.0
+
+        if self._intro_path:
+            s, e = self._intro_refs["timeline"].get_range()
+            intro_dur = e - s
+        if self._bg_path:
+            s, e = self._bg_refs["timeline"].get_range()
+            bg_dur = e - s   # hiển thị độ dài đoạn bg (sau loop = voice_dur)
+        if self._outro_path:
+            s, e = self._outro_refs["timeline"].get_range()
+            outro_dur = e - s
+
+        voice_dur = self._voice_duration
+
+        if intro_dur <= 0 and voice_dur <= 0 and outro_dur <= 0:
+            c.create_text(W // 2, H // 2, text="Chọn file để xem timeline",
+                          fill=theme.TEXT_DIM,
+                          font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1))
+            self._out_ruler.configure(text="")
+            return
+
+        # Tổng thời lượng output
+        total = max(intro_dur + voice_dur + outro_dur - 2 * fade, 0.1)
+
+        # Vẽ blocks
+        margin = 4
+        inner_w = W - 2 * margin
+        x = margin
+        segments = []
+        if intro_dur > 0:
+            segments.append(("intro", intro_dur, _INTRO_COLOR))
+        segments.append(("voice", max(voice_dur, 0.5), _VOICE_COLOR))
+        if outro_dur > 0:
+            segments.append(("outro", outro_dur, _OUTRO_COLOR))
+
+        for name, dur, color in segments:
+            bw = dur / total * inner_w
+            c.create_rectangle(x, 4, x + bw, H - 4, fill=color, outline="")
+            label = name.capitalize() if name != "bg" else "BG"
+            if bw > 40:
+                c.create_text(x + bw / 2, H / 2, text=label, fill="#fff",
+                              font=(theme.FONT_FAMILY, 10, "bold"))
+            segments_info = (name, x, x + bw)
+            x += bw
+
+        # Crossfade markers
+        x = margin
+        for i, (name, dur, color) in enumerate(segments):
+            bw = dur / total * inner_w
+            if i > 0 and fade > 0:
+                # Vùng overlap crossfade
+                cx = x
+                c.create_rectangle(cx - fade / total * inner_w, 4,
+                                   cx + fade / total * inner_w, H - 4,
+                                   fill=theme.BG, stipple="gray25", outline="")
+            x += bw
+
+        # Ruler
+        ruler_parts = []
+        if intro_dur > 0:
+            ruler_parts.append(f"Intro 0:00→{_fmt(intro_dur)}")
+        ruler_parts.append(f"Voice {_fmt(intro_dur)}→{_fmt(intro_dur + voice_dur)}")
+        if outro_dur > 0:
+            ruler_parts.append(
+                f"Outro {_fmt(intro_dur + voice_dur)}→{_fmt(total)}")
+        self._out_ruler.configure(text="  |  ".join(ruler_parts))
 
     # ── Preview ──
 
@@ -288,7 +453,6 @@ class MergeDialog(ctk.CTkToplevel):
     def _preview_worker(self, config) -> None:
         try:
             import sounddevice as sd
-
             waveform, sr = mixer.merge(config)
             sd.stop()
             sd.play(waveform, sr)
@@ -342,7 +506,19 @@ class MergeDialog(ctk.CTkToplevel):
             while True:
                 msg = self._messages.get_nowait()
                 kind = msg[0]
-                if kind == "status":
+                if kind == "peaks":
+                    _, key, peaks, duration = msg
+                    refs = getattr(self, f"_{key}_refs")
+                    refs["timeline"].set_audio(peaks, duration)
+                    setattr(self, f"_{key}_dur", duration)
+                    s, e = refs["timeline"].get_range()
+                    refs["dur"].configure(text=f"Đoạn: {e - s:.1f}s")
+                    self._update_output_timeline()
+                elif kind == "voice_dur":
+                    _, dur = msg
+                    self._voice_duration = dur
+                    self._update_output_timeline()
+                elif kind == "status":
                     _, text, color = msg
                     self._set_status(text, color)
                 elif kind == "merged":

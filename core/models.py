@@ -59,11 +59,18 @@ class TimelineMap:
 
 
 @dataclass
+class TrackSegment:
+    path: str
+    start_sec: float = 0.0
+    end_sec: float | None = None   # None = đến hết file
+
+
+@dataclass
 class MusicMergeConfig:
     voice_path: str
-    intro_path: str | None = None
-    bg_path: str | None = None
-    outro_path: str | None = None
+    intro: TrackSegment | None = None
+    bg: TrackSegment | None = None
+    outro: TrackSegment | None = None
     intro_volume: float = 0.7
     bg_volume: float = 0.15
     outro_volume: float = 0.7
