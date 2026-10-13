@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Models — tải bằng download_model.py
+models/
+!models/README.md
+
+# Audio output
+*.wav
+*.mp3
+outputs/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# HF cache local
+hf_cache/
