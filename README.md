@@ -4,7 +4,7 @@
 
 ## Tính năng
 
-- **2 engine TTS**: VieNeu v3 Turbo (48kHz, 25 giọng) + Kokoro-Vietnamese (24kHz, 13 giọng)
+- **Engine TTS VieNeu v3 Turbo**: 48kHz, 25 giọng preset, chạy offline CPU
 - Sidebar hiện đại, quản lý giọng đọc bằng checkbox
 - Test giọng nhanh với câu tùy chỉnh
 - Đọc streaming từng câu, highlight câu đang phát
@@ -27,10 +27,10 @@ python main.py
 
 ```
 ├── main.py                 # Entry point
-├── download_model.py       # Tải model Kokoro + VieNeu
+├── download_model.py       # Tải model VieNeu
 ├── requirements.txt
 ├── core/                   # Text processing, models
-├── engine/                 # TTS engines (Kokoro, VieNeu)
+├── engine/                 # TTS engine (VieNeu)
 ├── audio/                  # Player, exporter
 └── ui/                     # CustomTkinter UI
 ```

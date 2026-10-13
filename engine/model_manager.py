@@ -28,10 +28,7 @@ class ModelManager:
         if not self.models_dir.exists():
             return results
         for folder in sorted(self.models_dir.iterdir()):
-            if not folder.is_dir() or folder.name == "shared":
-                continue
-            if folder.name == "kokoro_vi":
-                results.extend(self._scan_kokoro(folder))
+            if not folder.is_dir() or folder.name in ("shared", "kokoro_vi"):
                 continue
             if folder.name == "vieneu":
                 results.extend(self._scan_vieneu())
@@ -58,37 +55,6 @@ class ModelManager:
                     config_path=config_path,
                     tokens_path=tokens_path,
                     data_dir=data_dir,
-                )
-            )
-        return results
-
-    def _scan_kokoro(self, folder: Path) -> list[VoiceModelInfo]:
-        """Mỗi voicepack trong kokoro_vi là một entry giọng đọc riêng."""
-        results: list[VoiceModelInfo] = []
-        model_path = folder / "kokoro_vi.onnx"
-        config_path = folder / "config.json"
-        voices_file = folder / "voices.json"
-        if not (model_path.exists() and config_path.exists() and voices_file.exists()):
-            return results
-        try:
-            voices = json.loads(voices_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return results
-        for voice_key, meta in sorted(voices.items()):
-            voicepack = folder / meta.get("filename", "")
-            if not voicepack.exists():
-                continue
-            results.append(
-                VoiceModelInfo(
-                    model_id=f"kokoro_vi:{voice_key}",
-                    display_name=f"{meta.get('label', voice_key)} (Kokoro)",
-                    language="vi",
-                    model_path=model_path,
-                    config_path=config_path,
-                    tokens_path=voicepack,
-                    data_dir=folder,
-                    engine="kokoro",
-                    voicepack_path=voicepack,
                 )
             )
         return results
@@ -178,16 +144,6 @@ class ModelManager:
 
 
 def _build_tts(info: VoiceModelInfo, num_threads: int):
-    if info.engine == "kokoro":
-        from engine.kokoro_engine import KokoroTTS
-
-        return KokoroTTS(
-            model_path=info.model_path,
-            config_path=info.config_path,
-            voicepack_path=info.voicepack_path or info.tokens_path,
-            num_threads=num_threads,
-        )
-
     if info.engine == "vieneu":
         from engine.vieneu_engine import VieneuTTS
 

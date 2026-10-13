@@ -1,6 +1,6 @@
 """Chuẩn hóa số/ký hiệu trong văn bản thành chữ tiếng Việt trước khi đọc.
 
-Vì sao cần: bộ từ vựng Kokoro (và nhiều model TTS) không chứa ký tự số
+Vì sao cần: bộ từ vựng của model TTS không chứa ký tự số
 0-9, số phải được chuyển thành chữ ("2024" -> "hai nghìn không trăm
 hai mươi bốn") thì mô hình mới phát âm được.
 

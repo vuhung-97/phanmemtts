@@ -13,7 +13,7 @@ class VoiceModelInfo:
     config_path: Path
     tokens_path: Path
     data_dir: Path
-    engine: str = "kokoro"
+    engine: str = "vieneu"
     voicepack_path: Path | None = None
 
 
