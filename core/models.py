@@ -38,6 +38,22 @@ class TimelineMap:
             return 0.0
         return self.sentences[-1].end_sec
 
+    def scaled(self, speed: float) -> "TimelineMap":
+        """Timeline mới với mọi mốc thời gian chia cho speed (time-stretch uniform)."""
+        if abs(speed - 1.0) < 1e-9:
+            return self
+        return TimelineMap(
+            sentences=[
+                SentenceItem(
+                    index=s.index, text=s.text,
+                    char_start=s.char_start, char_end=s.char_end,
+                    start_sec=s.start_sec / speed, end_sec=s.end_sec / speed,
+                )
+                for s in self.sentences
+            ],
+            sample_rate=self.sample_rate,
+        )
+
     def find_index_by_time(self, seconds: float) -> int:
         if not self.sentences:
             return -1

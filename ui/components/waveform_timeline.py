@@ -65,18 +65,6 @@ class WaveformTimeline(ctk.CTkFrame):
             c.create_arc(bx1, by1, bx2, by2, start=start, extent=extent,
                          style="pieslice", fill=theme.TIMELINE_BG, outline="")
 
-    def _draw_border(self, c, W: int, H: int) -> None:
-        r = self._R
-        b = theme.TIMELINE_BORDER
-        for _, (bx1, by1, bx2, by2), start, extent in self._corner_specs(W, H):
-            c.create_arc(bx1, by1, bx2, by2, start=start, extent=extent,
-                         style="arc", outline=b, width=1)
-        # 4 đường thẳng nối các cung viền
-        c.create_line(r, 0.5, W - r, 0.5, fill=b)
-        c.create_line(r, H - 1.5, W - r, H - 1.5, fill=b)
-        c.create_line(0.5, r, 0.5, H - r, fill=b)
-        c.create_line(W - 1.5, r, W - 1.5, H - r, fill=b)
-
     # ── Public API ──
 
     def set_audio(self, waveform: np.ndarray, sample_rate: int,
@@ -141,7 +129,6 @@ class WaveformTimeline(ctk.CTkFrame):
                           fill=theme.TIMELINE_TEXT,
                           font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1))
             self._clip_corners(c, W, H)
-            self._draw_border(c, W, H)
             return
 
         # Waveform bars
@@ -177,7 +164,6 @@ class WaveformTimeline(ctk.CTkFrame):
 
         # Đục góc bo + viền sau cùng để cắt content tràn ra ngoài
         self._clip_corners(c, W, H)
-        self._draw_border(c, W, H)
 
     def _draw_ruler(self, c, W: int, H: int) -> None:
         if self._duration <= 0:

@@ -73,12 +73,5 @@ class VieneuTTS:
 
     @staticmethod
     def _apply_speed(samples: np.ndarray, speed: float) -> np.ndarray:
-        """Speed thật: model không hỗ trợ -> time-stretch sau khi sinh (giữ cao độ)."""
-        if abs(speed - 1.0) < 0.01 or len(samples) < 1024:
-            return samples
-        try:
-            from librosa import effects
-            out = effects.time_stretch(samples, rate=float(speed))
-            return np.asarray(out, dtype=np.float32)
-        except Exception:
-            return samples   # fail-safe: giữ audio gốc, không crash export
+        from audio.speed import apply_speed
+        return apply_speed(samples, speed)
