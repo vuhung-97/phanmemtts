@@ -78,8 +78,18 @@ def mix_background(voice: np.ndarray, bg: np.ndarray) -> np.ndarray:
 
 
 def merge(config) -> tuple[np.ndarray, int]:
-    """Ghép nhạc vào file gốc. Trả về (waveform float32 mono, sample_rate)."""
-    voice, sr = load_audio(config.voice_path)
+    """Ghép nhạc vào file gốc. Trả về (waveform float32 mono, sample_rate).
+
+    config.voice_paths: nhiều đoạn giọng đọc được nối theo thứ tự
+    (resample về sample_rate của đoạn đầu).
+    """
+    if not config.voice_paths:
+        raise ValueError("Chưa chọn file gốc.")
+
+    voice, sr = load_audio(config.voice_paths[0])
+    for path in config.voice_paths[1:]:
+        seg, _ = load_audio(path, target_sr=sr)
+        voice = np.concatenate([voice, seg]).astype(np.float32)
 
     # Nhạc nền: extract segment → loop → volume
     if config.bg:

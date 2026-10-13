@@ -67,7 +67,7 @@ class TrackSegment:
 
 @dataclass
 class MusicMergeConfig:
-    voice_path: str
+    voice_paths: list[str] = field(default_factory=list)  # nối theo thứ tự
     intro: TrackSegment | None = None
     bg: TrackSegment | None = None
     outro: TrackSegment | None = None

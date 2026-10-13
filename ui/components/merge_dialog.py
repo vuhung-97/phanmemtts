@@ -41,8 +41,11 @@ class MergeDialog(ctk.CTkToplevel):
                  on_merged=None) -> None:
         super().__init__(master)
         self.title("🎵 Ghép nhạc vào file âm thanh")
-        self.geometry("640x1010")
-        self.minsize(560, 880)
+        # Chiều rộng 100% màn hình, chiều cao tối đa nhưng không vượt màn hình
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        self.geometry(f"{sw}x{min(1010, sh - 50)}+0+0")
+        self.minsize(800, 600)
         self.configure(fg_color=theme.DIALOG_BG)
         self.transient(master)
         self.grab_set()
@@ -57,8 +60,9 @@ class MergeDialog(ctk.CTkToplevel):
         self._preview_active = False
         self._slider_updating = False
 
-        self._voice_path: str | None = None
-        self._voice_duration: float = 0.0
+        # Các đoạn giọng đọc (nối theo thứ tự)
+        self._voice_paths: list[str] = []
+        self._voice_durations: list[float] = []
 
         # intro / bg / outro
         self._intro_path: str | None = None
@@ -79,37 +83,42 @@ class MergeDialog(ctk.CTkToplevel):
         self.grid_columnconfigure(0, weight=1)
         row = 0
 
-        # ── File gốc ──
-        self._section("File gốc (.mp3 / .wav)", row)
+        # ── File gốc (nhiều đoạn nối tiếp) ──
+        self._section("File gốc — bấm ＋ để ghép thêm đoạn (.mp3 / .wav)", row)
         row += 1
 
-        voice_row = ctk.CTkFrame(self, fg_color="transparent")
-        voice_row.grid(row=row, column=0, padx=20, pady=(2, 4), sticky="ew")
-        voice_row.grid_columnconfigure(0, weight=1)
+        self._voice_list = ctk.CTkFrame(self, fg_color="transparent")
+        self._voice_list.grid(row=row, column=0, padx=20, pady=(2, 2),
+                              sticky="ew")
+        self._voice_list.grid_columnconfigure(1, weight=1)
+        row += 1
 
-        values = export_history if export_history else ["(chưa có file)"]
-        self.voice_combo = ctk.CTkComboBox(
-            voice_row, state="readonly", values=values,
-            command=self._on_voice_combo, height=32,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE),
-            dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
-        )
-        self.voice_combo.set(values[0])
-        self.voice_combo.grid(row=0, column=0, padx=(0, 6), sticky="ew")
+        voice_btn_row = ctk.CTkFrame(self, fg_color="transparent")
+        voice_btn_row.grid(row=row, column=0, padx=20, pady=(2, 4), sticky="ew")
+        row += 1
+        self._voice_btn_row = voice_btn_row
 
-        ctk.CTkButton(
-            voice_row, text="📁", width=40, height=32,
-            fg_color=theme.SURFACE, border_width=1, border_color=theme.ACCENT,
-            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=6,
-            command=self._browse_voice,
-        ).grid(row=0, column=1)
+        # History Quick-pick: chọn nhanh file đã xuất gần đây
+        if export_history:
+            hist_row = ctk.CTkFrame(self, fg_color="transparent")
+            hist_row.grid(row=row, column=0, padx=20, pady=(0, 4), sticky="ew")
+            hist_row.grid_columnconfigure(1, weight=1)
+            ctk.CTkLabel(hist_row, text="Gần đây:",
+                         text_color=theme.TEXT_DIM,
+                         font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1)).grid(
+                row=0, column=0, padx=(0, 6))
+            self.voice_combo = ctk.CTkComboBox(
+                hist_row, state="readonly", values=export_history,
+                command=self._on_history_pick, height=30,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE),
+                dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
+            )
+            self.voice_combo.set(export_history[0])
+            self.voice_combo.grid(row=0, column=1, sticky="ew")
+            row += 1
 
-        self.voice_label = ctk.CTkLabel(
-            self, text="Chưa chọn file", text_color=theme.TEXT_DIM, anchor="w",
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1), wraplength=560,
-        )
-        self.voice_label.grid(row=row + 1, column=0, padx=20, sticky="w")
-        row += 2
+        self._render_voice_list()
+        row += 1
 
         # ── Intro ──
         self._intro_label = self._track_row("intro", "Nhạc mở đầu (intro)",
@@ -168,27 +177,28 @@ class MergeDialog(ctk.CTkToplevel):
         self._out_ruler.grid(row=row, column=0, padx=20, sticky="w")
         row += 1
 
-        # ── Buttons ──
+        # ── Buttons (căn giữa, không kéo 100% cho gọn) ──
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.grid(row=row, column=0, padx=20, pady=(8, 4), sticky="ew")
-        btn_row.grid_columnconfigure((0, 1), weight=1)
+        btn_row.grid_columnconfigure((0, 3), weight=1)
+        btn_row.grid_columnconfigure((1, 2), weight=0)
 
         self.preview_btn = ctk.CTkButton(
-            btn_row, text="▶  Nghe thử", height=36,
+            btn_row, text="▶  Nghe thử", width=260, height=36,
             fg_color="transparent", border_width=1, border_color=theme.ACCENT,
             text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=8,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
             command=self._preview,
         )
-        self.preview_btn.grid(row=0, column=0, padx=(0, 4), sticky="ew")
+        self.preview_btn.grid(row=0, column=1, padx=(0, 6), sticky="")
 
         self.merge_btn = ctk.CTkButton(
-            btn_row, text="💾  Ghép & Xuất file", height=36,
+            btn_row, text="💾  Ghép & Xuất file", width=300, height=36,
             fg_color=theme.SUCCESS, hover_color="#3d9a6c", corner_radius=8,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
             command=self._start_merge,
         )
-        self.merge_btn.grid(row=0, column=1, padx=(4, 0), sticky="ew")
+        self.merge_btn.grid(row=0, column=2, padx=(6, 0), sticky="")
         row += 1
 
         # ── Thanh tua khi nghe thử ──
@@ -226,7 +236,8 @@ class MergeDialog(ctk.CTkToplevel):
         # ── Status ──
         self.status_label = ctk.CTkLabel(
             self, text="", text_color=theme.TEXT_DIM, anchor="w",
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE), wraplength=560,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE),
+            wraplength=self.winfo_screenwidth() - 80,
         )
         self.status_label.grid(row=100, column=0, padx=20, pady=(8, 16),
                                sticky="sew")
@@ -331,28 +342,101 @@ class MergeDialog(ctk.CTkToplevel):
 
     # ── Chọn file ──
 
-    def _on_voice_combo(self, value: str) -> None:
+    # ── Các đoạn giọng đọc (nối tiếp) ──
+
+    def _render_voice_list(self) -> None:
+        for w in self._voice_list.winfo_children():
+            w.destroy()
+
+        if not self._voice_paths:
+            ctk.CTkLabel(
+                self._voice_list, text="Chưa chọn file gốc",
+                text_color=theme.TEXT_DIM, anchor="w",
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
+            ).grid(row=0, column=0, padx=4, pady=4, sticky="w")
+        else:
+            for i, path in enumerate(self._voice_paths):
+                tag = "Gốc" if i == 0 else f"Đoạn {i + 1}"
+                ctk.CTkLabel(
+                    self._voice_list, text=tag, width=64, anchor="w",
+                    text_color=theme.ACCENT,
+                    font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1, "bold"),
+                ).grid(row=i, column=0, padx=(4, 0), pady=2, sticky="w")
+
+                ctk.CTkLabel(
+                    self._voice_list, text=path, anchor="w",
+                    text_color=theme.TEXT,
+                    font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
+                ).grid(row=i, column=1, padx=6, pady=2, sticky="ew")
+
+                ctk.CTkButton(
+                    self._voice_list, text="✕", width=28, height=26,
+                    fg_color="transparent", border_width=1,
+                    border_color=theme.ERROR, text_color=theme.ERROR,
+                    hover_color=theme.SURFACE, corner_radius=6,
+                    command=lambda idx=i: self._remove_voice(idx),
+                ).grid(row=i, column=2, padx=(0, 4), pady=2)
+
+        # Nút thêm / chọn file
+        for w in self._voice_btn_row.winfo_children():
+            w.destroy()
+        if not self._voice_paths:
+            ctk.CTkButton(
+                self._voice_btn_row, text="📁  Chọn file gốc", width=200,
+                height=32, fg_color="transparent", border_width=1,
+                border_color=theme.ACCENT, text_color=theme.ACCENT,
+                hover_color=theme.SURFACE, corner_radius=8,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
+                command=lambda: self._add_voice(),
+            ).grid(row=0, column=0, sticky="w")
+        else:
+            ctk.CTkButton(
+                self._voice_btn_row, text="＋  Thêm đoạn", width=160,
+                height=32, fg_color="transparent", border_width=1,
+                border_color=theme.ACCENT, text_color=theme.ACCENT,
+                hover_color=theme.SURFACE, corner_radius=8,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
+                command=lambda: self._add_voice(),
+            ).grid(row=0, column=0, sticky="w")
+
+            ctk.CTkLabel(
+                self._voice_btn_row,
+                text=f"{len(self._voice_paths)} đoạn sẽ được nối theo thứ tự",
+                text_color=theme.TEXT_DIM,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
+            ).grid(row=0, column=1, padx=(10, 0), sticky="w")
+
+    def _add_voice(self, path: str | None = None) -> None:
+        if path is None:
+            path = filedialog.askopenfilename(
+                title="Chọn file âm thanh (nối vào đoạn gốc)",
+                filetypes=AUDIO_FILTER)
+        if not path:
+            return
+        self._voice_paths.append(path)
+        self._render_voice_list()
+        self._update_output_timeline()
+        threading.Thread(target=self._load_voice_durs_worker,
+                         args=(list(self._voice_paths),), daemon=True).start()
+
+    def _remove_voice(self, index: int) -> None:
+        if not 0 <= index < len(self._voice_paths):
+            return
+        del self._voice_paths[index]
+        if index < len(self._voice_durations):
+            del self._voice_durations[index]
+        self._render_voice_list()
+        self._update_output_timeline()
+
+    def _on_history_pick(self, value: str) -> None:
         if value and value != "(chưa có file)":
-            self._voice_path = value
-            self.voice_label.configure(text=value, text_color=theme.TEXT)
+            self._add_voice(value)
 
-    def _browse_voice(self) -> None:
-        path = filedialog.askopenfilename(title="Chọn file gốc",
-                                          filetypes=AUDIO_FILTER)
-        if path:
-            self._voice_path = path
-            self.voice_label.configure(text=path, text_color=theme.TEXT)
-            self.voice_combo.set(path.split("/")[-1].split("\\")[-1])
-            threading.Thread(target=self._load_voice_dur_worker,
-                             args=(path,), daemon=True).start()
-
-    def _load_voice_dur_worker(self, path: str) -> None:
+    def _load_voice_durs_worker(self, paths: list[str]) -> None:
         try:
-            _, sr = mixer.load_audio(path)
             import soundfile as sf
-            info = sf.info(path)
-            dur = info.duration
-            self._messages.put(("voice_dur", dur))
+            durs = [sf.info(p).duration for p in paths]
+            self._messages.put(("voice_durs", list(paths), durs))
         except Exception as exc:
             self._messages.put(("error", str(exc)))
 
@@ -401,11 +485,11 @@ class MergeDialog(ctk.CTkToplevel):
         return TrackSegment(path=path, start_sec=start, end_sec=end)
 
     def _build_config(self) -> MusicMergeConfig | None:
-        if not self._voice_path:
+        if not self._voice_paths:
             self._set_status("Chưa chọn file gốc.", theme.ERROR)
             return None
         return MusicMergeConfig(
-            voice_path=self._voice_path,
+            voice_paths=list(self._voice_paths),
             intro=self._make_segment("intro"),
             bg=self._make_segment("bg"),
             outro=self._make_segment("outro"),
@@ -442,7 +526,7 @@ class MergeDialog(ctk.CTkToplevel):
             s, e = self._outro_refs["timeline"].get_range()
             outro_dur = e - s
 
-        voice_dur = self._voice_duration
+        voice_dur = sum(self._voice_durations)
 
         if intro_dur <= 0 and voice_dur <= 0 and outro_dur <= 0:
             c.create_text(W // 2, H // 2, text="Chọn file để xem timeline",
@@ -631,10 +715,11 @@ class MergeDialog(ctk.CTkToplevel):
                     s, e = refs["timeline"].get_range()
                     refs["dur"].configure(text=f"Đoạn: {e - s:.1f}s")
                     self._update_output_timeline()
-                elif kind == "voice_dur":
-                    _, dur = msg
-                    self._voice_duration = dur
-                    self._update_output_timeline()
+                elif kind == "voice_durs":
+                    _, paths, durs = msg
+                    if paths == self._voice_paths:
+                        self._voice_durations = durs
+                        self._update_output_timeline()
                 elif kind == "preview_ready":
                     _, waveform, sr = msg
                     self._start_preview_playback(waveform, sr)
