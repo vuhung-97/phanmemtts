@@ -6,9 +6,9 @@ import customtkinter as ctk
 from ui import theme
 
 _NUM_BARS = 300
-_HEIGHT = 80
-_WAVEFORM_AREA = 50   # px trên cho waveform
-_RULER_AREA = 28      # px dưới cho time ruler
+_HEIGHT = 88
+_WAVEFORM_AREA = 44   # px trên cho waveform
+_RULER_AREA = 32      # px dưới cho time ruler
 
 
 def _format_time(seconds: float) -> str:
@@ -93,7 +93,6 @@ class WaveformTimeline(ctk.CTkFrame):
             return
 
         wave_h = _WAVEFORM_AREA
-        ruler_y = H - _RULER_AREA // 2
 
         # Background
         c.create_rectangle(0, 0, W, H, fill=theme.SURFACE, outline="")
@@ -132,9 +131,9 @@ class WaveformTimeline(ctk.CTkFrame):
                              playhead_px, 7, fill=theme.ACCENT, outline="")
 
         # Time ruler
-        self._draw_ruler(c, W, ruler_y)
+        self._draw_ruler(c, W, H)
 
-    def _draw_ruler(self, c, W: int, y: int) -> None:
+    def _draw_ruler(self, c, W: int, H: int) -> None:
         if self._duration <= 0:
             return
         # Chọn step sao cho nhãn cách nhau tối thiểu ~60px
@@ -143,18 +142,23 @@ class WaveformTimeline(ctk.CTkFrame):
                 break
         else:
             step = 600
+
+        tick_y = H - 20
+        text_y = H - 16   # anchor="n": text chiếm [H-16, H-1] — không bao giờ cắt đáy
+
         t = 0.0
         while t <= self._duration + 0.01:
             x = t / self._duration * W
             if 0 <= x <= W:
-                c.create_line(x, y - 5, x, y, fill=theme.TEXT_DIM, width=1)
+                c.create_line(x, tick_y - 5, x, tick_y,
+                              fill=theme.TEXT_DIM, width=1)
                 if x < 30:
-                    anchor = "w"
+                    anchor, x_draw = "w", max(x, 1)
                 elif x > W - 30:
-                    anchor = "e"
+                    anchor, x_draw = "e", min(x, W - 1)
                 else:
-                    anchor = "center"
-                c.create_text(x, y + 11, text=_format_time(t),
+                    anchor, x_draw = "center", x
+                c.create_text(x_draw, text_y, text=_format_time(t),
                               fill=theme.TEXT_DIM, anchor=anchor,
                               font=(theme.FONT_FAMILY, 9))
             t += step
