@@ -70,9 +70,9 @@ class PlaybackBar(ctk.CTkFrame):
         self.next_btn = ctk.CTkButton(self, text="⏭ Câu sau", command=self._on_next, **btn_kw)
 
         self.prev_btn.grid(row=1, column=0, padx=(12, 3), pady=(2, 10), sticky="e")
-        self.rew_btn.grid(row=1, column=1, padx=3, pady=(2, 10), sticky="e")
+        self.rew_btn.grid(row=1, column=1, padx=3, pady=(2, 10), sticky="w")
         self.toggle_btn.grid(row=1, column=1, padx=3, pady=(2, 10))
-        self.fwd_btn.grid(row=1, column=1, padx=3, pady=(2, 10), sticky="w")
+        self.fwd_btn.grid(row=1, column=1, padx=3, pady=(2, 10), sticky="e")
         self.next_btn.grid(row=1, column=2, padx=(3, 12), pady=(2, 10), sticky="w")
 
     def _skip(self, delta: float) -> None:
