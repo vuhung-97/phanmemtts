@@ -27,6 +27,7 @@ class Sidebar(ctk.CTkFrame):
         on_export: Callable[[], None],
         on_manage_voices: Callable[[], None],
         on_test_voice: Callable[[], None],
+        on_merge: Callable[[], None],
     ) -> None:
         super().__init__(master, width=self.WIDTH, corner_radius=0,
                          fg_color=theme.SIDEBAR_BG)
@@ -38,6 +39,7 @@ class Sidebar(ctk.CTkFrame):
         self._on_export = on_export
         self._on_manage_voices = on_manage_voices
         self._on_test_voice = on_test_voice
+        self._on_merge = on_merge
 
         self.grid_columnconfigure(0, weight=1)
         row = 0
@@ -148,6 +150,16 @@ class Sidebar(ctk.CTkFrame):
         self.export_btn.grid(row=row, column=0, padx=16, pady=(0, 4), sticky="ew")
         row += 1
 
+        self.merge_btn = ctk.CTkButton(
+            self, text="🎵  Ghép nhạc", height=34,
+            fg_color="transparent", border_width=1, border_color=theme.ACCENT,
+            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=8,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
+            command=self._on_merge,
+        )
+        self.merge_btn.grid(row=row, column=0, padx=16, pady=(0, 4), sticky="ew")
+        row += 1
+
         row = self._divider(row)
 
         # ── Status (cuối sidebar) ──
@@ -189,6 +201,7 @@ class Sidebar(ctk.CTkFrame):
         state = "disabled" if busy else "normal"
         self.convert_btn.configure(state=state)
         self.export_btn.configure(state=state)
+        self.merge_btn.configure(state=state)
 
     def set_status(self, message: str, color: str = theme.TEXT_DIM) -> None:
         self.status_label.configure(text=message, text_color=color)

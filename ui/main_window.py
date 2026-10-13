@@ -48,6 +48,7 @@ class MainWindow(ctk.CTk):
         self._stream_has_started_playing = False
 
         self._all_models: list = []
+        self._export_history: list[str] = []
 
         self._build_ui()
         self._scan_models()
@@ -68,6 +69,7 @@ class MainWindow(ctk.CTk):
             on_export=self._start_export,
             on_manage_voices=self._open_voice_manager,
             on_test_voice=self._test_voice,
+            on_merge=self._open_merge_dialog,
         )
         self.sidebar.grid(row=0, column=0, sticky="nsw")
 
@@ -134,6 +136,16 @@ class MainWindow(ctk.CTk):
             self._scan_models()
 
         VoiceManagerDialog(self, self._all_models, enabled, on_save)
+
+    def _open_merge_dialog(self) -> None:
+        from ui.components.merge_dialog import MergeDialog
+
+        MergeDialog(
+            self,
+            export_history=self._export_history,
+            on_merged=lambda path: self.sidebar.set_status(
+                f"Đã ghép: {path}", theme.SUCCESS),
+        )
 
     # ── Test giọng ──
 
@@ -399,6 +411,8 @@ class MainWindow(ctk.CTk):
                 )
         elif kind == "exported":
             _, path = message
+            self._export_history.append(path)
+            self._export_history = self._export_history[-10:]
             self._set_busy(False)
             self.sidebar.set_status(f"Đã xuất: {path}", theme.SUCCESS)
         elif kind == "error":

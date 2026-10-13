@@ -56,3 +56,15 @@ class TimelineMap:
         if seconds >= self.sentences[-1].end_sec:
             return self.sentences[-1].index
         return 0
+
+
+@dataclass
+class MusicMergeConfig:
+    voice_path: str
+    intro_path: str | None = None
+    bg_path: str | None = None
+    outro_path: str | None = None
+    intro_volume: float = 0.7
+    bg_volume: float = 0.15
+    outro_volume: float = 0.7
+    crossfade_sec: float = 0.5
