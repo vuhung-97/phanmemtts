@@ -29,6 +29,11 @@ TIMELINE_HANDLE = "#e63946"
 BUTTON_BG = "#20334f"
 BUTTON_HOVER = "#24385a"
 
+# Ô nhập / combobox: nền trắng, chữ đậm
+INPUT_BG = "#ffffff"
+INPUT_TEXT = "#15243f"
+INPUT_PLACEHOLDER = "#8a8fa3"
+
 FONT_FAMILY = "Segoe UI"
 FONT_SIZE = 13
 TITLE_SIZE = 15

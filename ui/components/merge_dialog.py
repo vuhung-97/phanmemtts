@@ -140,8 +140,9 @@ class MergeDialog(ctk.CTkToplevel):
 
         self.crossfade_entry = ctk.CTkEntry(
             xf_row, width=80, height=32,
-            fg_color=theme.SURFACE, text_color=theme.TEXT,
-            border_color=theme.SIDEBAR_DIVIDER,
+            fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
+            placeholder_text_color=theme.INPUT_PLACEHOLDER,
+            border_color=theme.SURFACE,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
             placeholder_text="0.5",
         )
@@ -427,11 +428,11 @@ class MergeDialog(ctk.CTkToplevel):
                 self._voice_btn_row, state="readonly",
                 values=self._export_history,
                 command=self._on_history_pick, height=28, width=240,
-                fg_color=theme.SURFACE, text_color=theme.TEXT,
-                button_color=theme.BUTTON_BG,
-                button_hover_color=theme.BUTTON_HOVER,
-                dropdown_fg_color=theme.SURFACE,
-                dropdown_text_color=theme.TEXT,
+                fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
+                button_color=theme.SURFACE,
+                button_hover_color=theme.ACCENT,
+                dropdown_fg_color=theme.INPUT_BG,
+                dropdown_text_color=theme.INPUT_TEXT,
                 font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
                 dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
             )

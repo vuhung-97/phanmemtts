@@ -22,8 +22,7 @@ class WaveformTimeline(ctk.CTkFrame):
 
     def __init__(self, master) -> None:
         super().__init__(master, fg_color=theme.TIMELINE_BG, corner_radius=8,
-                         height=_HEIGHT,
-                         border_width=1, border_color=theme.TIMELINE_BORDER)
+                         height=_HEIGHT)
         self.grid_propagate(False)
 
         self._peaks: np.ndarray | None = None
@@ -31,13 +30,27 @@ class WaveformTimeline(ctk.CTkFrame):
         self._sentence_bounds: list[tuple[float, float]] = []
         self._position: float = 0.0
 
+        # Canvas full-bleed -> tự vẽ nền + viền + góc bo (frame bị canvas che)
         self._canvas = ctk.CTkCanvas(
-            self, highlightthickness=0, bg=theme.TIMELINE_BG, height=_HEIGHT,
+            self, highlightthickness=0, bg=theme.BG, height=_HEIGHT,
         )
         self._canvas.grid(row=0, column=0, sticky="nsew")
         self.grid_columnconfigure(0, weight=1)
 
         self._canvas.bind("<Configure>", lambda _: self._redraw())
+
+    # ── Vẽ nền bo góc + viền ──
+
+    @staticmethod
+    def _round_rect(c, x1: float, y1: float, x2: float, y2: float,
+                    r: float, fill: str, outline: str, width: int = 1) -> None:
+        """Polygon mịn (smooth) mô phỏng hình chữ nhật bo góc."""
+        c.create_polygon(
+            x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r,
+            x2, y2 - r, x2 - r, y2, x1 + r, y2, x1, y2 - r, x1, y1 + r,
+            smooth=True, splinesteps=16,
+            fill=fill, outline=outline, width=width,
+        )
 
     # ── Public API ──
 
@@ -95,8 +108,10 @@ class WaveformTimeline(ctk.CTkFrame):
 
         wave_h = _WAVEFORM_AREA
 
-        # Background
-        c.create_rectangle(0, 0, W, H, fill=theme.TIMELINE_BG, outline="")
+        # Nền ngoài + hình bo góc có viền (thay cho border/corner của frame)
+        c.create_rectangle(0, 0, W, H, fill=theme.BG, outline="")
+        self._round_rect(c, 0, 0, W - 1, H - 1, 8,
+                         fill=theme.TIMELINE_BG, outline=theme.TIMELINE_BORDER)
 
         if self._peaks is None or len(self._peaks) == 0:
             c.create_text(W // 2, H // 2, text="Chưa có âm thanh",
@@ -155,9 +170,10 @@ class WaveformTimeline(ctk.CTkFrame):
                 c.create_line(x, tick_y - 5, x, tick_y,
                               fill=theme.TIMELINE_TEXT, width=1)
                 if x < 30:
-                    anchor, x_draw = "w", max(x, 1)
+                    # tránh nhãn chạm góc bo tròn bottom-left/right
+                    anchor, x_draw = "w", max(x, 10)
                 elif x > W - 30:
-                    anchor, x_draw = "e", min(x, W - 1)
+                    anchor, x_draw = "e", min(x, W - 10)
                 else:
                     anchor, x_draw = "center", x
                 c.create_text(x_draw, text_y, text=_format_time(t),

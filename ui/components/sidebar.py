@@ -74,9 +74,10 @@ class Sidebar(ctk.CTkFrame):
         self.voice_combo = ctk.CTkComboBox(
             self, height=32, state="readonly", values=["(chưa có model)"],
             command=self._voice_changed, corner_radius=6,
-            fg_color=theme.SURFACE, text_color=theme.TEXT,
-            button_color=theme.BUTTON_BG, button_hover_color=theme.BUTTON_HOVER,
-            dropdown_fg_color=theme.SURFACE, dropdown_text_color=theme.TEXT,
+            fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
+            button_color=theme.SURFACE, button_hover_color=theme.ACCENT,
+            dropdown_fg_color=theme.INPUT_BG,
+            dropdown_text_color=theme.INPUT_TEXT,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
             dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
@@ -108,8 +109,9 @@ class Sidebar(ctk.CTkFrame):
         # ── Ô nhập câu test ──
         self.test_entry = ctk.CTkEntry(
             self, height=30, corner_radius=6,
-            fg_color=theme.SURFACE, text_color=theme.TEXT,
-            border_color=theme.SIDEBAR_DIVIDER,
+            fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
+            placeholder_text_color=theme.INPUT_PLACEHOLDER,
+            border_color=theme.SURFACE,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
             placeholder_text="Nhập câu test...",
         )
@@ -128,9 +130,10 @@ class Sidebar(ctk.CTkFrame):
             self, height=32, state="readonly",
             values=["0.75x", "1.0x", "1.25x", "1.5x"],
             command=self._speed_changed, corner_radius=6,
-            fg_color=theme.SURFACE, text_color=theme.TEXT,
-            button_color=theme.BUTTON_BG, button_hover_color=theme.BUTTON_HOVER,
-            dropdown_fg_color=theme.SURFACE, dropdown_text_color=theme.TEXT,
+            fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
+            button_color=theme.SURFACE, button_hover_color=theme.ACCENT,
+            dropdown_fg_color=theme.INPUT_BG,
+            dropdown_text_color=theme.INPUT_TEXT,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
             dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )

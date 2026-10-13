@@ -31,6 +31,7 @@ class AudioPlayer:
         self._pos = 0
         self._lock = threading.Lock()
         self._has_more = False
+        self._finished_pending = False   # báo "đã phát hết" đúng 1 lần cho UI
 
     @property
     def state(self) -> PlayerState:
@@ -76,6 +77,7 @@ class AudioPlayer:
             self._pos = 0
             self._state = PlayerState.IDLE
             self._has_more = has_more
+            self._finished_pending = False
         self._open_stream()
 
     def append_audio(self, chunk: np.ndarray) -> None:
@@ -99,6 +101,7 @@ class AudioPlayer:
             self._start_stream()
 
     def play(self, start_sec: float | None = None) -> None:
+        close_needed = False
         with self._lock:
             if self._waveform is None or len(self._waveform) == 0:
                 return
@@ -106,6 +109,12 @@ class AudioPlayer:
                 self._pos = int(np.clip(start_sec * self._sample_rate, 0, len(self._waveform)))
             elif self._state is PlayerState.STOPPED and self._pos >= len(self._waveform):
                 self._pos = 0
+            if self._state is PlayerState.STOPPED:
+                # Stream có thể đã complete (hết file) -> bắt buộc mở lại mới
+                close_needed = True
+            self._finished_pending = False
+        if close_needed:
+            self._close_stream()
         self._start_stream()
 
     def pause(self) -> None:
@@ -144,6 +153,7 @@ class AudioPlayer:
             self._pos = 0
             self._state = PlayerState.STOPPED
             self._has_more = False
+            self._finished_pending = False
 
     def seek(self, seconds: float) -> None:
         with self._lock:
@@ -151,6 +161,7 @@ class AudioPlayer:
                 return
             target = float(np.clip(seconds, 0.0, max((len(self._waveform) - 1) / self._sample_rate, 0.0)))
             self._pos = int(target * self._sample_rate)
+            self._finished_pending = False
             cur_state = self._state
 
         if cur_state is PlayerState.PLAYING and not (
@@ -165,14 +176,19 @@ class AudioPlayer:
             return min(self._pos / self._sample_rate, len(self._waveform) / self._sample_rate)
 
     def update(self) -> bool:
-        """Gọi định kỳ (~40ms) từ UI: phát hiện audio đã phát hết hoàn toàn."""
+        """Gọi định kỳ (~40ms) từ UI: phát hiện audio đã phát hết — trả True đúng 1 lần."""
         with self._lock:
+            # Callback đã báo hết file (paComplete) mà UI chưa kịp thấy
+            if self._finished_pending and self._state is PlayerState.STOPPED:
+                self._finished_pending = False
+                return True
             if self._state not in (PlayerState.PLAYING, PlayerState.BUFFERING):
                 return False
             # Nếu phát hết và không còn câu nào đang tạo ngầm -> kết thúc hẳn
             if self._waveform is not None and self._pos >= len(self._waveform):
                 if not self._has_more:
                     self._state = PlayerState.STOPPED
+                    self._finished_pending = False
                     if self._stream is not None and self._stream.active:
                         try:
                             self._stream.stop()
@@ -197,6 +213,7 @@ class AudioPlayer:
                     self._state = PlayerState.BUFFERING
                 else:
                     self._state = PlayerState.STOPPED
+                    self._finished_pending = True
                     raise sd.CallbackStop
                 return
 
@@ -211,6 +228,7 @@ class AudioPlayer:
                     self._state = PlayerState.BUFFERING
                 else:
                     self._state = PlayerState.STOPPED
+                    self._finished_pending = True
                     raise sd.CallbackStop
 
     def _open_stream(self) -> None:
@@ -236,6 +254,15 @@ class AudioPlayer:
                 self._stream.start()
             except Exception:
                 pass
+        if not self._stream.active:
+            # Stream đã complete (hết file) hoặc lỗi -> mở stream mới
+            self._close_stream()
+            self._open_stream()
+            if self._stream is not None:
+                try:
+                    self._stream.start()
+                except Exception:
+                    pass
 
     def _close_stream(self) -> None:
         if self._stream is not None:

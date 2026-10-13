@@ -15,10 +15,11 @@ class SyncTextbox(ctk.CTkTextbox):
     def __init__(self, master, on_text_changed: Callable[[], None], **kwargs) -> None:
         kwargs.setdefault("font", (theme.FONT_FAMILY, theme.FONT_SIZE + 2))
         kwargs.setdefault("wrap", "word")
-        kwargs.setdefault("fg_color", theme.SURFACE)
-        kwargs.setdefault("text_color", theme.TEXT)
+        kwargs.setdefault("fg_color", theme.INPUT_BG)
+        kwargs.setdefault("text_color", theme.INPUT_TEXT)
+        kwargs.setdefault("insertwidth", 2)
         kwargs.setdefault("border_width", 1)
-        kwargs.setdefault("border_color", theme.SIDEBAR_DIVIDER)
+        kwargs.setdefault("border_color", theme.SURFACE)   # khung #283b5b
         super().__init__(master, **kwargs)
         self._on_text_changed = on_text_changed
 
