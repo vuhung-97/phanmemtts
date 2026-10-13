@@ -39,18 +39,43 @@ class WaveformTimeline(ctk.CTkFrame):
 
         self._canvas.bind("<Configure>", lambda _: self._redraw())
 
-    # ── Vẽ nền bo góc + viền ──
+    # ── Vẽ nền bo góc + viền (arc chuẩn, 4 góc đối xứng cùng bán kính) ──
 
-    @staticmethod
-    def _round_rect(c, x1: float, y1: float, x2: float, y2: float,
-                    r: float, fill: str, outline: str, width: int = 1) -> None:
-        """Polygon mịn (smooth) mô phỏng hình chữ nhật bo góc."""
-        c.create_polygon(
-            x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r,
-            x2, y2 - r, x2 - r, y2, x1 + r, y2, x1, y2 - r, x1, y1 + r,
-            smooth=True, splinesteps=16,
-            fill=fill, outline=outline, width=width,
-        )
+    _R = 8   # bằng corner_radius của frame/card khác trong app
+
+    # (ô vuông góc, hộp đường tròn, start, extent) cho 4 góc
+    def _corner_specs(self, W: int, H: int):
+        r = self._R
+        return [
+            ((0, 0, r, r), (0, 0, 2 * r, 2 * r), 90, 90),                 # trái-trên
+            ((W - r, 0, W, r), (W - 2 * r, 0, W, 2 * r), 0, 90),          # phải-trên
+            ((W - r, H - r, W, H), (W - 2 * r, H - 2 * r, W, H), 270, 90),  # phải-dưới
+            ((0, H - r, r, H), (0, H - 2 * r, 2 * r, H), 180, 90),        # trái-dưới
+        ]
+
+    def _paint_background(self, c, W: int, H: int) -> None:
+        c.create_rectangle(0, 0, W, H, fill=theme.BG, outline="")
+        c.create_rectangle(0, 0, W, H, fill=theme.TIMELINE_BG, outline="")
+
+    def _clip_corners(self, c, W: int, H: int) -> None:
+        """Đục 4 góc về màu nền ngoài, vẽ lại 1/4 tròn -> bo góc thật."""
+        for (sx1, sy1, sx2, sy2), (bx1, by1, bx2, by2), start, extent in \
+                self._corner_specs(W, H):
+            c.create_rectangle(sx1, sy1, sx2, sy2, fill=theme.BG, outline="")
+            c.create_arc(bx1, by1, bx2, by2, start=start, extent=extent,
+                         style="pieslice", fill=theme.TIMELINE_BG, outline="")
+
+    def _draw_border(self, c, W: int, H: int) -> None:
+        r = self._R
+        b = theme.TIMELINE_BORDER
+        for _, (bx1, by1, bx2, by2), start, extent in self._corner_specs(W, H):
+            c.create_arc(bx1, by1, bx2, by2, start=start, extent=extent,
+                         style="arc", outline=b, width=1)
+        # 4 đường thẳng nối các cung viền
+        c.create_line(r, 0.5, W - r, 0.5, fill=b)
+        c.create_line(r, H - 1.5, W - r, H - 1.5, fill=b)
+        c.create_line(0.5, r, 0.5, H - r, fill=b)
+        c.create_line(W - 1.5, r, W - 1.5, H - r, fill=b)
 
     # ── Public API ──
 
@@ -108,15 +133,15 @@ class WaveformTimeline(ctk.CTkFrame):
 
         wave_h = _WAVEFORM_AREA
 
-        # Nền ngoài + hình bo góc có viền (thay cho border/corner của frame)
-        c.create_rectangle(0, 0, W, H, fill=theme.BG, outline="")
-        self._round_rect(c, 0, 0, W - 1, H - 1, 8,
-                         fill=theme.TIMELINE_BG, outline=theme.TIMELINE_BORDER)
+        # Nền vuông -> nội dung -> đục 4 góc bo -> viền
+        self._paint_background(c, W, H)
 
         if self._peaks is None or len(self._peaks) == 0:
             c.create_text(W // 2, H // 2, text="Chưa có âm thanh",
                           fill=theme.TIMELINE_TEXT,
                           font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1))
+            self._clip_corners(c, W, H)
+            self._draw_border(c, W, H)
             return
 
         # Waveform bars
@@ -149,6 +174,10 @@ class WaveformTimeline(ctk.CTkFrame):
 
         # Time ruler
         self._draw_ruler(c, W, H)
+
+        # Đục góc bo + viền sau cùng để cắt content tràn ra ngoài
+        self._clip_corners(c, W, H)
+        self._draw_border(c, W, H)
 
     def _draw_ruler(self, c, W: int, H: int) -> None:
         if self._duration <= 0:
