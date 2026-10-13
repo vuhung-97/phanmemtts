@@ -266,19 +266,27 @@ class MergeDialog(ctk.CTkToplevel):
         )
         path_label.grid(row=0, column=0, padx=(0, 6), sticky="ew")
 
+        play_btn = ctk.CTkButton(
+            top, text="▶", width=36, height=28, state="disabled",
+            fg_color="transparent", border_width=1, border_color=theme.ACCENT,
+            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=6,
+            command=lambda k=key: self._preview_track(k),
+        )
+        play_btn.grid(row=0, column=1, padx=(0, 4))
+
         ctk.CTkButton(
             top, text="📁", width=36, height=28,
             fg_color="transparent", border_width=1, border_color=theme.ACCENT,
             text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=6,
             command=lambda k=key: self._browse_track(k),
-        ).grid(row=0, column=1, padx=(0, 4))
+        ).grid(row=0, column=2, padx=(0, 4))
 
         ctk.CTkButton(
             top, text="✕", width=28, height=28,
             fg_color="transparent", border_width=1, border_color=theme.ERROR,
             text_color=theme.ERROR, hover_color=theme.SURFACE, corner_radius=6,
             command=lambda k=key, lbl=path_label: self._clear_track(k, lbl),
-        ).grid(row=0, column=2)
+        ).grid(row=0, column=3)
 
         # SegmentTimeline
         timeline = SegmentTimeline(body, on_change=lambda s, e, k=key:
@@ -320,6 +328,7 @@ class MergeDialog(ctk.CTkToplevel):
             "slider": slider,
             "pct": pct_label,
             "dur": dur_label,
+            "play_btn": play_btn,
         }
         if key == "intro":
             self._intro_refs = refs
@@ -471,6 +480,7 @@ class MergeDialog(ctk.CTkToplevel):
             return
         refs = getattr(self, f"_{key}_refs")
         refs["path_label"].configure(text=path, text_color=theme.TEXT)
+        refs["play_btn"].configure(state="normal")
         setattr(self, f"_{key}_path", path)
         threading.Thread(target=self._load_peaks_worker,
                          args=(path, key), daemon=True).start()
@@ -489,7 +499,46 @@ class MergeDialog(ctk.CTkToplevel):
         refs = getattr(self, f"_{key}_refs")
         refs["timeline"].clear()
         refs["dur"].configure(text="Đoạn: —")
+        refs["play_btn"].configure(state="disabled")
         self._update_output_timeline()
+
+    # ── Nghe thử từng track ──
+
+    _TRACK_LABELS = {"intro": "intro", "bg": "nhạc nền", "outro": "outro"}
+
+    def _preview_track(self, key: str) -> None:
+        if self._busy:
+            return
+        path = getattr(self, f"_{key}_path")
+        refs = getattr(self, f"_{key}_refs")
+        if not path:
+            self._set_status("Chưa chọn file cho đoạn này.", theme.ERROR)
+            return
+        start, end = refs["timeline"].get_range()
+        if end - start < 0.05:
+            self._set_status("Vùng chọn quá ngắn — hãy chọn lại đoạn.",
+                             theme.ERROR)
+            return
+        if self._preview_active:
+            self._stop_preview()
+        volume = refs["slider"].get() / 100.0
+        label = self._TRACK_LABELS.get(key, key)
+        self._set_status(f"Đang nạp {label}...", theme.TEXT_DIM)
+        threading.Thread(target=self._preview_track_worker,
+                         args=(path, start, end, volume, label),
+                         daemon=True).start()
+
+    def _preview_track_worker(self, path: str, start: float, end: float,
+                              volume: float, label: str) -> None:
+        try:
+            audio, sr = mixer.load_audio(path)
+            seg = mixer.extract_segment(audio, sr, start, end)
+            seg = mixer.apply_volume(seg, volume)
+            if len(seg) == 0:
+                raise ValueError("Đoạn rỗng — kiểm tra lại vùng chọn.")
+            self._messages.put(("preview_ready", seg, sr, label))
+        except Exception as exc:
+            self._messages.put(("error", str(exc)))
 
     # ── Config ──
 
@@ -626,7 +675,8 @@ class MergeDialog(ctk.CTkToplevel):
         except Exception as exc:
             self._messages.put(("error", str(exc)))
 
-    def _start_preview_playback(self, waveform, sr: int) -> None:
+    def _start_preview_playback(self, waveform, sr: int,
+                                label: str | None = None) -> None:
         self._set_busy(False)
         self._preview_player.stop()
         self._preview_player.load(waveform, sr, has_more=False)
@@ -642,8 +692,12 @@ class MergeDialog(ctk.CTkToplevel):
         self._prev_total.configure(text=_fmt_clock(duration))
         self._stop_preview_btn.configure(state="normal")
         self._preview_active = True
-        self._set_status("Đang phát nghe thử — kéo thanh để tua.",
-                         theme.SUCCESS)
+        if label:
+            self._set_status(f"▶ Đang nghe thử {label} — kéo thanh để tua.",
+                             theme.SUCCESS)
+        else:
+            self._set_status("Đang phát nghe thử — kéo thanh để tua.",
+                             theme.SUCCESS)
 
     def _on_seek_slider(self, value: float) -> None:
         if self._slider_updating or not self._preview_active:
@@ -745,8 +799,12 @@ class MergeDialog(ctk.CTkToplevel):
                         self._voice_durations = durs
                         self._update_output_timeline()
                 elif kind == "preview_ready":
-                    _, waveform, sr = msg
-                    self._start_preview_playback(waveform, sr)
+                    if len(msg) == 4:
+                        _, waveform, sr, label = msg
+                        self._start_preview_playback(waveform, sr, label)
+                    else:
+                        _, waveform, sr = msg
+                        self._start_preview_playback(waveform, sr)
                 elif kind == "status":
                     _, text, color = msg
                     self._set_status(text, color)

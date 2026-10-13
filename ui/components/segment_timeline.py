@@ -218,9 +218,11 @@ class SegmentTimeline(ctk.CTkFrame):
 
     def _draw_handle(self, c, x: float, H: int, is_start: bool) -> None:
         # Vertical line
-        c.create_line(x, 0, x, H, fill=theme.ACCENT, width=2)
+        c.create_line(x, 0, x, H, fill=theme.TIMELINE_HANDLE, width=2)
         # Triangle
         if is_start:
-            c.create_polygon(x, 0, x + 8, 4, x, 8, fill=theme.ACCENT, outline="")
+            c.create_polygon(x, 0, x + 8, 4, x, 8, fill=theme.TIMELINE_HANDLE,
+                             outline="")
         else:
-            c.create_polygon(x, 0, x - 8, 4, x, 8, fill=theme.ACCENT, outline="")
+            c.create_polygon(x, 0, x - 8, 4, x, 8, fill=theme.TIMELINE_HANDLE,
+                             outline="")
