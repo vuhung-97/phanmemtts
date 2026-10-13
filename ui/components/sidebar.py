@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Callable
 
 import customtkinter as ctk
+from PIL import Image
 
 from ui import theme
 from ui.config import load_test_text, save_test_text
+
+_LOGO_PATH = Path(__file__).resolve().parent.parent.parent / "logo" / "logo.jpg"
 
 
 class Sidebar(ctk.CTkFrame):
@@ -37,6 +41,16 @@ class Sidebar(ctk.CTkFrame):
 
         self.grid_columnconfigure(0, weight=1)
         row = 0
+
+        # ── Logo ──
+        if _LOGO_PATH.exists():
+            img = Image.open(_LOGO_PATH)
+            target_w = 200
+            target_h = int(img.height * target_w / img.width)
+            self._logo_img = ctk.CTkImage(img, size=(target_w, target_h))
+            ctk.CTkLabel(self, image=self._logo_img, text="").grid(
+                row=row, column=0, padx=20, pady=(16, 8))
+            row += 1
 
         # ── Mở file ──
         ctk.CTkButton(
