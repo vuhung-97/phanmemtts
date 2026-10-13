@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +17,11 @@ if any(_HF_CACHE.glob("models--*")):
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
 SAMPLE_RATE = 48000
+
+# Giọng tự thêm (clone) — nằm trong dự án, copy cả thư mục là mang theo.
+CUSTOM_VOICES_PATH = _BASE_DIR / "models" / "vieneu" / "custom_voices.json"
+# Định dạng file giọng di động (máy khỏe tạo -> copy sang máy yếu -> Nhập).
+PORTABLE_FORMAT = "vieneu-turbo-voice"
 
 # 25 giọng preset VieNeu v3 Turbo — khớp thứ tự và tên trong
 # vieneu/assets/voices_v3_turbo.json (hardcode để scan() không cần load model ~19s).
@@ -47,6 +53,82 @@ PRESET_VOICES: list[tuple[str, str]] = [
     ("Quốc Tuấn (Nam, Bắc)", "Quốc Tuấn"),
 ]
 
+# ── Giọng tùy chỉnh: file giọng di động (.json) + kho custom_voices.json ──
+
+
+def _read_custom_store() -> dict:
+    if not CUSTOM_VOICES_PATH.exists():
+        return {}
+    try:
+        data = json.loads(CUSTOM_VOICES_PATH.read_text(encoding="utf-8"))
+        voices = data.get("voices")
+        return voices if isinstance(voices, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _write_custom_store(voices: dict) -> None:
+    CUSTOM_VOICES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CUSTOM_VOICES_PATH.write_text(
+        json.dumps({"voices": voices}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _load_portable(path: str | Path) -> dict:
+    p = Path(path)
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        raise ValueError(f"Không đọc được file giọng: {exc}") from exc
+    if not isinstance(data, dict) or data.get("format") != PORTABLE_FORMAT:
+        raise ValueError("Không phải file giọng VieNeu đúng định dạng.")
+    name = str(data.get("name") or "").strip()
+    if not name:
+        raise ValueError("File giọng thiếu tên.")
+    if name in {vid for _, vid in PRESET_VOICES}:
+        raise ValueError(f"Tên '{name}' trùng giọng preset có sẵn — hãy đổi tên file.")
+    emb = data.get("speaker_emb")
+    if not isinstance(emb, list) or not emb:
+        raise ValueError("File giọng thiếu speaker_emb.")
+    codes = data.get("codes")
+    if codes is not None and not isinstance(codes, list):
+        raise ValueError("File giọng codes không hợp lệ.")
+    data["name"] = name
+    return data
+
+
+def _codes_to_array(codes) -> np.ndarray | None:
+    """List JSON -> mảng (T, n_vq). File cũ lưu phẳng (T*n_vq,) -> reshape lại."""
+    if not codes:
+        return None
+    arr = np.asarray(codes, dtype=np.int64)
+    if arr.ndim == 1:
+        if arr.size % 16 != 0:
+            raise ValueError("File giọng codes không hợp lệ.")
+        arr = arr.reshape(-1, 16)
+    return arr
+
+
+def _install_custom_voices(vieneu) -> None:
+    """Nạp giọng tùy chỉnh từ custom_voices.json vào bảng preset của SDK."""
+    from vieneu_utils.core_utils import strip_encoder_pad_frame
+    for name, v in _read_custom_store().items():
+        emb = v.get("speaker_emb")
+        if not emb:
+            continue
+        try:
+            codes = _codes_to_array(v.get("codes"))
+        except ValueError:
+            continue
+        vieneu._preset_voices[name] = {
+            "description": v.get("description", ""),
+            "gender": v.get("gender", ""),
+            "style": getattr(vieneu, "default_style", "tu_nhien"),
+            "speaker_emb": np.asarray(emb, dtype=np.float32),
+            "codes": strip_encoder_pad_frame(codes),
+        }
+
 
 class VieneuTTS:
     """Bọc SDK Vieneu v3 Turbo (48 kHz, ONNX CPU) với interface giống sherpa OfflineTTS.
@@ -59,6 +141,7 @@ class VieneuTTS:
         from vieneu import Vieneu
 
         self._vieneu = Vieneu(precision=precision)
+        _install_custom_voices(self._vieneu)
         self._voice = voice
         self.sample_rate = SAMPLE_RATE
 
@@ -75,3 +158,87 @@ class VieneuTTS:
     def _apply_speed(samples: np.ndarray, speed: float) -> np.ndarray:
         from audio.speed import apply_speed
         return apply_speed(samples, speed)
+
+    # ── Giọng tùy chỉnh (không cần model: đọc/ghi JSON thuần) ──
+
+    @staticmethod
+    def list_custom_voice_names() -> list[str]:
+        return list(_read_custom_store().keys())
+
+    @staticmethod
+    def read_portable_preview(path: str | Path) -> dict:
+        """Đọc file giọng di động để hiện trước khi Nhập (không cần model)."""
+        data = _load_portable(path)
+        return {
+            "name": data["name"],
+            "description": str(data.get("description") or ""),
+            "size": Path(path).stat().st_size,
+        }
+
+    @staticmethod
+    def import_voice_file(path: str | Path) -> str:
+        """Nhập file giọng di động vào custom_voices.json. Trả về tên giọng."""
+        data = _load_portable(path)
+        voices = _read_custom_store()
+        voices[data["name"]] = {
+            "description": str(data.get("description") or ""),
+            "gender": str(data.get("gender") or ""),
+            "speaker_emb": [float(x) for x in data["speaker_emb"]],
+            "codes": data.get("codes"),  # list[int] hoặc list[list[int]] — giữ nguyên
+        }
+        _write_custom_store(voices)
+        return data["name"]
+
+    @staticmethod
+    def delete_custom_voice(name: str) -> None:
+        voices = _read_custom_store()
+        if name in voices:
+            del voices[name]
+            _write_custom_store(voices)
+
+    @staticmethod
+    def export_voice_file(name: str, out_path: str | Path) -> str:
+        """Xuất 1 giọng tùy chỉnh ra file di động (mang sang máy khác)."""
+        voices = _read_custom_store()
+        if name not in voices:
+            raise ValueError(f"Chưa có giọng tùy chỉnh tên '{name}'.")
+        v = voices[name]
+        data = {
+            "format": PORTABLE_FORMAT,
+            "version": 1,
+            "name": name,
+            "description": v.get("description", ""),
+            "gender": v.get("gender", ""),
+            "speaker_emb": v.get("speaker_emb") or [],
+            "codes": v.get("codes") or [],
+        }
+        out = Path(out_path)
+        out.write_text(json.dumps(data, ensure_ascii=False, indent=2),
+                       encoding="utf-8")
+        return str(out)
+
+    def create_voice_from_sample(self, name: str, ref_audio: str | Path,
+                                 description: str = "",
+                                 denoise: bool = True) -> None:
+        """Tạo giọng từ file mẫu (cần nạp model — chạy ở máy khỏe / CLI)."""
+        name = name.strip()
+        if not name:
+            raise ValueError("Tên giọng không được để trống.")
+        if name in {vid for _, vid in PRESET_VOICES}:
+            raise ValueError(f"Tên '{name}' trùng giọng preset có sẵn.")
+        if name in _read_custom_store():
+            raise ValueError(f"Đã có giọng tùy chỉnh tên '{name}'.")
+        self._vieneu.add_voice(name, ref_audio, denoise=denoise,
+                               description=description)
+        entry = self._vieneu._preset_voices[name]
+        codes = entry.get("codes")
+        voices = _read_custom_store()
+        voices[name] = {
+            "description": description,
+            "gender": str(entry.get("gender") or ""),
+            "speaker_emb": [round(float(x), 6) for x in
+                            np.asarray(entry["speaker_emb"]).reshape(-1)],
+            "codes": None if codes is None else
+                     np.asarray(codes, dtype=np.int64).tolist(),  # giữ shape (T, n_vq)
+        }
+        _write_custom_store(voices)

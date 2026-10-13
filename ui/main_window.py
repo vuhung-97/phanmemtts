@@ -109,14 +109,19 @@ class MainWindow(ctk.CTk):
 
     # ── Scan & voice management ──
 
-    def _scan_models(self) -> None:
+    def _scan_models(self) -> list:
+        prev = None
+        try:
+            prev = self.sidebar.get_selected_voice()
+        except Exception:
+            pass
         self._all_models = self._model_manager.scan()
         if not self._all_models:
             self.sidebar.set_status(
                 "Không tìm thấy mô hình — chạy download_model.py",
                 theme.ERROR,
             )
-            return
+            return self._all_models
 
         enabled = load_enabled_voices()
         if enabled is not None:
@@ -128,12 +133,14 @@ class MainWindow(ctk.CTk):
             self.sidebar.set_voices([], None)
             self.sidebar.set_status(
                 "Tất cả giọng đều bị tắt — bấm ＋ Thêm để bật lại.", theme.ERROR)
-            return
+            return self._all_models
 
         names = [m.display_name for m in visible]
-        self.sidebar.set_voices(names, names[0])
+        selected = prev if prev in names else names[0]
+        self.sidebar.set_voices(names, selected)
         self.sidebar.set_status(
             f"{len(names)}/{len(self._all_models)} giọng sẵn sàng.", theme.TEXT_DIM)
+        return self._all_models
 
     def _selected_model(self):
         name = self.sidebar.get_selected_voice()
@@ -151,7 +158,15 @@ class MainWindow(ctk.CTk):
             save_enabled_voices(new_enabled)
             self._scan_models()
 
-        VoiceManagerDialog(self, self._all_models, enabled, on_save)
+        def on_voice_changed(name: str) -> None:
+            # Ghi đè/xóa giọng đang được nạp -> giải phóng, lần sinh sau tải lại
+            self._model_manager.unload_if(f"vieneu:{name}")
+
+        VoiceManagerDialog(
+            self, self._all_models, enabled, on_save,
+            get_models=self._scan_models,
+            on_voice_changed=on_voice_changed,
+        )
 
     def _open_merge_dialog(self) -> None:
         from ui.components.merge_dialog import MergeDialog

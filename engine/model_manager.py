@@ -61,7 +61,7 @@ class ModelManager:
 
     def _scan_vieneu(self) -> list[VoiceModelInfo]:
         """Mỗi giọng preset VieNeu là một entry riêng (engine vieneu)."""
-        from engine.vieneu_engine import PRESET_VOICES
+        from engine.vieneu_engine import PRESET_VOICES, VieneuTTS
 
         marker = self.models_dir / "vieneu" / "voice.json"
         if not marker.exists():
@@ -72,6 +72,20 @@ class ModelManager:
                 VoiceModelInfo(
                     model_id=f"vieneu:{voice_id}",
                     display_name=f"{label} (VieNeu)",
+                    language="vi",
+                    model_path=marker,
+                    config_path=marker,
+                    tokens_path=marker,
+                    data_dir=self.models_dir / "vieneu",
+                    engine="vieneu",
+                )
+            )
+        # Giọng tùy chỉnh (import file từ máy khác / tạo bằng CLI)
+        for custom in VieneuTTS.list_custom_voice_names():
+            results.append(
+                VoiceModelInfo(
+                    model_id=f"vieneu:{custom}",
+                    display_name=f"{custom} (Tùy chỉnh)",
                     language="vi",
                     model_path=marker,
                     config_path=marker,
@@ -141,6 +155,11 @@ class ModelManager:
             self._loaded_tts = None
             self._loaded_id = None
             gc.collect()
+
+    def unload_if(self, model_id: str) -> None:
+        """Giải phóng nếu đúng model này đang nạp (vd: giọng bị ghi đè/xóa)."""
+        if self._loaded_id == model_id:
+            self.unload()
 
 
 def _build_tts(info: VoiceModelInfo, num_threads: int):

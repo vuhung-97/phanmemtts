@@ -43,6 +43,12 @@ def _ensure_vieneu() -> Path:
     tts = Vieneu()  # tu dong tai model vao HF_HUB_CACHE
     voices = tts.list_preset_voices()
     print(f"[OK] VieNeu san sang — {len(voices)} giuong preset, cache: {hf_cache}")
+
+    # File rieng cho cloning giong (lazy-load, chi can khi tao giong moi) — tai truoc 1 lan
+    from huggingface_hub import hf_hub_download
+    for fn in ("speaker_encoder.onnx", "denoiser.onnx"):
+        hf_hub_download("pnnbao-ump/VieNeu-TTS-v3-Turbo", fn)
+    print("[OK] speaker_encoder.onnx + denoiser.onnx san sang (tao giong)")
     return folder
 
 
