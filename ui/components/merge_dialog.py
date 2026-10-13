@@ -41,11 +41,12 @@ class MergeDialog(ctk.CTkToplevel):
                  on_merged=None) -> None:
         super().__init__(master)
         self.title("🎵 Ghép nhạc vào file âm thanh")
-        # Chiều rộng 100% màn hình, chiều cao tối đa nhưng không vượt màn hình
+        # Kích thước 900 x 1000 cố định (min width 900), căn giữa
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
-        self.geometry(f"{sw}x{min(1010, sh - 50)}+0+0")
-        self.minsize(800, 600)
+        w, h = 900, min(1000, sh - 40)
+        self.geometry(f"{w}x{h}+{max((sw - w) // 2, 0)}+30")
+        self.minsize(900, 600)
         self.configure(fg_color=theme.DIALOG_BG)
         self.transient(master)
         self.grab_set()
@@ -87,7 +88,12 @@ class MergeDialog(ctk.CTkToplevel):
         self._section("File gốc — bấm ＋ để ghép thêm đoạn (.mp3 / .wav)", row)
         row += 1
 
-        self._voice_list = ctk.CTkFrame(self, fg_color="transparent")
+        # Danh sách đoạn gốc — cuộn được khi nhiều đoạn (không tăng dialog)
+        self._voice_list = ctk.CTkScrollableFrame(
+            self, fg_color="transparent", height=44,
+            scrollbar_button_color=theme.TEXT_DIM,
+            scrollbar_button_hover_color=theme.ACCENT,
+        )
         self._voice_list.grid(row=row, column=0, padx=20, pady=(2, 2),
                               sticky="ew")
         self._voice_list.grid_columnconfigure(1, weight=1)
@@ -236,8 +242,7 @@ class MergeDialog(ctk.CTkToplevel):
         # ── Status ──
         self.status_label = ctk.CTkLabel(
             self, text="", text_color=theme.TEXT_DIM, anchor="w",
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE),
-            wraplength=self.winfo_screenwidth() - 80,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE), wraplength=850,
         )
         self.status_label.grid(row=100, column=0, padx=20, pady=(8, 16),
                                sticky="sew")
@@ -376,6 +381,10 @@ class MergeDialog(ctk.CTkToplevel):
                     hover_color=theme.SURFACE, corner_radius=6,
                     command=lambda idx=i: self._remove_voice(idx),
                 ).grid(row=i, column=2, padx=(0, 4), pady=2)
+
+        # Chiều cao list theo số đoạn (tối đa ~6 dòng, vượt thì cuộn)
+        self._voice_list.configure(
+            height=min(40 * max(len(self._voice_paths), 1) + 8, 240))
 
         # Nút thêm / chọn file
         for w in self._voice_btn_row.winfo_children():
