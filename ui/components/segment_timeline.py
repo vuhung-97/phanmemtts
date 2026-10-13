@@ -7,7 +7,7 @@ import customtkinter as ctk
 
 from ui import theme
 
-_HEIGHT = 56
+_HEIGHT = 44
 _HANDLE_PX = 10          # bán kính nhận diện handle
 _MIN_SEGMENT_SEC = 0.5   # đoạn ngắn nhất
 
@@ -27,7 +27,7 @@ class SegmentTimeline(ctk.CTkFrame):
     def __init__(self, master,
                  on_change: Callable[[float, float], None] | None = None) -> None:
         super().__init__(master, fg_color=theme.SURFACE, corner_radius=6,
-                         height=_HEIGHT + 16)
+                         height=_HEIGHT + 8)
         self.grid_propagate(False)
         self._on_change = on_change
 
