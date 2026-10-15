@@ -1,38 +1,39 @@
 from __future__ import annotations
 
-# ── Dark navy theme ──
-BG = "#15243f"
-SURFACE = "#283b5b"
-SIDEBAR_BG = "#15243f"
-SIDEBAR_DIVIDER = "#33496e"
-DIALOG_BG = "#15243f"
-HOVER_BG = "#24385a"
-ACCENT = "#4d8dff"
-ACCENT_HOVER = "#2f6fe0"
-TEXT = "#eef3fb"
-TEXT_DIM = "#a9bad6"
-HIGHLIGHT_BG = "#ffe08a"
-HIGHLIGHT_FG = "#15243f"
-ERROR = "#dc2626"
-SUCCESS = "#1a914b"
-SUCCESS_HOVER = "#157a41"
-WAVE_DIM = "#e3ecfa"
+# ── Light modern pastel theme (ban cho truyen thong ban hang) ──
+# Theme cu (dark navy) duoc luu tai: theme_darknavy_backup.py
+BG = "#f7f8fa"
+SURFACE = "#ffffff"
+SIDEBAR_BG = "#eef1f6"
+SIDEBAR_DIVIDER = "#dfe3ec"
+DIALOG_BG = "#f7f8fa"
+HOVER_BG = "#e8ecfb"
+ACCENT = "#7c8cf8"
+ACCENT_HOVER = "#5f70ea"
+TEXT = "#1b1d28"
+TEXT_DIM = "#6f7590"
+HIGHLIGHT_BG = "#e4dbff"
+HIGHLIGHT_FG = "#1b1d28"
+ERROR = "#e5484d"
+SUCCESS = "#2fbf71"
+SUCCESS_HOVER = "#259c5c"
+WAVE_DIM = "#5b6480"
 
-# Nền audio timeline (trang main + dialog ghép nhạc)
-TIMELINE_BG = "#82a4d3"
-TIMELINE_TEXT = "#15243f"
-TIMELINE_BORDER = "#0d1728"
-TIMELINE_DIM = "#3a5c8f"
-TIMELINE_HANDLE = "#e63946"
+# Nen audio timeline (trang main + dialog ghep nhac)
+TIMELINE_BG = "#dce6f7"
+TIMELINE_TEXT = "#1b1d28"
+TIMELINE_BORDER = "#c3cde4"
+TIMELINE_DIM = "#9aa9c7"
+TIMELINE_HANDLE = "#f0656e"
 
-# Nút đặc
-BUTTON_BG = "#20334f"
-BUTTON_HOVER = "#24385a"
+# Nut dac
+BUTTON_BG = "#ffffff"
+BUTTON_HOVER = "#e8ecfb"
 
-# Ô nhập / combobox: nền trắng, chữ đậm
+# O nhap / combobox: nen trang, chu dam
 INPUT_BG = "#ffffff"
-INPUT_TEXT = "#15243f"
-INPUT_PLACEHOLDER = "#8a8fa3"
+INPUT_TEXT = "#1b1d28"
+INPUT_PLACEHOLDER = "#9aa0b4"
 
 FONT_FAMILY = "Segoe UI"
 FONT_SIZE = 13

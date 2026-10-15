@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import queue
 import threading
+from pathlib import Path
 from tkinter import filedialog
 
 import customtkinter as ctk
@@ -17,7 +18,7 @@ from engine.model_manager import ModelManager
 from engine.tts_engine import TtsEngine
 from ui import theme
 from ui.config import load_enabled_voices, save_enabled_voices
-from ui.components.sidebar import Sidebar
+from ui.components.topbar import TopBar
 from ui.components.playback_bar import PlaybackBar
 from ui.components.sync_textbox import SyncTextbox
 from ui.components.voice_manager import VoiceManagerDialog
@@ -28,14 +29,14 @@ BUFFER_TRIGGER_SENTENCES = 5
 
 
 class MainWindow(ctk.CTk):
-    """Điều phối: Sidebar ↔ Textbox ↔ PlaybackBar ↔ TTS Engine."""
+    """Điều phối: TopBar ↔ Textbox ↔ PlaybackBar ↔ TTS Engine."""
 
     def __init__(self) -> None:
         super().__init__()
         self.title(f"{version.__app_name__} - v{version.__version__}")
-        self.geometry("1100x720")
-        self.minsize(860, 560)
-        ctk.set_appearance_mode("dark")
+        self.geometry("1200x740")
+        self.minsize(980, 600)
+        ctk.set_appearance_mode("light")
         self.configure(fg_color=theme.BG)
 
         self._model_manager = ModelManager()
@@ -67,11 +68,12 @@ class MainWindow(ctk.CTk):
         self.after(TICK_MS, self._tick)
 
     def _build_ui(self) -> None:
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0)
+        self.grid_rowconfigure(1, weight=1)
 
-        # ── Sidebar (trái) ──
-        self.sidebar = Sidebar(
+        # ── TopBar (header ngang) ──
+        self.topbar = TopBar(
             self,
             on_open_file=self._open_file,
             on_voice_change=self._on_voice_change,
@@ -81,13 +83,12 @@ class MainWindow(ctk.CTk):
             on_export=self._start_export,
             on_manage_voices=self._open_voice_manager,
             on_test_voice=self._test_voice,
-            on_merge=self._open_merge_dialog,
         )
-        self.sidebar.grid(row=0, column=0, sticky="nsw")
+        self.topbar.grid(row=0, column=0, sticky="ew")
 
-        # ── Main area (phải) ──
+        # ── Main area (full-width) ──
         main = ctk.CTkFrame(self, fg_color="transparent")
-        main.grid(row=0, column=1, sticky="nsew", padx=(0, 14), pady=14)
+        main.grid(row=1, column=0, sticky="nsew", padx=14, pady=(0, 14))
         main.grid_rowconfigure(0, weight=1)
         main.grid_rowconfigure(1, weight=0)
         main.grid_rowconfigure(2, weight=0)
@@ -113,12 +114,12 @@ class MainWindow(ctk.CTk):
     def _scan_models(self) -> list:
         prev = None
         try:
-            prev = self.sidebar.get_selected_voice()
+            prev = self.topbar.get_selected_voice()
         except Exception:
             pass
         self._all_models = self._model_manager.scan()
         if not self._all_models:
-            self.sidebar.set_status(
+            self.topbar.set_status(
                 "Không tìm thấy mô hình — chạy download_model.py",
                 theme.ERROR,
             )
@@ -131,20 +132,20 @@ class MainWindow(ctk.CTk):
             visible = self._all_models
 
         if not visible:
-            self.sidebar.set_voices([], None)
-            self.sidebar.set_status(
+            self.topbar.set_voices([], None)
+            self.topbar.set_status(
                 "Tất cả giọng đều bị tắt — bấm ＋ Thêm để bật lại.", theme.ERROR)
             return self._all_models
 
         names = [m.display_name for m in visible]
         selected = prev if prev in names else names[0]
-        self.sidebar.set_voices(names, selected)
-        self.sidebar.set_status(
+        self.topbar.set_voices(names, selected)
+        self.topbar.set_status(
             f"{len(names)}/{len(self._all_models)} giọng sẵn sàng.", theme.TEXT_DIM)
         return self._all_models
 
     def _selected_model(self):
-        name = self.sidebar.get_selected_voice()
+        name = self.topbar.get_selected_voice()
         for m in self._all_models:
             if m.display_name == name:
                 return m
@@ -169,13 +170,15 @@ class MainWindow(ctk.CTk):
             on_voice_changed=on_voice_changed,
         )
 
+    # TẠM ẨN chức năng ghép nhạc (không đấu dây từ TopBar).
+    # Khôi phục: truyền on_merge=self._open_merge_dialog khi khởi tạo TopBar.
     def _open_merge_dialog(self) -> None:
         from ui.components.merge_dialog import MergeDialog
 
         MergeDialog(
             self,
             export_history=self._export_history,
-            on_merged=lambda path: self.sidebar.set_status(
+            on_merged=lambda path: self.topbar.set_status(
                 f"Đã ghép: {path}", theme.SUCCESS),
         )
 
@@ -184,11 +187,11 @@ class MainWindow(ctk.CTk):
     def _test_voice(self) -> None:
         model = self._selected_model()
         if model is None:
-            self.sidebar.set_status("Không có giọng để test.", theme.ERROR)
+            self.topbar.set_status("Không có giọng để test.", theme.ERROR)
             return
-        test_text = self.sidebar.get_test_text()
-        speed = self.sidebar.get_speed()
-        self.sidebar.set_status(f"Đang nạp {model.display_name}...", theme.TEXT_DIM)
+        test_text = self.topbar.get_test_text()
+        speed = self.topbar.get_speed()
+        self.topbar.set_status(f"Đang nạp {model.display_name}...", theme.TEXT_DIM)
         threading.Thread(target=self._test_voice_worker,
                          args=(model, test_text, speed), daemon=True).start()
 
@@ -227,21 +230,22 @@ class MainWindow(ctk.CTk):
                 with open(path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
             self.textbox.set_text(content)
-            self.sidebar.set_status(f"Đã mở: {path}", theme.SUCCESS)
+            self.topbar.set_source_name(Path(path).name)
+            self.topbar.set_status(f"Đã mở: {path}", theme.SUCCESS)
         except Exception as exc:
-            self.sidebar.set_status(f"Không mở được file: {exc}", theme.ERROR)
+            self.topbar.set_status(f"Không mở được file: {exc}", theme.ERROR)
 
-    # ── Callbacks từ sidebar ──
+    # ── Callbacks từ topbar ──
 
     def _on_voice_change(self, _value: str) -> None:
         if self._synth_text is not None:
-            self.sidebar.set_status(
+            self.topbar.set_status(
                 "Đã đổi giọng — bấm Chuyển đổi để áp dụng.", theme.TEXT_DIM)
 
     def _on_speed_change(self, _value: float) -> None:
         if self._busy:
             self._speed_dirty = True
-            self.sidebar.set_status(
+            self.topbar.set_status(
                 "Đang chuyển đổi — áp tốc độ này sau khi xong.", theme.TEXT_DIM)
             return
         if self._base_waveform is None or len(self._base_waveform) == 0:
@@ -251,7 +255,7 @@ class MainWindow(ctk.CTk):
             # Đang phát -> áp ngay, giữ vị trí, phát tiếp không gián đoạn
             self._request_speed_apply(auto_play=False)
         else:
-            self.sidebar.set_status(
+            self.topbar.set_status(
                 "Đã đổi tốc độ — bấm Phát để áp dụng.", theme.TEXT_DIM)
 
     # ── Convert ──
@@ -261,7 +265,7 @@ class MainWindow(ctk.CTk):
         if (self._speed_applying or self._busy
                 or self._base_waveform is None or self._base_timeline is None):
             return
-        speed = self.sidebar.get_speed()
+        speed = self.topbar.get_speed()
         if abs(speed - self._applied_speed) < 1e-9:
             self._speed_dirty = False
             if auto_play and not self._player.is_playing:
@@ -269,7 +273,7 @@ class MainWindow(ctk.CTk):
                 self.playback_bar.set_playing(True)
             return
         self._speed_applying = True
-        self.sidebar.set_status("Đang đổi tốc độ...", theme.TEXT_DIM)
+        self.topbar.set_status("Đang đổi tốc độ...", theme.TEXT_DIM)
         threading.Thread(
             target=self._speed_worker,
             args=(self._base_waveform, self._base_timeline, speed, auto_play),
@@ -291,13 +295,13 @@ class MainWindow(ctk.CTk):
             return
         text = self.textbox.get_text().strip()
         if not text:
-            self.sidebar.set_status("Chưa có nội dung để chuyển đổi.", theme.ERROR)
+            self.topbar.set_status("Chưa có nội dung để chuyển đổi.", theme.ERROR)
             return
         model = self._selected_model()
         if model is None:
-            self.sidebar.set_status("Không tìm thấy model giọng đọc.", theme.ERROR)
+            self.topbar.set_status("Không tìm thấy model giọng đọc.", theme.ERROR)
             return
-        speed = self.sidebar.get_speed()
+        speed = self.topbar.get_speed()
 
         self._player.stop()
         self._waveform = None
@@ -313,7 +317,7 @@ class MainWindow(ctk.CTk):
         self._stop_event.clear()
 
         self._set_busy(True)
-        self.sidebar.set_status("Đang chuẩn bị mô hình...", theme.TEXT_DIM)
+        self.topbar.set_status("Đang chuẩn bị mô hình...", theme.TEXT_DIM)
         threading.Thread(
             target=self._convert_worker, args=(model, text, speed), daemon=True,
         ).start()
@@ -323,7 +327,7 @@ class MainWindow(ctk.CTk):
         if not self._busy:
             return
         self._stop_event.set()
-        self.sidebar.set_status("Đang dừng...", theme.TEXT_DIM)
+        self.topbar.set_status("Đang dừng...", theme.TEXT_DIM)
 
     def _convert_worker(self, model, text: str, speed: float) -> None:
         try:
@@ -393,11 +397,11 @@ class MainWindow(ctk.CTk):
         if self._busy:
             return
         if self._speed_applying:
-            self.sidebar.set_status(
+            self.topbar.set_status(
                 "Đang đổi tốc độ — thử xuất lại sau.", theme.TEXT_DIM)
             return
         if self._waveform is None or self._timeline is None:
-            self.sidebar.set_status("Chưa có âm thanh — hãy chuyển đổi trước.", theme.ERROR)
+            self.topbar.set_status("Chưa có âm thanh — hãy chuyển đổi trước.", theme.ERROR)
             return
         path = filedialog.asksaveasfilename(
             title="Xuất file âm thanh",
@@ -406,9 +410,9 @@ class MainWindow(ctk.CTk):
         )
         if not path:
             return
-        speed = self.sidebar.get_speed()
+        speed = self.topbar.get_speed()
         self._set_busy(True)
-        self.sidebar.set_status("Đang xuất file...", theme.TEXT_DIM)
+        self.topbar.set_status("Đang xuất file...", theme.TEXT_DIM)
         threading.Thread(target=self._export_worker, args=(path, speed),
                          daemon=True).start()
 
@@ -433,7 +437,7 @@ class MainWindow(ctk.CTk):
 
     def _toggle_play(self) -> None:
         if self._waveform is None:
-            self.sidebar.set_status("Hãy chuyển đổi văn bản trước.", theme.ERROR)
+            self.topbar.set_status("Hãy chuyển đổi văn bản trước.", theme.ERROR)
             return
         if self._player.is_playing or self._player.is_buffering:
             self._player.toggle()
@@ -441,7 +445,7 @@ class MainWindow(ctk.CTk):
             return
         # Sẽ phát -> áp speed đã đổi (lười) trước, rồi tự phát
         if self._speed_applying:
-            self.sidebar.set_status("Đang đổi tốc độ...", theme.TEXT_DIM)
+            self.topbar.set_status("Đang đổi tốc độ...", theme.TEXT_DIM)
             return
         if self._speed_dirty and self._base_waveform is not None:
             self._request_speed_apply(auto_play=True)
@@ -489,11 +493,11 @@ class MainWindow(ctk.CTk):
         self.playback_bar.set_duration(0.0)
         self.playback_bar.set_playing(False)
         self.waveform_timeline.clear()
-        self.sidebar.set_status(status, theme.TEXT_DIM)
+        self.topbar.set_status(status, theme.TEXT_DIM)
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
-        self.sidebar.set_busy(busy)
+        self.topbar.set_busy(busy)
 
     # ── Message loop ──
 
@@ -509,10 +513,10 @@ class MainWindow(ctk.CTk):
         kind = message[0]
         if kind == "status":
             _, text, color = message
-            self.sidebar.set_status(text, color)
+            self.topbar.set_status(text, color)
         elif kind == "stream_empty":
             self._set_busy(False)
-            self.sidebar.set_status("Không tìm thấy câu nào hợp lệ.", theme.ERROR)
+            self.topbar.set_status("Không tìm thấy câu nào hợp lệ.", theme.ERROR)
         elif kind == "stream_start":
             _, sample_rate, total_sentences, text = message
             self._synth_text = text
@@ -543,15 +547,15 @@ class MainWindow(ctk.CTk):
                     self._stream_has_started_playing = True
                     self._player.play()
                     self.playback_bar.set_playing(True)
-                    self.sidebar.set_status(
+                    self.topbar.set_status(
                         f"Đang phát ({cur}/{tot} câu)...", theme.SUCCESS)
                 else:
-                    self.sidebar.set_status(
+                    self.topbar.set_status(
                         f"Đang đệm câu {cur}/{min(BUFFER_TRIGGER_SENTENCES, tot)}...",
                         theme.TEXT_DIM)
             else:
                 if cur < tot:
-                    self.sidebar.set_status(
+                    self.topbar.set_status(
                         f"Đang phát... (tạo tiếp câu {cur + 1}/{tot})",
                         theme.TEXT_DIM)
 
@@ -561,7 +565,7 @@ class MainWindow(ctk.CTk):
             if self._timeline is not None:
                 dur = self._timeline.total_duration
                 self.playback_bar.set_duration(dur)
-                self.sidebar.set_status(
+                self.topbar.set_status(
                     f"Hoàn tất! {len(self._timeline.sentences)} câu, {dur:.1f} giây.",
                     theme.SUCCESS,
                 )
@@ -572,7 +576,7 @@ class MainWindow(ctk.CTk):
             self._base_waveform = base_wave
             self._base_timeline = base_timeline
             self._applied_speed = speed
-            self._speed_dirty = abs(self.sidebar.get_speed() - speed) > 1e-9
+            self._speed_dirty = abs(self.topbar.get_speed() - speed) > 1e-9
         elif kind == "speed_applied":
             _, base_ref, wave, timeline, speed, auto_play = message
             self._speed_applying = False
@@ -599,7 +603,7 @@ class MainWindow(ctk.CTk):
             self.waveform_timeline.update_position(new_pos)
             self.textbox.clear_highlight()
 
-            self._speed_dirty = abs(self.sidebar.get_speed() - speed) > 1e-9
+            self._speed_dirty = abs(self.topbar.get_speed() - speed) > 1e-9
             should_play = auto_play or was_playing
             if should_play and self._speed_dirty:
                 # Đổi speed lần nữa trong lúc stretch -> áp tiếp
@@ -607,36 +611,36 @@ class MainWindow(ctk.CTk):
             elif should_play:
                 self._player.play()
                 self.playback_bar.set_playing(True)
-            self.sidebar.set_status(f"Đã áp tốc độ {speed:g}x.", theme.SUCCESS)
+            self.topbar.set_status(f"Đã áp tốc độ {speed:g}x.", theme.SUCCESS)
         elif kind == "speed_apply_error":
             _, text = message
             self._speed_applying = False
             self._speed_dirty = True
-            self.sidebar.set_status(f"Lỗi đổi tốc độ: {text}", theme.ERROR)
+            self.topbar.set_status(f"Lỗi đổi tốc độ: {text}", theme.ERROR)
         elif kind == "stream_stopped":
             self._player.stop()
             self._set_busy(False)
             n = len(self._timeline.sentences) if self._timeline else 0
-            self.sidebar.set_status(
+            self.topbar.set_status(
                 f"Đã dừng chuyển đổi. Đã tạo {n} câu.", theme.TEXT_DIM)
         elif kind == "exported":
             _, path = message
             self._export_history.append(path)
             self._export_history = self._export_history[-10:]
             self._set_busy(False)
-            self.sidebar.set_status(f"Đã xuất: {path}", theme.SUCCESS)
+            self.topbar.set_status(f"Đã xuất: {path}", theme.SUCCESS)
         elif kind == "error":
             _, text = message
             self._player.set_has_more(False)
             self._set_busy(False)
-            self.sidebar.set_status(f"Lỗi: {text}", theme.ERROR)
+            self.topbar.set_status(f"Lỗi: {text}", theme.ERROR)
 
     def _tick(self) -> None:
         self._drain_messages()
         ended = self._player.update()
 
         if self._player.is_buffering:
-            self.sidebar.set_status(
+            self.topbar.set_status(
                 "Đang chờ tạo thêm âm thanh...", theme.TEXT_DIM)
             self.playback_bar.set_playing(False)
         elif self._player.is_playing:
