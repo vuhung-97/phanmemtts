@@ -24,3 +24,5 @@ Thumbs.db
 # HF cache local
 hf_cache/
 test/
+dist/
+build/

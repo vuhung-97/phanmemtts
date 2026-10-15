@@ -5,8 +5,9 @@ import json
 from pathlib import Path
 
 from core.models import VoiceModelInfo
+from core.paths import app_dir
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = app_dir()
 MODELS_DIR = BASE_DIR / "models"
 SHARED_DIR = MODELS_DIR / "shared"
 

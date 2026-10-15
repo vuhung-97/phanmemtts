@@ -8,7 +8,10 @@ from types import SimpleNamespace
 import numpy as np
 
 # Chuyển HF cache về thư mục dự án (models/vieneu/hf_cache) TRƯỚC khi import vieneu.
-_BASE_DIR = Path(__file__).resolve().parent.parent
+# Khi frozen (PyInstaller): cache nằm cạnh EXE để ghi được, không ghi vào _MEIPASS.
+from core.paths import app_dir as _app_dir
+
+_BASE_DIR = _app_dir()
 _HF_CACHE = _BASE_DIR / "models" / "vieneu" / "hf_cache"
 _HF_CACHE.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("HF_HUB_CACHE", str(_HF_CACHE))

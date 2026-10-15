@@ -41,12 +41,14 @@ class MergeDialog(ctk.CTkToplevel):
                  on_merged=None) -> None:
         super().__init__(master)
         self.title("🎵 Ghép nhạc vào file âm thanh")
-        # Kích thước 900 x 1000 cố định (min width 900), căn giữa
+        # Kích thước 900 x 700 (vừa màn 768px), nội dung cuộn trong CTkScrollableFrame
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
-        w, h = 900, min(950, sh - 40)
-        self.geometry(f"{w}x{h}+{max((sw - w) // 2, 0)}+30")
-        self.minsize(900, 600)
+        w, h = 900, min(700, sh - 60)
+        x = max((sw - w) // 2, 0)
+        y = max((sh - h) // 2, 0)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.minsize(900, 500)
         self.configure(fg_color=theme.DIALOG_BG)
         self.transient(master)
         self.grab_set()
@@ -82,6 +84,16 @@ class MergeDialog(ctk.CTkToplevel):
 
     def _build_ui(self, export_history: list[str]) -> None:
         self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        # Container cuộn toàn bộ dialog (vừa màn 768px, cuộn xuống dùng tiếp)
+        self._scroll = ctk.CTkScrollableFrame(
+            self, fg_color="transparent",
+            scrollbar_button_color=theme.TEXT_DIM,
+            scrollbar_button_hover_color=theme.ACCENT,
+        )
+        self._scroll.grid(row=0, column=0, sticky="nsew")
+        self._scroll.grid_columnconfigure(0, weight=1)
         row = 0
 
         # ── File gốc (nhiều đoạn nối tiếp) ──
@@ -89,7 +101,7 @@ class MergeDialog(ctk.CTkToplevel):
         row += 1
 
         # Danh sách đoạn gốc — khung cố định ≤100px, nội dung cuộn được
-        self._voice_list_box = ctk.CTkFrame(self, fg_color="transparent",
+        self._voice_list_box = ctk.CTkFrame(self._scroll, fg_color="transparent",
                                             height=40)
         self._voice_list_box.grid(row=row, column=0, padx=20, pady=(2, 2),
                                   sticky="ew")
@@ -106,7 +118,7 @@ class MergeDialog(ctk.CTkToplevel):
         self._voice_list.grid_columnconfigure(1, weight=1)
         row += 1
 
-        voice_btn_row = ctk.CTkFrame(self, fg_color="transparent")
+        voice_btn_row = ctk.CTkFrame(self._scroll, fg_color="transparent")
         voice_btn_row.grid(row=row, column=0, padx=20, pady=(2, 4), sticky="ew")
         voice_btn_row.grid_columnconfigure(1, weight=1)
         row += 1
@@ -135,7 +147,7 @@ class MergeDialog(ctk.CTkToplevel):
         # ── Crossfade (nhập số tự do, đơn vị giây) ──
         self._section("Chuyển đoạn (crossfade, giây)", row)
         row += 1
-        xf_row = ctk.CTkFrame(self, fg_color="transparent")
+        xf_row = ctk.CTkFrame(self._scroll, fg_color="transparent")
         xf_row.grid(row=row, column=0, padx=20, pady=(2, 8), sticky="w")
 
         self.crossfade_entry = ctk.CTkEntry(
@@ -163,7 +175,7 @@ class MergeDialog(ctk.CTkToplevel):
         self._section("Timeline output", row)
         row += 1
         self._out_canvas = ctk.CTkCanvas(
-            self, highlightthickness=0, bg=theme.TIMELINE_BG, height=_OUT_H,
+            self._scroll, highlightthickness=0, bg=theme.TIMELINE_BG, height=_OUT_H,
         )
         self._out_canvas.grid(row=row, column=0, padx=20, pady=(2, 4),
                               sticky="ew")
@@ -171,14 +183,14 @@ class MergeDialog(ctk.CTkToplevel):
         row += 1
 
         self._out_ruler = ctk.CTkLabel(
-            self, text="", text_color=theme.TIMELINE_TEXT,
+            self._scroll, text="", text_color=theme.TIMELINE_TEXT,
             font=(theme.FONT_FAMILY, 9, "bold"),
         )
         self._out_ruler.grid(row=row, column=0, padx=20, sticky="w")
         row += 1
 
         # ── Buttons (căn giữa, không kéo 100% cho gọn) ──
-        btn_row = ctk.CTkFrame(self, fg_color="transparent")
+        btn_row = ctk.CTkFrame(self._scroll, fg_color="transparent")
         btn_row.grid(row=row, column=0, padx=20, pady=(6, 4), sticky="ew")
         btn_row.grid_columnconfigure((0, 3), weight=1)
         btn_row.grid_columnconfigure((1, 2), weight=0)
@@ -202,7 +214,7 @@ class MergeDialog(ctk.CTkToplevel):
         row += 1
 
         # ── Thanh tua khi nghe thử ──
-        seek_row = ctk.CTkFrame(self, fg_color=theme.SURFACE, corner_radius=8)
+        seek_row = ctk.CTkFrame(self._scroll, fg_color=theme.SURFACE, corner_radius=8)
         seek_row.grid(row=row, column=0, padx=20, pady=(2, 2), sticky="ew")
         seek_row.grid_columnconfigure(1, weight=1)
 
@@ -235,16 +247,16 @@ class MergeDialog(ctk.CTkToplevel):
 
         # ── Status ──
         self.status_label = ctk.CTkLabel(
-            self, text="", text_color=theme.TEXT_DIM, anchor="w",
+            self._scroll, text="", text_color=theme.TEXT_DIM, anchor="w",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE), wraplength=850,
         )
         self.status_label.grid(row=100, column=0, padx=20, pady=(8, 16),
                                sticky="sew")
-        self.grid_rowconfigure(100, weight=1)
+        self._scroll.grid_rowconfigure(100, weight=1)
 
     def _section(self, text: str, row: int) -> None:
         ctk.CTkLabel(
-            self, text=text, text_color=theme.TEXT_DIM, anchor="w",
+            self._scroll, text=text, text_color=theme.TEXT_DIM, anchor="w",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
         ).grid(row=row, column=0, padx=20, pady=(3, 0), sticky="w")
 
@@ -252,7 +264,7 @@ class MergeDialog(ctk.CTkToplevel):
                    default_vol: int) -> ctk.CTkLabel:
         self._section(title, row)
 
-        body = ctk.CTkFrame(self, fg_color=theme.SURFACE, corner_radius=8)
+        body = ctk.CTkFrame(self._scroll, fg_color=theme.SURFACE, corner_radius=8)
         body.grid(row=row + 1, column=0, padx=20, pady=(2, 4), sticky="ew")
         body.grid_columnconfigure(0, weight=1)
 

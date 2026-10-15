@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Callable
 
 import customtkinter as ctk
 from PIL import Image
 
+from core.paths import resource_path
 from ui import theme
 from ui.config import load_test_text, save_test_text
 
-_LOGO_PATH = Path(__file__).resolve().parent.parent.parent / "logo" / "logo.jpg"
+_LOGO_PATH = resource_path("logo/logo.jpg")
 
 
 class Sidebar(ctk.CTkFrame):

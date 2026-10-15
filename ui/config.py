@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-_BASE_DIR = Path(__file__).resolve().parent.parent
+from core.paths import app_dir
+
+_BASE_DIR = app_dir()
 CONFIG_PATH = _BASE_DIR / "models" / "voice_config.json"
 TEST_TEXT_PATH = _BASE_DIR / "models" / "test_text.json"
 
