@@ -1,4 +1,4 @@
-vieneu>=3.8
+vieneu==3.8.3
 customtkinter==6.0.0
 numpy==2.5.4
 sounddevice==0.5.6

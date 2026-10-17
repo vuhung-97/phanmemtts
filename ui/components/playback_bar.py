@@ -63,7 +63,8 @@ class PlaybackBar(ctk.CTkFrame):
         self.rew_btn = ctk.CTkButton(self, text="⏪ -5s", command=lambda: self._skip(-5), **btn_kw)
         self.toggle_btn = ctk.CTkButton(
             self, text="▶ Phát", width=120, height=32, fg_color=theme.BUTTON_BG,
-            hover_color=theme.BUTTON_HOVER, command=self._on_toggle,
+            hover_color=theme.BUTTON_HOVER, text_color=theme.TEXT,
+            command=self._on_toggle,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
         )
         self.fwd_btn = ctk.CTkButton(self, text="⏩ +5s", command=lambda: self._skip(5), **btn_kw)

@@ -11,9 +11,8 @@ from ui.config import load_test_text, save_test_text
 
 _LOGO_PATH = resource_path("logo/logo.jpg")
 
-# Tạm ẩn chức năng ghép nhạc: TopBar không render nút Ghép nhạc.
-# Muốn bật lại: quay về Sidebar cũ, hoặc thêm nút gọi on_merge ở đây.
-SHOW_MERGE = False
+# Mở lại chức năng ghép nhạc.
+SHOW_MERGE = True
 
 _NO_FILE_TEXT = "(chưa mở văn bản)"
 
@@ -101,7 +100,8 @@ class TopBar(ctk.CTkFrame):
             voice, height=32, width=180, state="readonly", values=["(chưa có model)"],
             command=self._voice_changed, corner_radius=6,
             fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
-            button_color=theme.SURFACE, button_hover_color=theme.ACCENT,
+            border_color=theme.SIDEBAR_DIVIDER, border_width=1,
+            button_color=theme.BUTTON_HOVER, button_hover_color=theme.ACCENT,
             dropdown_fg_color=theme.INPUT_BG,
             dropdown_text_color=theme.INPUT_TEXT,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
@@ -124,7 +124,8 @@ class TopBar(ctk.CTkFrame):
             values=["0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x"],
             command=self._speed_changed, corner_radius=6,
             fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
-            button_color=theme.SURFACE, button_hover_color=theme.ACCENT,
+            border_color=theme.SIDEBAR_DIVIDER, border_width=1,
+            button_color=theme.BUTTON_HOVER, button_hover_color=theme.ACCENT,
             dropdown_fg_color=theme.INPUT_BG,
             dropdown_text_color=theme.INPUT_TEXT,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
@@ -175,13 +176,16 @@ class TopBar(ctk.CTkFrame):
             command=self._on_export,
         )
         self.export_btn.pack(fill="x")
-        self.stop_btn = ctk.CTkButton(
-            actions, text="⏹  Dừng", height=32, width=150,
-            fg_color=theme.ERROR, hover_color="#b91c1c", corner_radius=8,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
-            command=self._on_stop,
-        )
-        # Chỉ hiện nút Dừng khi đang bận (xem set_busy)
+        # Không dùng nút Dừng riêng: khi bận, convert_btn biến thành nút Dừng.
+        if SHOW_MERGE and self._on_merge is not None:
+            self.merge_btn = ctk.CTkButton(
+                actions, text="🎵  Ghép nhạc", height=32, width=150,
+                fg_color="transparent", border_width=1, border_color=theme.ACCENT,
+                text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=8,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
+                command=self._on_merge,
+            )
+            self.merge_btn.pack(fill="x", pady=(6, 0))
 
         # ── Hàng 3: dòng thông báo riêng full-width ──
         self.status_label = ctk.CTkLabel(
@@ -253,14 +257,23 @@ class TopBar(ctk.CTkFrame):
         return float(self.speed_combo.get().replace("x", ""))
 
     def set_busy(self, busy: bool) -> None:
+        # Khi bận: convert_btn biến thành nút Dừng tại chỗ (không thêm nút mới).
         state = "disabled" if busy else "normal"
-        self.convert_btn.configure(state=state)
         self.export_btn.configure(state=state)
         self.test_btn.configure(state=state)
+        if hasattr(self, "merge_btn"):
+            self.merge_btn.configure(state=state)
         if busy:
-            self.stop_btn.pack(fill="x", before=self.convert_btn)
+            self.convert_btn.configure(
+                text="⏹  Dừng", fg_color=theme.ERROR, hover_color="#b91c1c",
+                command=self._on_stop, state="normal",
+            )
         else:
-            self.stop_btn.pack_forget()
+            self.convert_btn.configure(
+                text="⚡  Chuyển đổi", fg_color=theme.SUCCESS,
+                hover_color=theme.SUCCESS_HOVER, command=self._on_convert,
+                state="normal",
+            )
 
     def set_status(self, message: str, color: str = theme.TEXT_DIM) -> None:
         self.status_label.configure(text=message, text_color=color)

@@ -83,6 +83,7 @@ class MainWindow(ctk.CTk):
             on_export=self._start_export,
             on_manage_voices=self._open_voice_manager,
             on_test_voice=self._test_voice,
+            on_merge=self._open_merge_dialog,
         )
         self.topbar.grid(row=0, column=0, sticky="ew")
 
@@ -170,8 +171,7 @@ class MainWindow(ctk.CTk):
             on_voice_changed=on_voice_changed,
         )
 
-    # TẠM ẨN chức năng ghép nhạc (không đấu dây từ TopBar).
-    # Khôi phục: truyền on_merge=self._open_merge_dialog khi khởi tạo TopBar.
+    # Chức năng ghép nhạc (đấu dây từ TopBar qua on_merge).
     def _open_merge_dialog(self) -> None:
         from ui.components.merge_dialog import MergeDialog
 
