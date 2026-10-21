@@ -15,16 +15,38 @@ class PlayerState(Enum):
     STOPPED = "stopped"
 
 
-class AudioPlayer:
-    """Phát âm thanh bằng stream liên tục (sounddevice):
+class ArraySource:
+    """Source âm thanh nằm trong RAM (mảng float32 mono)."""
 
-    - Hỗ trợ append_audio() gối đầu động
-    - Tự động chuyển BUFFERING khi đệm trống mà chưa xong (has_more=True)
-    - Tự động phát tiếp ngay khi có audio mới nạp vào
+    def __init__(self, waveform: np.ndarray | None = None) -> None:
+        self._data = np.asarray(
+            waveform if waveform is not None else np.zeros(0), dtype=np.float32
+        ).reshape(-1)
+
+    @property
+    def total_samples(self) -> int:
+        return int(self._data.size)
+
+    def read(self, start: int, n: int) -> np.ndarray:
+        start = max(0, int(start))
+        if start >= self._data.size:
+            return np.zeros(0, dtype=np.float32)
+        end = min(self._data.size, start + max(0, int(n)))
+        return self._data[start:end]
+
+
+class AudioPlayer:
+    """Phát âm thanh bằng stream liên tục (sounddevice).
+
+    - Nguồn âm thanh là "source" bất kỳ có .total_samples + .read(start, n)
+      (ArraySource / GrowableBuffer / TempAudioStore) -> không copy dữ liệu.
+    - Source có thể lớn dần (streaming): player tự đọc phần mới xuất hiện.
+    - Tự động chuyển BUFFERING khi đệm trống mà chưa xong (has_more=True).
+    - Tự động phát tiếp ngay khi có audio mới nạp vào.
     """
 
     def __init__(self) -> None:
-        self._waveform: np.ndarray | None = None
+        self._source: ArraySource | None = None
         self._sample_rate = 0
         self._state = PlayerState.IDLE
         self._stream: sd.OutputStream | None = None
@@ -32,6 +54,17 @@ class AudioPlayer:
         self._lock = threading.Lock()
         self._has_more = False
         self._finished_pending = False   # báo "đã phát hết" đúng 1 lần cho UI
+        self._available = True           # False nếu không mở được thiết bị âm thanh
+        self._device_error = ""
+
+    @property
+    def available(self) -> bool:
+        """False nếu không mở được thiết bị phát (VD máy không có sound card)."""
+        return self._available
+
+    @property
+    def device_error(self) -> str:
+        return self._device_error
 
     @property
     def state(self) -> PlayerState:
@@ -56,9 +89,8 @@ class AudioPlayer:
     @property
     def duration(self) -> float:
         with self._lock:
-            if self._waveform is None or self._sample_rate <= 0:
-                return 0.0
-            return len(self._waveform) / self._sample_rate
+            total = self._total_samples()
+            return total / self._sample_rate if self._sample_rate > 0 else 0.0
 
     @property
     def has_more(self) -> bool:
@@ -69,10 +101,20 @@ class AudioPlayer:
         with self._lock:
             self._has_more = has_more
 
-    def load(self, waveform: np.ndarray, sample_rate: int, has_more: bool = False) -> None:
+    # ── helpers ──
+
+    def _total_samples(self) -> int:
+        if self._source is None:
+            return 0
+        return int(getattr(self._source, "total_samples", 0) or 0)
+
+    # ── Nạp nguồn ──
+
+    def load_source(self, source, sample_rate: int, has_more: bool = False) -> None:
+        """Nạp một source âm thanh (RAM hoặc đĩa)."""
         self._close_stream()
         with self._lock:
-            self._waveform = np.asarray(waveform, dtype=np.float32)
+            self._source = source
             self._sample_rate = int(sample_rate)
             self._pos = 0
             self._state = PlayerState.IDLE
@@ -80,34 +122,40 @@ class AudioPlayer:
             self._finished_pending = False
         self._open_stream()
 
+    def load(self, waveform: np.ndarray, sample_rate: int, has_more: bool = False) -> None:
+        """Nạp mảng âm thanh trong RAM (dùng cho test nhanh)."""
+        self.load_source(ArraySource(waveform), sample_rate, has_more)
+
     def append_audio(self, chunk: np.ndarray) -> None:
-        """Nối thêm âm thanh động vào cuối waveform."""
-        if len(chunk) == 0:
+        """Nối thêm âm thanh động (chỉ hỗ trợ nguồn kiểu buffer trong RAM)."""
+        if chunk is None or len(chunk) == 0:
             return
-        chunk = np.asarray(chunk, dtype=np.float32)
+        source = self._source
+        append = getattr(source, "append", None)
+        if append is None:
+            return
         should_resume_stream = False
         with self._lock:
-            if self._waveform is None:
-                self._waveform = chunk.copy()
-            else:
-                self._waveform = np.concatenate([self._waveform, chunk])
-
+            append(np.asarray(chunk, dtype=np.float32))
             # Nếu đang bị nghẽn do chờ âm thanh (BUFFERING) thì tự động kích hoạt phát tiếp
             if self._state is PlayerState.BUFFERING:
                 self._state = PlayerState.PLAYING
                 should_resume_stream = True
-
         if should_resume_stream:
             self._start_stream()
+
+    # ── Điều khiển ──
 
     def play(self, start_sec: float | None = None) -> None:
         close_needed = False
         with self._lock:
-            if self._waveform is None or len(self._waveform) == 0:
+            if self._source is None or self._total_samples() == 0:
                 return
             if start_sec is not None:
-                self._pos = int(np.clip(start_sec * self._sample_rate, 0, len(self._waveform)))
-            elif self._state is PlayerState.STOPPED and self._pos >= len(self._waveform):
+                self._pos = int(
+                    np.clip(start_sec * self._sample_rate, 0, self._total_samples())
+                )
+            elif self._state is PlayerState.STOPPED and self._pos >= self._total_samples():
                 self._pos = 0
             if self._state is PlayerState.STOPPED:
                 # Stream có thể đã complete (hết file) -> bắt buộc mở lại mới
@@ -157,9 +205,12 @@ class AudioPlayer:
 
     def seek(self, seconds: float) -> None:
         with self._lock:
-            if self._waveform is None or len(self._waveform) == 0:
+            total = self._total_samples()
+            if total == 0:
                 return
-            target = float(np.clip(seconds, 0.0, max((len(self._waveform) - 1) / self._sample_rate, 0.0)))
+            target = float(
+                np.clip(seconds, 0.0, max((total - 1) / self._sample_rate, 0.0))
+            )
             self._pos = int(target * self._sample_rate)
             self._finished_pending = False
             cur_state = self._state
@@ -171,12 +222,14 @@ class AudioPlayer:
 
     def get_position(self) -> float:
         with self._lock:
-            if self._waveform is None or self._sample_rate <= 0:
+            total = self._total_samples()
+            if total == 0 or self._sample_rate <= 0:
                 return 0.0
-            return min(self._pos / self._sample_rate, len(self._waveform) / self._sample_rate)
+            return min(self._pos / self._sample_rate, total / self._sample_rate)
 
     def update(self) -> bool:
         """Gọi định kỳ (~40ms) từ UI: phát hiện audio đã phát hết — trả True đúng 1 lần."""
+        need_restart = False
         with self._lock:
             # Callback đã báo hết file (paComplete) mà UI chưa kịp thấy
             if self._finished_pending and self._state is PlayerState.STOPPED:
@@ -184,8 +237,13 @@ class AudioPlayer:
                 return True
             if self._state not in (PlayerState.PLAYING, PlayerState.BUFFERING):
                 return False
-            # Nếu phát hết và không còn câu nào đang tạo ngầm -> kết thúc hẳn
-            if self._waveform is not None and self._pos >= len(self._waveform):
+            total = self._total_samples()
+            if self._state is PlayerState.BUFFERING and self._pos < total:
+                # Source vừa lớn lên (stream/cập nhật) -> có dữ liệu mới, chơi tiếp
+                self._state = PlayerState.PLAYING
+                need_restart = (self._stream is None or not self._stream.active)
+            elif self._pos >= total:
+                # Nếu phát hết và không còn câu nào đang tạo ngầm -> kết thúc hẳn
                 if not self._has_more:
                     self._state = PlayerState.STOPPED
                     self._finished_pending = False
@@ -198,15 +256,19 @@ class AudioPlayer:
                 else:
                     # Hết âm thanh nhưng đang tạo thêm -> chuyển sang BUFFERING
                     self._state = PlayerState.BUFFERING
-            return False
+        if need_restart:
+            self._start_stream()
+        return False
 
     def _callback(self, outdata, frames, time_info, status) -> None:
         with self._lock:
-            if self._waveform is None:
+            source = self._source
+            if source is None:
                 outdata[:] = 0.0
                 return
 
-            available = len(self._waveform) - self._pos
+            total = self._total_samples()
+            available = total - self._pos
             if available <= 0:
                 outdata[:] = 0.0
                 if self._has_more:
@@ -218,12 +280,15 @@ class AudioPlayer:
                 return
 
             n = min(available, frames)
-            chunk = self._waveform[self._pos : self._pos + n]
-            outdata[:n, 0] = chunk
-            self._pos += n
+            chunk = source.read(self._pos, n)
+            if chunk is None or chunk.size == 0:
+                chunk = np.zeros(0, dtype=np.float32)
+            outdata[: len(chunk), 0] = chunk
+            if len(chunk) < outdata.shape[0]:
+                outdata[len(chunk):, 0] = 0.0
+            self._pos += len(chunk)
 
-            if n < frames:
-                outdata[n:, 0] = 0.0
+            if len(chunk) < frames:
                 if self._has_more:
                     self._state = PlayerState.BUFFERING
                 else:
@@ -232,16 +297,22 @@ class AudioPlayer:
                     raise sd.CallbackStop
 
     def _open_stream(self) -> None:
-        if self._stream is not None:
+        if self._stream is not None or not self._available:
             return
         sr = self._sample_rate or 22050
-        self._stream = sd.OutputStream(
-            samplerate=sr,
-            channels=1,
-            dtype="float32",
-            blocksize=0,
-            callback=self._callback,
-        )
+        try:
+            self._stream = sd.OutputStream(
+                samplerate=sr,
+                channels=1,
+                dtype="float32",
+                blocksize=0,
+                callback=self._callback,
+            )
+        except Exception as exc:
+            # Không có thiết bị âm thanh (hoặc bị khoá) -> app vẫn xuất file được.
+            self._available = False
+            self._device_error = str(exc)
+            self._stream = None
 
     def _start_stream(self) -> None:
         self._open_stream()

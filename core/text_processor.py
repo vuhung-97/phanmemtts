@@ -34,7 +34,11 @@ def split_sentences(text: str) -> list[tuple[int, int]]:
             if _is_sentence_boundary(text, start, i, end):
                 _push(spans, text, start, end)
                 start = end
-            i = end
+                i = end
+                continue
+            # Không phải ranh giới câu (vd "GS." — chữ viết tắt).
+            # Chỉ tiến 1 ký tự để không bỏ qua dấu xuống dòng phía sau.
+            i += 1
             continue
         i += 1
     _push(spans, text, start, length)

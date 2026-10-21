@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import customtkinter as ctk
 
+from audio.peaks import compute_peaks
 from ui import theme
 
 _NUM_BARS = 300
@@ -85,12 +86,32 @@ class WaveformTimeline(ctk.CTkFrame):
             peaks = peaks / peaks.max()
         self._peaks = peaks.astype(np.float32)
 
+        self._set_sentences(sentences)
+        self._redraw()
+
+    def set_source(self, source, sample_rate: int,
+                   sentences: list | None = None) -> None:
+        """Nạp audio từ một source (RAM hoặc đĩa) mà không copy toàn bộ.
+
+        Source = object có .total_samples và .read(start, n).
+        """
+        if source is None or sample_rate <= 0:
+            self.clear()
+            return
+        total = int(getattr(source, "total_samples", 0) or 0)
+        if total <= 0:
+            self.clear()
+            return
+        self._duration = total / sample_rate
+        self._peaks = compute_peaks(source, _NUM_BARS)
+        self._set_sentences(sentences)
+        self._redraw()
+
+    def _set_sentences(self, sentences: list | None) -> None:
         self._sentence_bounds = []
         if sentences:
             for s in sentences:
                 self._sentence_bounds.append((s.start_sec, s.end_sec))
-
-        self._redraw()
 
     def append_chunk(self, waveform: np.ndarray, sample_rate: int,
                      sentences: list | None = None) -> None:

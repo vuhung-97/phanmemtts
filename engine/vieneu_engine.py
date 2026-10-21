@@ -12,11 +12,12 @@ import numpy as np
 from core.paths import app_dir as _app_dir
 
 _BASE_DIR = _app_dir()
-_HF_CACHE = _BASE_DIR / "models" / "vieneu" / "hf_cache"
-_HF_CACHE.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault("HF_HUB_CACHE", str(_HF_CACHE))
+HF_CACHE_DIR = _BASE_DIR / "models" / "vieneu" / "hf_cache"
+_HF_CACHE = HF_CACHE_DIR   # alias giữ tương thích code cũ
+HF_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("HF_HUB_CACHE", str(HF_CACHE_DIR))
 # Nếu model đã có trong cache thì bỏ qua kiểm tra mạng (hoạt động offline 100%).
-if any(_HF_CACHE.glob("models--*")):
+if any(HF_CACHE_DIR.glob("models--*")):
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
 SAMPLE_RATE = 48000
@@ -140,10 +141,17 @@ class VieneuTTS:
     """
 
     def __init__(self, voice: str = "Hải Đăng", precision: str = "fp32",
-                 num_threads: int = 2) -> None:
+                 threads: int = 0, device: str = "auto") -> None:
+        """Bọc SDK VieNeu v3 Turbo (48 kHz).
+
+        - precision: "fp32" (chất lượng cao, mặc định) | "int8" (nhanh ~1.6x,
+          nhỏ ~4x, cần CPU có VNNI).
+        - threads: số thread intra-op của ONNX Runtime (0 = tự động).
+        - device: "auto" (tự dòng CUDA nếu đã cài PyTorch) | "cpu" | "cuda".
+        """
         from vieneu import Vieneu
 
-        self._vieneu = Vieneu(precision=precision)
+        self._vieneu = Vieneu(precision=precision, threads=threads, device=device)
         _install_custom_voices(self._vieneu)
         self._voice = voice
         self.sample_rate = SAMPLE_RATE
@@ -152,7 +160,9 @@ class VieneuTTS:
         if not text.strip():
             return SimpleNamespace(samples=np.zeros(0, dtype=np.float32),
                                    sample_rate=self.sample_rate)
-        audio = self._vieneu.infer(text, voice=self._voice, speed=speed)
+        # Lưu ý: SDK v3turbo KHÔNG có tham số `speed` (bị **kwargs bỏ qua) —
+        # tốc độ chỉ được áp qua time-stretch (audio/speed.py) bên dưới.
+        audio = self._vieneu.infer(text, voice=self._voice)
         samples = np.asarray(audio, dtype=np.float32).reshape(-1)
         samples = self._apply_speed(samples, speed)
         return SimpleNamespace(samples=samples, sample_rate=self.sample_rate)

@@ -1,10 +1,20 @@
+# Core TTS
 vieneu==3.8.3
-customtkinter==6.0.0
 numpy==2.5.4
+scipy==1.18.1
+onnxruntime==1.31.0
+huggingface_hub
+num2words==0.5.14
+
+# Audio
 sounddevice==0.5.6
 soundfile==0.14.0
-scipy==1.18.1
+librosa>=0.10          # time-stretch giữ cao độ (audio/speed.py)
+
+# UI
+customtkinter==6.0.0
 python-docx==1.2.0
-huggingface_hub
-onnxruntime==1.31.0
-num2words==0.5.14
+Pillow
+
+# Dev / test
+pytest

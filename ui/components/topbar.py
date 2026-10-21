@@ -36,6 +36,7 @@ class TopBar(ctk.CTkFrame):
         on_manage_voices: Callable[[], None],
         on_test_voice: Callable[[], None],
         on_merge: Callable[[], None] | None = None,  # giữ để tương thích, hiện không dùng
+        on_settings: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(master, corner_radius=0, fg_color=theme.SIDEBAR_BG)
         self._on_open_file = on_open_file
@@ -47,6 +48,7 @@ class TopBar(ctk.CTkFrame):
         self._on_manage_voices = on_manage_voices
         self._on_test_voice = on_test_voice
         self._on_merge = on_merge
+        self._on_settings = on_settings
 
         # Cột 3 (panel nghe thử) giãn nở theo chiều ngang
         self.grid_columnconfigure(3, weight=1)
@@ -188,6 +190,17 @@ class TopBar(ctk.CTkFrame):
                 command=self._on_merge,
             )
             self.merge_btn.pack(fill="x", pady=(6, 0))
+
+        # Nút cài đặt (precision / threads / lưu trữ / GPU)
+        if self._on_settings is not None:
+            self.settings_btn = ctk.CTkButton(
+                actions, text="⚙  Cài đặt", height=32, width=150,
+                fg_color="transparent", border_width=1, border_color=theme.SIDEBAR_DIVIDER,
+                text_color=theme.TEXT, hover_color=theme.SURFACE, corner_radius=8,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
+                command=self._on_settings,
+            )
+            self.settings_btn.pack(fill="x", pady=(6, 0))
 
         # ── Hàng 3: dòng thông báo riêng full-width ──
         self.status_label = ctk.CTkLabel(
