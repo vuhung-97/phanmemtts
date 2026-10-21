@@ -22,6 +22,37 @@ if any(HF_CACHE_DIR.glob("models--*")):
 
 SAMPLE_RATE = 48000
 
+# Dấu hiệu lỗi "file không có trong cache" của huggingface_hub.
+# Thông báo gốc tiếng Anh ("check your Internet connection") gây hiểu nhầm —
+# thực tế nguyên nhân là "chưa tải model INT8" chứ không phải mất mạng.
+_MISSING_CACHE_MARKERS = (
+    "localentrynotfounderror",
+    "offlinemodeisenabled",
+    "local cache",
+    "internet connection",
+    "check your connection",
+)
+
+
+def _friendly_load_error(exc: Exception, precision: str) -> Exception:
+    """Đổi lỗi kỹ thuật của SDK thành thông báo tiếng Việt dễ hiểu."""
+    text = str(exc)
+    hay = text.lower()
+    if any(marker in hay for marker in _MISSING_CACHE_MARKERS) or \
+            type(exc).__name__.lower() in _MISSING_CACHE_MARKERS:
+        if precision == "int8":
+            return RuntimeError(
+                "Chưa tải model INT8 trên máy này. Mở ⚙ Cài đặt → bấm "
+                "«Tải model INT8» (cần kết nối Internet một lần), hoặc "
+                "chuyển lại FP32 trong Cài đặt."
+            )
+        return RuntimeError(
+            "Không tìm thấy model trong cache. Hãy chạy lại "
+            "download_model.py, hoặc kiểm tra kết nối Internet."
+        )
+    return exc
+
+
 # Giọng tự thêm (clone) — nằm trong dự án, copy cả thư mục là mang theo.
 CUSTOM_VOICES_PATH = _BASE_DIR / "models" / "vieneu" / "custom_voices.json"
 # Định dạng file giọng di động (máy khỏe tạo -> copy sang máy yếu -> Nhập).
@@ -151,7 +182,10 @@ class VieneuTTS:
         """
         from vieneu import Vieneu
 
-        self._vieneu = Vieneu(precision=precision, threads=threads, device=device)
+        try:
+            self._vieneu = Vieneu(precision=precision, threads=threads, device=device)
+        except Exception as exc:
+            raise _friendly_load_error(exc, precision) from exc
         _install_custom_voices(self._vieneu)
         self._voice = voice
         self.sample_rate = SAMPLE_RATE

@@ -377,3 +377,33 @@ powershell -ExecutionPolicy Bypass -File packaging\make_zip_v3.ps1
 **Còn lại (không chặn P0)**
 - Đo RAM thực tế với bài ~2 giờ (ước tính hiện tại: ~1.8 GB, không đổi theo độ dài).
 - Build `build_v3.bat` + đóng gói bản phát hành v3.1.0 khi chốt phát hành.
+
+### 10.2 Đợt 1b — Sửa lỗi "chuyển sang INT8 báo kiểm tra kết nối internet"
+
+**Triệu chứng:** chọn INT8 trong Cài đặt → lúc chuyển đổi báo
+`LocalEntryNotFoundError: ... Please check your connection and try again or make sure your Internet connection is on.`
+
+**Nguyên nhân (đã tái hiện):**
+1. `engine/vieneu_engine.py` đặt `HF_HUB_OFFLINE=1` khi cache đã có model → app cứng offline.
+2. `huggingface_hub` đọc biến này **lúc import** → `snapshot_download()` chạy offline
+   → **tải im lặng, không tải gì cả** nhưng hàm vẫn trả về thành công → UI báo "Đã tải xong" (báo sai).
+3. Chuyển INT8 → `hf_hub_download(..., subfolder="onnx_int8")` không có trong cache →
+   `LocalEntryNotFoundError` với thông báo tiếng Anh gây hiểu nhầm.
+
+**Đã sửa:**
+| File | Thay đổi |
+|---|---|
+| `engine/setup_tools.py` | Thêm `online_window()` — tạm bật mạng (sửa cả `os.environ` **và** `huggingface_hub.constants.HF_HUB_OFFLINE`) rồi khôi phục. `download_int8()` **kiểm chứng** sau khi tải (đủ 7 file `onnx_int8/*`) mới báo thành công, không có thì ném lỗi rõ ràng. `int8_installed()` kiểm đủ 7 file. Thêm `INT8_FILES`. |
+| `engine/vieneu_engine.py` | `_friendly_load_error()` — đổi lỗi "thiếu file trong cache" thành thông báo tiếng Việt có hướng dẫn cụ thể. |
+| `ui/components/settings_dialog.py` | Chọn INT8 mà chưa tải → làm nổi nút "Tải model INT8 (bắt buộc)" + cảnh báo màu đỏ; cập nhật ngay khi đổi precision. |
+| `tests/test_setup_tools.py` | 4 test mới (online_window khôi phục state, int8_installed cần đủ file, thông báo lỗi). |
+
+**Kết quả kiểm thử:**
+- Tải thật: 7 file / 158 MB trong **20.9s** → `int8_installed() = True` → `HF_HUB_OFFLINE` về lại `1` ✓
+- Nạp INT8 **offline**: 6.0s, tổng hợp 3.28s audio, peak 0.782 ✓
+- FP32 vẫn chạy bình thường (8.1s) ✓
+- Thiếu file INT8 → thông báo mới: *"Chưa tải model INT8 trên máy này. Mở ⚙ Cài đặt → bấm «Tải model INT8»…"* ✓
+- `pytest`: **29/29 pass** ✓
+
+**Lưu ý máy này:** CPU Intel Comet Lake (Model 140) — **không có VNNI** → INT8 có thể tiếng nhiễu.
+UI đã cảnh báo; khuyến nghị vẫn dùng FP32.

@@ -59,9 +59,13 @@ Cấu hình lưu tại `%LOCALAPPDATA%\PhanMemTTS\app_settings.json`.
 
 ### INT8 và GPU
 
+App mặc định chạy **100% offline** (đặt `HF_HUB_OFFLINE=1`). Nút tải model sẽ **tạm mở mạng**
+đúng lúc bấm rồi đóng lại — không ảnh hưởng tới chế độ offline của app.
+
 - **INT8**: model nằm ở thư mục `models/vieneu/hf_cache/`, tải qua nút **Tải model INT8**
-  (khoảng 150 MB, cần mạng một lần). CPU cần hỗ trợ **VNNI** (Intel thế hệ 11+ / AMD Zen 3+),
+  (158 MB, cần mạng một lần). CPU cần hỗ trợ **VNNI** (Intel thế hệ 11+ / AMD Zen 3+),
   nếu không thì audio có thể bị nhiễu — hãy nghe thử trước.
+  Chọn INT8 mà chưa tải thì app sẽ báo rõ và làm nổi nút tải, không báo lỗi chung chung.
 - **GPU**: nút **Cài hỗ trợ GPU** tải PyTorch bản CUDA (vài GB, cần ≥ 12 GB trống).
   Sau khi cài, khởi động lại app — VieNeu tự chuyển sang backend GPU (nhanh hơn ~25×).
 

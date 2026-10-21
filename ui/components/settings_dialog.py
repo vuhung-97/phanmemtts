@@ -83,6 +83,7 @@ class SettingsDialog(ctk.CTkToplevel):
             dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
         self.precision_combo.grid(row=1, column=1, pady=6, sticky="ew")
+        self.precision_combo.configure(command=self._on_precision_changed)
         self._sync_precision()
 
         self.int8_label = ctk.CTkLabel(
@@ -228,14 +229,25 @@ class SettingsDialog(ctk.CTkToplevel):
             advice = setup_tools.int8_recommendation()
         except Exception:
             advice = ""
+        want_int8 = self._collect()["precision"] == "int8"
+
         if installed:
             self.int8_label.configure(
                 text=f"✔ Đã có model INT8 trên máy. {advice}", text_color=theme.SUCCESS)
-            self.int8_btn.configure(state="disabled", text="✔ Đã tải INT8")
+            self.int8_btn.configure(state="disabled", text="✔ Đã tải INT8",
+                                    fg_color="transparent")
+        elif want_int8:
+            # Người dùng đang chọn INT8 nhưng chưa tải -> làm nổi nút tải.
+            self.int8_label.configure(
+                text=f"⚠ Chưa có model INT8 — cần tải trước khi dùng. {advice}",
+                text_color=theme.ERROR)
+            self.int8_btn.configure(state="normal", text="⬇  Tải model INT8 (bắt buộc)",
+                                    fg_color=theme.ACCENT, text_color="#ffffff")
         else:
             self.int8_label.configure(
                 text=f"Chưa có model INT8. {advice}", text_color=theme.TEXT_DIM)
-            self.int8_btn.configure(state="normal", text="⬇  Tải model INT8")
+            self.int8_btn.configure(state="normal", text="⬇  Tải model INT8",
+                                    fg_color="transparent", text_color=theme.ACCENT)
 
         try:
             gpu_ok, gpu_msg = setup_tools.gpu_status()
@@ -246,6 +258,10 @@ class SettingsDialog(ctk.CTkToplevel):
             text_color=theme.SUCCESS if gpu_ok else theme.TEXT_DIM,
         )
         self.gpu_btn.configure(state="disabled" if gpu_ok else "normal")
+
+    def _on_precision_changed(self, _value: str | None = None) -> None:
+        """Đổi FP32 <-> INT8 -> cập nhật cảnh báo ngay."""
+        self._refresh_status()
 
     # ── Hành động ──
 
@@ -267,7 +283,8 @@ class SettingsDialog(ctk.CTkToplevel):
 
     def _int8_done(self) -> None:
         self._busy = False
-        self._set_status("Đã tải model INT8. Chọn INT8 ở trên để dùng.", theme.SUCCESS)
+        self._set_status(
+            "Đã tải model INT8 (158 MB). Có thể chọn INT8 ở trên.", theme.SUCCESS)
         self._refresh_status()
 
     def _int8_failed(self, message: str) -> None:
