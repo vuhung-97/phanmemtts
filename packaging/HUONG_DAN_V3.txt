@@ -1,0 +1,39 @@
+PHẦN MỀM CHUYỂN ĐỔI VĂN BẢN THÀNH GIỌNG NÓI TỰ NHIÊN v3
+============================================================
+Phiên bản: 3.0.0 | Windows 10/11 64-bit | Offline 100% | Không cần cài Python.
+
+1. CÀI ĐẶT
+   Giải nén file ZIP ra một thư mục, ví dụ:
+       D:\VanBanGiongNoi_v3\
+   Giữ nguyên cấu trúc bên trong (file .exe nằm cùng thư mục với
+   models/ và _internal/). KHÔNG tách riêng file .exe, KHÔNG chạy
+   trực tiếp trong file ZIP.
+
+2. CHẠY
+   Mở: PhanMemChuyenDoiVanBanThanhGiongNoiTuNhien_v3.exe
+   Lần đầu Windows có thể hiện SmartScreen -> "More info" ->
+   "Run anyway" (file .exe chưa được ký số).
+
+3. DÙNG OFFLINE
+   Model giọng đọc (~600MB) đã nằm sẵn trong models/vieneu/hf_cache
+   -> không cần mạng, không tải thêm gì cả.
+
+4. LƯU Ý
+   - Không đổi tên / xóa thư mục _internal/ và models/.
+   - File cấu hình (giọng được bật, câu thử) lưu tại models/ cạnh EXE
+     -> sao lưu cả thư mục khi chuyển máy.
+   - Giọng tự tạo (.json) nhập ở Quản lý giọng đọc được lưu vào
+     models/vieneu/custom_voices.json.
+   - Nếu phần mềm báo thiếu model: kiểm tra models/vieneu/hf_cache
+     còn đủ 20 file (~600MB).
+   - Cần mở được file .docx / .txt; xuất kết quả MP3 hoặc WAV.
+
+5. CẤU TRÚC PHÁT HÀNH
+   PhanMemChuyenDoiVanBanThanhGiongNoiTuNhien_v3.exe
+   _internal/                     (thư viện + logo, không chạm vào)
+   models/vieneu/hf_cache/        (model offline ~600MB)
+   models/vieneu/custom_voices.json
+   models/voice_config.json
+   models/test_text.json
+   HUONG_DAN_V3.txt               (file này)
+   HUONG_DAN_SU_DUNG.docx         (hướng dẫn chi tiết, nếu có)

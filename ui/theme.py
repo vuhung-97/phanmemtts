@@ -30,6 +30,11 @@ TIMELINE_HANDLE = "#f0656e"
 BUTTON_BG = "#ffffff"
 BUTTON_HOVER = "#e8ecfb"
 
+# Nut dac (nen toi, chu sang) — dung cho nut chinh trong dialog
+DARK_BUTTON_BG = "#1b1d28"
+DARK_BUTTON_HOVER = "#34374d"
+DARK_BUTTON_TEXT = "#ffffff"
+
 # O nhap / combobox: nen trang, chu dam
 INPUT_BG = "#ffffff"
 INPUT_TEXT = "#1b1d28"

@@ -102,8 +102,9 @@ class VoiceManagerDialog(ctk.CTkToplevel):
         bottom.grid_columnconfigure((0, 1), weight=1)
 
         ctk.CTkButton(
-            bottom, text="💾 Lưu", height=36, fg_color=theme.BUTTON_BG,
-            hover_color=theme.BUTTON_HOVER, corner_radius=8,
+            bottom, text="💾 Lưu", height=36, fg_color=theme.DARK_BUTTON_BG,
+            hover_color=theme.DARK_BUTTON_HOVER, text_color=theme.DARK_BUTTON_TEXT,
+            corner_radius=8,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
             command=self._save,
         ).grid(row=0, column=0, padx=(0, 4), sticky="ew")

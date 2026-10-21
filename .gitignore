@@ -26,3 +26,4 @@ hf_cache/
 test/
 dist/
 build/
+.spec

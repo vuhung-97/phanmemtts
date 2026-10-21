@@ -135,7 +135,9 @@ class TopBar(ctk.CTkFrame):
         self.speed_combo.pack(side="left")
 
         # ── Panel nghe thử: nút test + ô câu test giãn nở ──
-        test = self._panel(row=1, column=3, sticky="nsew")
+        # sticky="ew" (KHÔNG "nsew"): panel giữ đúng chiều cao như panel giọng
+        # đọc bên trái -> các ô cùng hàng không bị lệch dòng.
+        test = self._panel(row=1, column=3, sticky="ew")
         test.grid_columnconfigure(1, weight=1)
         self.test_btn = ctk.CTkButton(
             test, text="🔊 Test", height=32, width=76,
