@@ -351,12 +351,29 @@ powershell -ExecutionPolicy Bypass -File packaging\make_zip_v3.ps1
 3. `audio/temp_store.py` — Windows không xoá được file đang mở → `TempSession` phải đóng store trước khi xoá thư mục.
 4. `ui/main_window.py` — đổi tốc độ **trong lúc** chuyển đổi: status hứa "áp sau" nhưng không áp → nay áp tự động khi xong.
 5. `audio/player.py` — không có sound card thì `OutputStream` ném exception → nay degrade (vẫn xuất file được).
+6. `audio/player.py` — store lớn lên (chế độ đĩa) thì không ai chuyển player khỏi BUFFERING → status "Hoàn tất!" bị ghi đè, app treo.
+7. `audio/temp_store.py` — **nghiêm trọng**: player đọc và worker ghi dùng chung 1 file handle → `seek()` của reader làm lệch vị trí ghi → file chỉ còn **1/2 dữ liệu**. Sửa bằng 2 handle riêng (ghi/đọc).
+8. `audio/temp_store.py` — thêm `cleanup_stale_sessions()` dọn file tạm còn sót khi app bị tắt đột ngột.
 
 **Kết quả kiểm thử**
-- `pytest`: **24/24 pass**.
+- `pytest`: **25/25 pass**.
 - `packaging/probe_p0.py`: nạp model 7s, tổng hợp 2 câu, store RAM/đĩa khớp nhau, xuất WAV OK, timeline scale OK.
-- `packaging/probe_ui_flow.py`: chạy 3 ca (RAM / đĩa / bài dài) — xem bản ghi trong `build/probe_ui_flow.log`.
+- `packaging/probe_ui_flow.py`: **KẾT QUẢ: OK** (3 ca)
 
-**Còn lại của P0**
-- Chạy `build_v3.bat` + `app_v3_probe.spec` để xác nhận trong môi trường frozen (có `librosa`/`numba`/`soxr` trong `_internal` — đã kiểm tra bản v3.0.0 có đủ).
-- Đo RAM thực tế với bài ~2 giờ ở chế độ đĩa (mục tiêu ≤ 1.5 GB).
+| Ca | Thời gian tổng hợp | Audio | RAM | Xuất file | Đổi tốc độ 1.5× |
+|---|---|---|---|---|---|
+| RAM, bài ngắn | 12.6s | 3 câu / 11.6s | 1 380 MB | 114 KB MP3 ✓ | 11.6s → 7.75s ✓ |
+| Đĩa, bài ngắn | 7.4s | 3 câu / 11.1s | 1 511 MB | 111 KB MP3 ✓ | 11.1s → 7.43s ✓ |
+| **Đĩa, bài dài** | 91.1s | **36 câu / 139.8s** | **1 740 MB** | 1.39 MB MP3 ✓ | 139.8s → 93.2s ✓ |
+
+> RAM không tăng theo độ dài audio (chỉ +160 MB cho 2.3 phút audio) → bài 2 giờ không còn nhân 3 bản trong RAM như bản v3.0.0.
+> File audio tạm được dọn sạch sau khi đóng app ✓
+
+- Build frozen (`app_v3_probe.spec`): 26 giọng, nạp model 8.5s, tổng hợp + xuất MP3 ✓
+  (`librosa`/`numba`/`soxr` có trong `_internal` → time-stretch chạy được trong bản EXE).
+
+**Commit:** `8cad5c2` — `v3.1.0: P0 - bo nho O(n^2) + che do luu dia, cai dat INT8/threads/GPU, 25 unit test, probe UI`
+
+**Còn lại (không chặn P0)**
+- Đo RAM thực tế với bài ~2 giờ (ước tính hiện tại: ~1.8 GB, không đổi theo độ dài).
+- Build `build_v3.bat` + đóng gói bản phát hành v3.1.0 khi chốt phát hành.
