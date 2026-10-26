@@ -27,3 +27,10 @@ test/
 dist/
 build/
 .spec
+
+# Ban quyen - KHONG BAO GIO commit secret / key da cap
+tools/license_tool/keys/
+license_secret.bin
+*.lic
+issued.sqlite
+
