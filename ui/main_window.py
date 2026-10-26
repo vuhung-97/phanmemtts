@@ -17,6 +17,7 @@ import version
 from audio.player import AudioPlayer
 from audio.temp_store import TempSession, cleanup_stale_sessions
 from core.history import HistoryStore
+from core.licensing import guard
 from core.models import TimelineMap
 from core.tags import find_unknown_tags
 from engine.model_manager import ModelManager
@@ -98,8 +99,10 @@ class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
         self._all_models: list = []
         self._export_history: list[str] = []
         self._warned_device = False
+        self._last_license_check = 0.0
 
         self._build_ui()
+        self._refresh_license_badge()
         self._scan_models()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(TICK_MS, self._tick)
@@ -125,6 +128,7 @@ class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
             on_history=self._open_history,
             on_help=self._open_help,
             on_about=self._show_about,
+            on_license=self._open_license_dialog,
             on_close=self._on_close,
         )
         self.topbar.grid(row=0, column=0, sticky="ew")
@@ -155,6 +159,47 @@ class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
             on_next_sentence=self._next_sentence,
         )
         self.playback_bar.grid(row=3, column=0, sticky="ew", pady=(6, 0))
+
+    # ── Bản quyền ──
+
+    def _refresh_license_badge(self, status=None):
+        """Cập nhật nhãn 🔑 trên thanh menu theo trạng thái hiện tại."""
+        status = status or guard.check_startup(use_cache=False)
+        color = theme.TEXT_DIM
+        left = status.days_left
+        if not status.active:
+            color = theme.ERROR
+        elif left is not None and left <= 1:
+            color = theme.ERROR
+        elif left is not None and left <= 7:
+            color = "#b7791f"
+        self.topbar.set_license(status.badge_text(), color)
+        return status
+
+    def _open_license_dialog(self) -> None:
+        from ui.components.license_dialog import LicenseDialog
+
+        LicenseDialog(self, on_activate=self._open_activation)
+        self._refresh_license_badge()
+
+    def _open_activation(self) -> bool:
+        from ui.components.activation_dialog import ask_activation
+
+        ok = ask_activation(self, status=guard.check_startup(use_cache=False))
+        self._refresh_license_badge()
+        if ok and not self._all_models:
+            self._scan_models()
+        return ok
+
+    def _ensure_license(self) -> bool:
+        """Chặn thao tác khi chưa kích hoạt/hết hạn; mở hộp thoại nếu cần."""
+        status = guard.check_startup(use_cache=False)
+        if status.active:
+            return True
+        self._refresh_license_badge(status)
+        self.topbar.set_status(
+            status.message or "Thiết bị chưa được kích hoạt.", theme.ERROR)
+        return self._open_activation()
 
     # ── Callbacks từ topbar ──
 
@@ -442,6 +487,11 @@ class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
             self._export_history = self._export_history[-10:]
             self._set_busy(False)
             self.topbar.set_status(f"Đã xuất: {path}", theme.SUCCESS)
+        elif kind == "license_blocked":
+            _, text = message
+            self._set_busy(False)
+            self.topbar.set_status(text, theme.ERROR)
+            self._refresh_license_badge()
         elif kind == "error":
             _, text = message
             self._player.set_has_more(False)
@@ -451,6 +501,18 @@ class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
     def _tick(self) -> None:
         self._drain_messages()
         ended = self._player.update()
+
+        # Mỗi phút: ghi mốc thời gian + kiểm tra lại bản quyền (hết hạn giữa phiên).
+        now = time.time()
+        if now - self._last_license_check >= 60:
+            self._last_license_check = now
+            status = guard.record_activity(now)
+            self._refresh_license_badge(status)
+            if not status.active:
+                if self._busy:
+                    self._stop_event.set()
+                self.topbar.set_status(
+                    status.message or "Bản quyền không hợp lệ.", theme.ERROR)
 
         if not self._player.available and not self._warned_device:
             self._warned_device = True

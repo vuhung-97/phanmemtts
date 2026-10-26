@@ -4,6 +4,7 @@ import threading
 from tkinter import filedialog
 
 from audio import exporter
+from core.licensing import guard
 from ui import theme
 
 
@@ -38,6 +39,11 @@ class ExportMixin:
 
     def _export_worker(self, path: str, speed: float, voice: str) -> None:
         try:
+            if not guard.check_startup().active:
+                self._messages.put(
+                    ("license_blocked",
+                     "Thiết bị chưa kích hoạt — không thể xuất file."))
+                return
             store = self._play_store
             timeline = self._timeline
             # Speed đã đổi nhưng chưa áp -> dựng lại audio theo speed mới

@@ -101,7 +101,7 @@ def main() -> int:
     expected = {
         "file": ["Mở văn bản…", "Thoát"],
         "tools": ["Ghép nhạc", "Lịch sử bản dựng", "Cài đặt"],
-        "help": ["Hướng dẫn sử dụng", "Giới thiệu"],
+        "help": ["Thông tin bản quyền", "Hướng dẫn sử dụng", "Giới thiệu"],
     }
     for key, labels in expected.items():
         items = menu_commands(tb.menus[key])

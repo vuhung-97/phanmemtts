@@ -43,6 +43,7 @@ class TopBar(ctk.CTkFrame):
         on_history: Callable[[], None] | None = None,
         on_help: Callable[[], None] | None = None,
         on_about: Callable[[], None] | None = None,
+        on_license: Callable[[], None] | None = None,
         on_close: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(master, corner_radius=0, fg_color=theme.SIDEBAR_BG)
@@ -59,6 +60,7 @@ class TopBar(ctk.CTkFrame):
         self._on_history = on_history
         self._on_help = on_help
         self._on_about = on_about
+        self._on_license = on_license
         self._on_close = on_close
 
         # Chỉ số mục menu cần khoá khi đang chuyển đổi (None = không có mục đó).
@@ -282,6 +284,11 @@ class TopBar(ctk.CTkFrame):
 
         # ── Trợ giúp ──
         help_menu = self._make_menu()
+        if self._on_license is not None:
+            help_menu.add_command(label="Thông tin bản quyền",
+                                  accelerator="Ctrl+Shift+L",
+                                  command=self._on_license)
+            help_menu.add_separator()
         if self._on_help is not None:
             help_menu.add_command(label="Hướng dẫn sử dụng", command=self._on_help)
         if self._on_about is not None:
@@ -290,11 +297,24 @@ class TopBar(ctk.CTkFrame):
         if help_menu.index("end") is None:
             self._menubar_buttons["help"].pack_forget()
 
+        # ── Nhãn trạng thái bản quyền (bên phải thanh menu) ──
+        self.license_label = ctk.CTkLabel(
+            self._menubar, text="", text_color=theme.TEXT_DIM,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1), cursor="hand2",
+        )
+        self.license_label.pack(side="right", padx=(0, 12))
+        if self._on_license is not None:
+            self.license_label.bind("<Button-1>",
+                                    lambda _e: self._on_license())
+
         # ── Phím tắt (chuẩn Windows) ──
         top = self.winfo_toplevel()
         top.bind("<Control-o>", lambda _e: self._on_open_file())
         if self._on_history is not None:
             top.bind("<Control-h>", lambda _e: self._on_history())
+        if self._on_license is not None:
+            top.bind("<Control-Shift-L>", lambda _e: self._on_license())
+            top.bind("<Control-Shift-l>", lambda _e: self._on_license())
         top.bind("<Alt-f>", lambda _e: self._open_menu_by_key("file"))
         top.bind("<Alt-c>", lambda _e: self._open_menu_by_key("tools"))
         top.bind("<Alt-t>", lambda _e: self._open_menu_by_key("help"))
@@ -402,6 +422,10 @@ class TopBar(ctk.CTkFrame):
 
     def set_status(self, message: str, color: str = theme.TEXT_DIM) -> None:
         self.status_label.configure(text=message, text_color=color)
+
+    def set_license(self, text: str, color: str = theme.TEXT_DIM) -> None:
+        """Nhãn bản quyền bên phải thanh menu (🔑 Còn N ngày / Vĩnh viễn…)."""
+        self.license_label.configure(text=text, text_color=color)
 
     def get_test_text(self) -> str | None:
         """Lấy câu test từ entry, lưu lại vào config."""
