@@ -60,10 +60,23 @@ def main() -> int:
     fresh("start")
     app = MainWindow()
     app.update()
+    if getattr(app, "_prompt_job", None):
+        app.after_cancel(app._prompt_job)
     app._refresh_license_badge()
     check("chưa kích hoạt: badge cảnh báo",
           "Chưa kích hoạt" in app.topbar.license_label.cget("text"),
           app.topbar.license_label.cget("text"))
+    check("chưa kích hoạt: nút Xuất file bị khoá",
+          "🔒" in app.topbar.export_btn.cget("text"),
+          app.topbar.export_btn.cget("text"))
+
+    # Chuyển đổi VẪN mở (chỉ báo thiếu nội dung, không mở hộp thoại kích hoạt)
+    app.textbox.set_text("")
+    app._start_convert()
+    app.update()
+    check("chưa kích hoạt: chuyển đổi không bị chặn",
+          "Chưa có nội dung" in app.topbar.status_label.cget("text"),
+          app.topbar.status_label.cget("text"))
 
     # 1. Hộp thoại hiện mã máy 10 ký tự + có nút dùng thử
     dialog = dialog_for(app)
@@ -92,6 +105,9 @@ def main() -> int:
     check("kích hoạt: badge 30 ngày",
           "Còn 30 ngày" in app.topbar.license_label.cget("text"),
           app.topbar.license_label.cget("text"))
+    check("kích hoạt: mở khoá Xuất file",
+          "🔒" not in app.topbar.export_btn.cget("text"),
+          app.topbar.export_btn.cget("text"))
 
     # 4. Mã của máy khác
     fresh("other")
@@ -113,6 +129,10 @@ def main() -> int:
     guard.reset_cache()
     check("sửa JSON: bị phát hiện",
           guard.check_startup().state == guard.TAMPERED)
+    app._refresh_license_badge()
+    check("sửa JSON: khoá lại Xuất file",
+          "🔒" in app.topbar.export_btn.cget("text"),
+          app.topbar.export_btn.cget("text"))
 
     # 6. Clone (CPU + mainboard đều khác)
     fresh("clone")

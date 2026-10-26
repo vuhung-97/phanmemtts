@@ -427,6 +427,11 @@ class TopBar(ctk.CTkFrame):
         """Nhãn bản quyền bên phải thanh menu (🔑 Còn N ngày / Vĩnh viễn…)."""
         self.license_label.configure(text=text, text_color=color)
 
+    def set_export_locked(self, locked: bool) -> None:
+        """Đổi nhãn nút Xuất file khi chưa kích hoạt (vẫn bấm được để mở hộp thoại)."""
+        self.export_btn.configure(
+            text="🔒  Xuất file" if locked else "💾  Xuất file")
+
     def get_test_text(self) -> str | None:
         """Lấy câu test từ entry, lưu lại vào config."""
         text = self.test_entry.get().strip()

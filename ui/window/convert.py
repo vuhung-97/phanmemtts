@@ -91,8 +91,6 @@ class ConvertMixin:
     def _start_convert(self) -> None:
         if self._busy:
             return
-        if not self._ensure_license():
-            return
         text = self.textbox.get_text().strip()
         if not text:
             self.topbar.set_status("Chưa có nội dung để chuyển đổi.", theme.ERROR)

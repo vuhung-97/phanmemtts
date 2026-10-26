@@ -16,6 +16,8 @@ class ExportMixin:
     def _start_export(self) -> None:
         if self._busy:
             return
+        if not self._ensure_license("xuất file"):
+            return
         if self._speed_applying:
             self.topbar.set_status(
                 "Đang đổi tốc độ — thử xuất lại sau.", theme.TEXT_DIM)

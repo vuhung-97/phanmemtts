@@ -17,7 +17,7 @@ import version
 from audio.player import AudioPlayer
 from audio.temp_store import TempSession, cleanup_stale_sessions
 from core.history import HistoryStore
-from core.licensing import guard
+from core.licensing import guard, trial
 from core.models import TimelineMap
 from core.tags import find_unknown_tags
 from engine.model_manager import ModelManager
@@ -100,9 +100,11 @@ class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
         self._export_history: list[str] = []
         self._warned_device = False
         self._last_license_check = 0.0
+        self._last_license_state = ""
 
         self._build_ui()
         self._refresh_license_badge()
+        self._prompt_job = self.after(400, self._first_run_prompt)
         self._scan_models()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(TICK_MS, self._tick)
@@ -174,6 +176,7 @@ class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
         elif left is not None and left <= 7:
             color = "#b7791f"
         self.topbar.set_license(status.badge_text(), color)
+        self.topbar.set_export_locked(not status.active)
         return status
 
     def _open_license_dialog(self) -> None:
@@ -191,15 +194,39 @@ class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
             self._scan_models()
         return ok
 
-    def _ensure_license(self) -> bool:
-        """Chặn thao tác khi chưa kích hoạt/hết hạn; mở hộp thoại nếu cần."""
+    def _ensure_license(self, feature: str = "") -> bool:
+        """Chặn tính năng tạo ra file khi chưa kích hoạt; mở hộp thoại nếu cần."""
         status = guard.check_startup(use_cache=False)
         if status.active:
             return True
         self._refresh_license_badge(status)
-        self.topbar.set_status(
-            status.message or "Thiết bị chưa được kích hoạt.", theme.ERROR)
+        if feature:
+            message = f"Cần kích hoạt để {feature}."
+        else:
+            message = status.message or "Thiết bị chưa được kích hoạt."
+        self.topbar.set_status(message, theme.ERROR)
         return self._open_activation()
+
+    def _first_run_prompt(self) -> None:
+        """Lần chạy đầu: mời dùng thử / nhập mã (vẫn đóng được để dùng tiếp)."""
+        status = guard.check_startup(use_cache=False)
+        if status.active:
+            return
+        info = trial.info()
+        if info.started:
+            self.topbar.set_status(
+                "Đã hết hạn dùng thử — vẫn nghe thử được, cần mã để xuất file.",
+                theme.ERROR)
+            return
+        if not info.can_start:
+            self.topbar.set_status(
+                "Chưa kích hoạt — vẫn nghe thử được, cần mã để xuất file.",
+                theme.TEXT_DIM)
+            return
+        if not self._open_activation():
+            self.topbar.set_status(
+                "Chưa kích hoạt — vẫn nghe thử được, cần mã để xuất file.",
+                theme.TEXT_DIM)
 
     # ── Callbacks từ topbar ──
 
@@ -502,17 +529,19 @@ class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
         self._drain_messages()
         ended = self._player.update()
 
-        # Mỗi phút: ghi mốc thời gian + kiểm tra lại bản quyền (hết hạn giữa phiên).
+        # Mỗi phút: ghi mốc thời gian + kiểm tra lại bản quyền.
+        # Chưa kích hoạt KHÔNG dừng chuyển đổi (vẫn nghe thử được), chỉ khoá xuất file.
         now = time.time()
         if now - self._last_license_check >= 60:
             self._last_license_check = now
             status = guard.record_activity(now)
             self._refresh_license_badge(status)
-            if not status.active:
-                if self._busy:
-                    self._stop_event.set()
-                self.topbar.set_status(
-                    status.message or "Bản quyền không hợp lệ.", theme.ERROR)
+            if status.state != self._last_license_state:
+                self._last_license_state = status.state
+                if not status.active and not self._busy:
+                    self.topbar.set_status(
+                        status.message or "Cần mã kích hoạt để xuất file.",
+                        theme.TEXT_DIM)
 
         if not self._player.available and not self._warned_device:
             self._warned_device = True

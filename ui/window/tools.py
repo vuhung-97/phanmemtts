@@ -145,6 +145,8 @@ class ToolsMixin:
 
     # Chức năng ghép nhạc (đấu dây từ TopBar qua on_merge).
     def _open_merge_dialog(self) -> None:
+        if not self._ensure_license("ghép nhạc"):
+            return
         from ui.components.merge_dialog import MergeDialog
 
         MergeDialog(
