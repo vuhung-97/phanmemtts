@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import threading
 from typing import Callable
 
 import customtkinter as ctk
@@ -14,7 +13,7 @@ STORAGE_VALUES = ["auto", "memory", "disk"]
 
 PRECISION_LABELS = {
     "fp32": "FP32 — chất lượng cao (mặc định)",
-    "int8": "INT8 — nhanh hơn ~1.6×, nhỏ ~4× (cần CPU có VNNI)",
+    "int8": "INT8 — nhanh hơn ~20–30%, nhỏ hơn ~3× (cần CPU có VNNI)",
 }
 THREAD_LABELS = {
     0: "Tự động (theo CPU)",
@@ -31,21 +30,23 @@ STORAGE_LABELS = {
 
 
 class SettingsDialog(ctk.CTkToplevel):
-    """Dialog cài đặt: độ chính xác model, số luồng, GPU, cách lưu audio."""
+    """Dialog cài đặt: độ chính xác model, số luồng, cách lưu audio.
+
+    Bản phát hành kèm sẵn model nên không có nút tải về / cài GPU.
+    """
 
     def __init__(self, master, settings: dict,
                  on_save: Callable[[dict], None]) -> None:
         super().__init__(master)
         self.title("Cài đặt")
-        self.geometry("560x640")
-        self.minsize(520, 560)
+        self.geometry("560x540")
+        self.minsize(520, 480)
         self.configure(fg_color=theme.DIALOG_BG)
         self.transient(master)
         self.grab_set()
 
         self._settings = dict(settings)
         self._on_save = on_save
-        self._busy = False
 
         self._build_ui()
         self._refresh_status()
@@ -90,23 +91,14 @@ class SettingsDialog(ctk.CTkToplevel):
             body, text="", text_color=theme.TEXT_DIM, wraplength=480,
             justify="left", font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
         )
-        self.int8_label.grid(row=2, column=0, columnspan=2, pady=(2, 4), sticky="w")
-
-        self.int8_btn = ctk.CTkButton(
-            body, text="⬇  Tải model INT8", height=30, width=170,
-            fg_color="transparent", border_width=1, border_color=theme.ACCENT,
-            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=6,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE),
-            command=self._download_int8,
-        )
-        self.int8_btn.grid(row=3, column=0, columnspan=2, pady=(0, 8), sticky="w")
+        self.int8_label.grid(row=2, column=0, columnspan=2, pady=(2, 6), sticky="w")
 
         # ── Hiệu năng ──
-        self._section(body, "Hiệu năng", 4)
+        self._section(body, "Hiệu năng", 3)
 
         ctk.CTkLabel(body, text="Số luồng CPU", text_color=theme.TEXT_DIM,
                      font=(theme.FONT_FAMILY, theme.FONT_SIZE),
-                     ).grid(row=5, column=0, padx=(0, 10), pady=6, sticky="w")
+                     ).grid(row=4, column=0, padx=(0, 10), pady=6, sticky="w")
         self.threads_combo = ctk.CTkComboBox(
             body, values=list(THREAD_LABELS.values()), height=32, width=160,
             state="readonly", corner_radius=6, font=(theme.FONT_FAMILY, theme.FONT_SIZE),
@@ -116,30 +108,21 @@ class SettingsDialog(ctk.CTkToplevel):
             dropdown_fg_color=theme.INPUT_BG, dropdown_text_color=theme.INPUT_TEXT,
             dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
-        self.threads_combo.grid(row=5, column=1, pady=6, sticky="w")
+        self.threads_combo.grid(row=4, column=1, pady=6, sticky="w")
         self._sync_threads()
 
-        self.gpu_label = ctk.CTkLabel(
-            body, text="", text_color=theme.TEXT_DIM, wraplength=480,
-            justify="left", font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
-        )
-        self.gpu_label.grid(row=6, column=0, columnspan=2, pady=(2, 4), sticky="w")
-
-        self.gpu_btn = ctk.CTkButton(
-            body, text="⚡  Cài hỗ trợ GPU", height=30, width=170,
-            fg_color="transparent", border_width=1, border_color=theme.ACCENT,
-            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=6,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE),
-            command=self._install_gpu,
-        )
-        self.gpu_btn.grid(row=7, column=0, columnspan=2, pady=(0, 8), sticky="w")
+        ctk.CTkLabel(
+            body, text="Chạy hoàn toàn trên CPU của máy (bản phát hành không kèm GPU).",
+            text_color=theme.TEXT_DIM, wraplength=480, justify="left",
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
+        ).grid(row=5, column=0, columnspan=2, pady=(2, 6), sticky="w")
 
         # ── Lưu trữ ──
-        self._section(body, "Cách lưu âm thanh", 8)
+        self._section(body, "Cách lưu âm thanh", 6)
 
         ctk.CTkLabel(body, text="Bộ nhớ", text_color=theme.TEXT_DIM,
                      font=(theme.FONT_FAMILY, theme.FONT_SIZE),
-                     ).grid(row=9, column=0, padx=(0, 10), pady=6, sticky="w")
+                     ).grid(row=7, column=0, padx=(0, 10), pady=6, sticky="w")
         self.storage_combo = ctk.CTkComboBox(
             body, values=list(STORAGE_LABELS.values()), height=32, width=300,
             state="readonly", corner_radius=6, font=(theme.FONT_FAMILY, theme.FONT_SIZE),
@@ -149,7 +132,7 @@ class SettingsDialog(ctk.CTkToplevel):
             dropdown_fg_color=theme.INPUT_BG, dropdown_text_color=theme.INPUT_TEXT,
             dropdown_font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
-        self.storage_combo.grid(row=9, column=1, pady=6, sticky="ew")
+        self.storage_combo.grid(row=7, column=1, pady=6, sticky="ew")
         self._sync_storage()
 
         # ── Trạng thái ──
@@ -215,7 +198,6 @@ class SettingsDialog(ctk.CTkToplevel):
             "precision": precision,
             "threads": threads,
             "storage": storage,
-            "gpu": bool(self._settings.get("gpu", False)),
         }
 
     # ── Trạng thái ──
@@ -232,92 +214,21 @@ class SettingsDialog(ctk.CTkToplevel):
         want_int8 = self._collect()["precision"] == "int8"
 
         if installed:
-            self.int8_label.configure(
-                text=f"✔ Đã có model INT8 trên máy. {advice}", text_color=theme.SUCCESS)
-            self.int8_btn.configure(state="disabled", text="✔ Đã tải INT8",
-                                    fg_color="transparent")
+            prefix = "✔ Model INT8 có sẵn trong bản cài."
+            color = theme.SUCCESS if want_int8 else theme.TEXT_DIM
         elif want_int8:
-            # Người dùng đang chọn INT8 nhưng chưa tải -> làm nổi nút tải.
-            self.int8_label.configure(
-                text=f"⚠ Chưa có model INT8 — cần tải trước khi dùng. {advice}",
-                text_color=theme.ERROR)
-            self.int8_btn.configure(state="normal", text="⬇  Tải model INT8 (bắt buộc)",
-                                    fg_color=theme.ACCENT, text_color="#ffffff")
+            prefix = ("⚠ Bản cài thiếu model INT8 (thư mục onnx_int8) — hãy chép "
+                      "lại thư mục 'models/' hoặc chọn FP32.")
+            color = theme.ERROR
         else:
-            self.int8_label.configure(
-                text=f"Chưa có model INT8. {advice}", text_color=theme.TEXT_DIM)
-            self.int8_btn.configure(state="normal", text="⬇  Tải model INT8",
-                                    fg_color="transparent", text_color=theme.ACCENT)
+            prefix = "⚠ Bản cài không có model INT8 — chỉ dùng được FP32."
+            color = theme.TEXT_DIM
 
-        try:
-            gpu_ok, gpu_msg = setup_tools.gpu_status()
-        except Exception:
-            gpu_ok, gpu_msg = False, ""
-        self.gpu_label.configure(
-            text=gpu_msg,
-            text_color=theme.SUCCESS if gpu_ok else theme.TEXT_DIM,
-        )
-        self.gpu_btn.configure(state="disabled" if gpu_ok else "normal")
+        self.int8_label.configure(
+            text=f"{prefix} {advice}".strip(), text_color=color)
 
     def _on_precision_changed(self, _value: str | None = None) -> None:
         """Đổi FP32 <-> INT8 -> cập nhật cảnh báo ngay."""
-        self._refresh_status()
-
-    # ── Hành động ──
-
-    def _download_int8(self) -> None:
-        if self._busy:
-            return
-        self._busy = True
-        self.int8_btn.configure(state="disabled", text="Đang tải...")
-        self._set_status("Đang tải model INT8 (~150 MB)...", theme.TEXT_DIM)
-
-        def worker() -> None:
-            try:
-                setup_tools.download_int8(self._set_status)
-                self.after(0, self._int8_done)
-            except Exception as exc:
-                self.after(0, lambda: self._int8_failed(str(exc)))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _int8_done(self) -> None:
-        self._busy = False
-        self._set_status(
-            "Đã tải model INT8 (158 MB). Có thể chọn INT8 ở trên.", theme.SUCCESS)
-        self._refresh_status()
-
-    def _int8_failed(self, message: str) -> None:
-        self._busy = False
-        self._set_status(f"Không tải được INT8: {message}", theme.ERROR)
-        self._refresh_status()
-
-    def _install_gpu(self) -> None:
-        if self._busy:
-            return
-        self._busy = True
-        self.gpu_btn.configure(state="disabled", text="Đang cài...")
-        self._set_status("Đang cài PyTorch CUDA (~3 GB) — có thể mất vài phút...",
-                         theme.TEXT_DIM)
-
-        def worker() -> None:
-            try:
-                setup_tools.install_gpu_support(self._set_status)
-                self.after(0, self._gpu_done)
-            except Exception as exc:
-                self.after(0, lambda: self._gpu_failed(str(exc)))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def _gpu_done(self) -> None:
-        self._busy = False
-        self._set_status(
-            "Đã cài PyTorch CUDA. Hãy khởi động lại app để dùng GPU.", theme.SUCCESS)
-        self._refresh_status()
-
-    def _gpu_failed(self, message: str) -> None:
-        self._busy = False
-        self._set_status(f"Cài GPU thất bại: {message}", theme.ERROR)
         self._refresh_status()
 
     def _set_status(self, message: str, color: str = theme.TEXT_DIM) -> None:

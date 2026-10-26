@@ -616,9 +616,10 @@ class ImportVoiceDialog(ctk.CTkToplevel):
             self._create_result = (True, name)
         except Exception as exc:
             msg = str(exc)
-            if ("speaker_encoder" in msg or "Hub" in msg
-                    or "connection" in msg):
-                msg += " — Gợi ý: chạy 'python download_model.py' rồi tạo lại."
+            if ("speaker_encoder" in msg or "denoiser" in msg
+                    or "Hub" in msg or "connection" in msg):
+                msg += (" — Bộ cài thiếu file tạo giọng (speaker_encoder.onnx/"
+                        "denoiser.onnx). Hãy chép lại thư mục 'models/' từ bộ cài gốc.")
             self._create_result = (False, msg)
 
     def _poll_create(self) -> None:

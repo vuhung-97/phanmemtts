@@ -17,7 +17,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [2/6] Copy models/ canh EXE (607MB, offline)...
+echo [2/6] Copy models/ canh EXE (765MB, offline - gom ca INT8)...
 robocopy "models" "dist\%APPNAME%\models" /E /NFL /NDL /NJH /NJS /NP /XD __pycache__ >nul
 if errorlevel 8 (
     echo [LOI] Copy models that bai.

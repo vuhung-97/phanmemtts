@@ -17,37 +17,34 @@ _LEGACY_MODEL_DIRS = ("kokoro_vi",)
 class ModelManager:
     """Quét thư mục models/ và quản lý vòng đời model (lazy-load, tiết kiệm RAM).
 
-    Cấu hình runtime (precision / threads / device) lấy từ Cài đặt:
+    Cấu hình runtime (precision / threads) lấy từ Cài đặt:
     - precision: "fp32" (mặc định) | "int8" (nhanh hơn, cần CPU có VNNI)
     - threads: số thread ONNX Runtime (0 = tự động)
-    - device: "auto" | "cpu" | "cuda"
+
+    Bản phát hành chỉ chạy CPU (không kèm PyTorch/GPU).
     """
 
     def __init__(self, models_dir: Path = MODELS_DIR, precision: str = "fp32",
-                 threads: int = 0, device: str = "auto") -> None:
+                 threads: int = 0) -> None:
         self.models_dir = models_dir
         self.precision = precision
         self.threads = int(threads)
-        self.device = device
         self._loaded_id: str | None = None
         self._loaded_tts = None
 
     # ── Cấu hình runtime ──
 
-    def set_runtime(self, precision: str | None = None, threads: int | None = None,
-                    device: str | None = None) -> None:
+    def set_runtime(self, precision: str | None = None,
+                    threads: int | None = None) -> None:
         """Đổi cấu hình runtime. Nếu model đang nạp khác cấu hình → nạp lại."""
         changed = (
             (precision is not None and precision != self.precision)
             or (threads is not None and int(threads) != self.threads)
-            or (device is not None and device != self.device)
         )
         if precision is not None:
             self.precision = precision
         if threads is not None:
             self.threads = int(threads)
-        if device is not None:
-            self.device = device
         if changed:
             self.unload()
 
@@ -114,7 +111,7 @@ class ModelManager:
         if self._loaded_id == info.model_id and self._loaded_tts is not None:
             return self._loaded_tts
         self.unload()
-        self._loaded_tts = _build_tts(info, self.precision, self.threads, self.device)
+        self._loaded_tts = _build_tts(info, self.precision, self.threads)
         self._loaded_id = info.model_id
         gc.collect()
         return self._loaded_tts
@@ -131,12 +128,11 @@ class ModelManager:
             self.unload()
 
 
-def _build_tts(info: VoiceModelInfo, precision: str, threads: int, device: str):
+def _build_tts(info: VoiceModelInfo, precision: str, threads: int):
     if info.engine == "vieneu":
         from engine.vieneu_engine import VieneuTTS
 
         voice_id = info.model_id.split(":", 1)[-1] if ":" in info.model_id else "Hải Đăng"
-        return VieneuTTS(voice=voice_id, precision=precision, threads=threads,
-                         device=device)
+        return VieneuTTS(voice=voice_id, precision=precision, threads=threads)
 
     raise ValueError(f"Unknown engine: {info.engine}")

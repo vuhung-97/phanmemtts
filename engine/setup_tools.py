@@ -1,23 +1,21 @@
-"""Tien ich cai dat / kiem tra mo truong: model INT8, GPU, nang luc CPU.
+"""Kiểm tra bộ cài (model kèm sẵn) và năng lực CPU.
 
-Tach rieng khoi engine/vieneu_engine.py de phan sinh audio khong bi
-phu thuoc vao viec tai model hay pip install.
+Bản phát hành chép sẵn toàn bộ model vào ``models/vieneu/`` nên app KHÔNG tải
+gì từ mạng. Module này chỉ đọc trạng thái file trên đĩa — không gọi mạng,
+không ``pip install``.
 """
 
 from __future__ import annotations
 
-import contextlib
-import os
 import platform
 import subprocess
 import sys
 from pathlib import Path
-from typing import Callable
 
 MODEL_REPO = "pnnbao-ump/VieNeu-TTS-v3-Turbo"
 
-# Cac file can co trong cache de chay duoc INT8 (7 file, ~158 MB).
-INT8_FILES = (
+# File model FP32 (thư mục onnx_update, ~453 MB).
+FP32_FILES = (
     "config.json",
     "tokenizer.json",
     "vieneu_acoustic_cached.onnx",
@@ -27,36 +25,18 @@ INT8_FILES = (
     "vieneu_v3_heads.npz",
 )
 
-Progress = Callable[[str], None]
+# File model INT8 (thư mục onnx_int8, ~158 MB) — kèm sẵn trong bản phát hành.
+INT8_FILES = FP32_FILES
+
+# File nằm ở gốc repo model (dùng cho tạo giọng mới).
+ROOT_FILES = (
+    "config.json",
+    "speaker_encoder.onnx",
+    "denoiser.onnx",
+)
 
 
-# ── Cửa sổ cho phép gọi mạng ────────────────────────────────────────────────
-
-@contextlib.contextmanager
-def online_window():
-    """Tạm cho phép gọi mạng tới Hugging Face.
-
-    App đặt HF_HUB_OFFLINE=1 để luôn chạy offline. Nhưng huggingface_hub đọc
-    biến này LÚC IMPORT (huggingface_hub.constants.HF_HUB_OFFLINE) nên chỉ sửa
-    os.environ là không đủ — phải sửa cả hằng số trong module.
-    """
-    import huggingface_hub.constants as hf_constants
-
-    old_env = os.environ.get("HF_HUB_OFFLINE")
-    old_const = hf_constants.HF_HUB_OFFLINE
-    os.environ["HF_HUB_OFFLINE"] = "0"
-    hf_constants.HF_HUB_OFFLINE = False
-    try:
-        yield
-    finally:
-        hf_constants.HF_HUB_OFFLINE = old_const
-        if old_env is None:
-            os.environ.pop("HF_HUB_OFFLINE", None)
-        else:
-            os.environ["HF_HUB_OFFLINE"] = old_env
-
-
-# ── Model INT8 ────────────────────────────────────────────────────────────────
+# ── Đường dẫn cache ──────────────────────────────────────────────────────────
 
 def _cache_dir() -> Path:
     from engine.vieneu_engine import HF_CACHE_DIR
@@ -69,8 +49,21 @@ def _snapshot_root() -> Path:
             / f"models--{MODEL_REPO.replace('/', '--')}" / "snapshots")
 
 
+def _snapshot_dir() -> Path | None:
+    """Thư mục snapshot có model FP32 trong cache (None nếu chưa có)."""
+    root = _snapshot_root()
+    if not root.is_dir():
+        return None
+    for folder in sorted(root.iterdir()):
+        if (folder / "onnx_update").is_dir():
+            return folder
+    return None
+
+
+# ── Model INT8 ────────────────────────────────────────────────────────────────
+
 def int8_dir() -> Path | None:
-    """Thư mục chứa đủ bộ file INT8 trong cache (None nếu thiếu)."""
+    """Thư mục chứa đủ bộ file INT8 trong bản cài (None nếu thiếu)."""
     root = _snapshot_root()
     if not root.is_dir():
         return None
@@ -84,81 +77,44 @@ def int8_dir() -> Path | None:
 
 
 def int8_installed() -> bool:
-    """Đã có đủ bộ file INT8 trong cache chưa."""
+    """Bản cài đã có đủ bộ file INT8 chưa."""
     return int8_dir() is not None
 
 
-def download_int8(progress: Progress | None = None) -> None:
-    """Tải bộ graph INT8 (~158 MB) vào cache của app.
+# ── Kiểm tra bộ cài ─────────────────────────────────────────────────────────
 
-    Ném RuntimeError với thông báo rõ ràng nếu tải không thành công —
-    không được báo "thành công" khi thực tế không tải được gì.
+def verify_bundle(precision: str = "fp32") -> list[str]:
+    """Danh sách file model còn thiếu (rỗng = bộ cài đầy đủ).
+
+    ``precision`` = "int8" thì kiểm thêm thư mục ``onnx_int8``.
+    Dùng để báo lỗi rõ ràng thay cho thông báo mạng của huggingface_hub.
     """
-    from huggingface_hub import snapshot_download
+    missing: list[str] = []
 
-    if progress:
-        progress("Đang tải model INT8 (158 MB)...")
+    marker = _cache_dir().parent / "voice.json"
+    if not marker.is_file():
+        missing.append("models/vieneu/voice.json")
 
-    try:
-        with online_window():
-            snapshot_download(
-                repo_id=MODEL_REPO,
-                allow_patterns=["onnx_int8/*"],
-                cache_dir=str(_cache_dir()),
-                max_workers=2,
-            )
-    except Exception as exc:
-        raise RuntimeError(
-            "Không tải được model INT8 — cần kết nối Internet (chỉ cần một lần). "
-            f"Chi tiết: {exc}"
-        ) from exc
+    snap = _snapshot_dir()
+    if snap is None:
+        missing.append("models/vieneu/hf_cache/…/onnx_update/ (toàn bộ)")
+        return missing
 
-    # Kiểm chứng thật sự có đủ file (tránh báo thành công giả)
-    if not int8_installed():
-        raise RuntimeError(
-            "Tải xong nhưng không tìm thấy file INT8 trong cache. "
-            "Hãy thử lại, hoặc dùng FP32 (mặc định)."
-        )
+    for name in ROOT_FILES:
+        if not (snap / name).is_file():
+            missing.append(name)
 
-    if progress:
-        progress("Đã tải xong model INT8 (158 MB).")
+    subfolder = "onnx_int8" if precision == "int8" else "onnx_update"
+    names = INT8_FILES if precision == "int8" else FP32_FILES
+    for name in names:
+        if not (snap / subfolder / name).is_file():
+            missing.append(f"{subfolder}/{name}")
+
+    return missing
 
 
-# ── GPU ──────────────────────────────────────────────────────────────────────
-
-def gpu_status() -> tuple[bool, str]:
-    """(cuda_available, message) — trạng thái backend PyTorch/CUDA."""
-    try:
-        import torch
-    except Exception:
-        return False, "Chưa cài PyTorch — app đang chạy ONNX/CPU."
-    try:
-        if torch.cuda.is_available():
-            name = torch.cuda.get_device_name(0)
-            return True, f"GPU sẵn sàng: {name}"
-    except Exception:
-        pass
-    return False, "PyTorch đã cài nhưng không thấy GPU CUDA khả dụng."
-
-
-def install_gpu_support(progress: Progress | None = None) -> None:
-    """Cai PyTorch ban CUDA (vai GB) — can restart app sau khi xong."""
-    index_url = "https://download.pytorch.org/whl/cu128"
-    cmd = [
-        sys.executable, "-m", "pip", "install", "torch==2.8.0",
-        "--index-url", index_url,
-    ]
-    if progress:
-        progress("Đang tải PyTorch CUDA (~3 GB)...")
-    proc = subprocess.run(
-        cmd, capture_output=True, text=True,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0,
-    )
-    if proc.returncode != 0:
-        tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-6:]
-        raise RuntimeError("\n".join(tail) or "Cài PyTorch thất bại.")
-    if progress:
-        progress("Đã cài PyTorch CUDA — hãy khởi động lại app.")
+def bundle_ok(precision: str = "fp32") -> bool:
+    return not verify_bundle(precision)
 
 
 # ── Năng lực CPU ─────────────────────────────────────────────────────────────

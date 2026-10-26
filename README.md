@@ -2,13 +2,13 @@
 
 Ứng dụng đọc văn bản thành giọng nói tiếng Việt, chạy hoàn toàn offline trên CPU.
 
-Phiên bản hiện tại: **v3.1.0**
+Phiên bản hiện tại: **v3.2.0**
 
 ## Tính năng
 
 - **Engine TTS VieNeu v3 Turbo**: 48 kHz, 25 giọng preset, chạy offline CPU (ONNX Runtime)
-- **Chọn độ chính xác model**: FP32 (mặc định) hoặc **INT8** (nhanh ~1.6×, nhỏ ~4× — nút tải trong Cài đặt)
-- **Tuỳ chọn số luồng CPU** và **cài hỗ trợ GPU** (PyTorch/CUDA) trong Cài đặt
+- **Chọn độ chính xác model**: FP32 (mặc định) hoặc **INT8** (nhanh hơn ~20–30% — có sẵn trong bản cài)
+- **Tuỳ chọn số luồng CPU** trong Cài đặt
 - Sidebar hiện đại, quản lý giọng đọc bằng checkbox
 - Test giọng nhanh với câu tùy chỉnh
 - Đọc streaming từng câu, highlight câu đang phát (karaoke)
@@ -50,24 +50,23 @@ Bấm **⚙ Cài đặt** trên thanh trên cùng:
 
 | Mục | Ý nghĩa |
 |---|---|
-| Độ chính xác | `FP32` (chất lượng cao, mặc định) hoặc `INT8` (nhanh hơn, cần CPU có VNNI) |
+| Độ chính xác | `FP32` (chất lượng cao, mặc định) hoặc `INT8` (nhanh hơn ~20–30%, cần CPU có VNNI) |
 | Số luồng CPU | 0 = tự động, hoặc chỉ định 2/4/6/8 luồng |
-| Cài hỗ trợ GPU | Tải PyTorch CUDA → app tự dùng GPU sau khi khởi động lại |
 | Bộ nhớ | `Tự động` / `Luôn trong RAM` / `Luôn ghi file tạm` |
 
 Cấu hình lưu tại `%LOCALAPPDATA%\PhanMemTTS\app_settings.json`.
 
-### INT8 và GPU
+### Offline và INT8
 
-App mặc định chạy **100% offline** (đặt `HF_HUB_OFFLINE=1`). Nút tải model sẽ **tạm mở mạng**
-đúng lúc bấm rồi đóng lại — không ảnh hưởng tới chế độ offline của app.
+App chạy **100% offline**: không có bất kỳ request mạng nào (`HF_HUB_OFFLINE=1` +
+`HF_HUB_DISABLE_TELEMETRY=1`). Toàn bộ model — gồm cả **FP32 và INT8** — được chép sẵn
+trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút tải về.
 
-- **INT8**: model nằm ở thư mục `models/vieneu/hf_cache/`, tải qua nút **Tải model INT8**
-  (158 MB, cần mạng một lần). CPU cần hỗ trợ **VNNI** (Intel thế hệ 11+ / AMD Zen 3+),
-  nếu không thì audio có thể bị nhiễu — hãy nghe thử trước.
-  Chọn INT8 mà chưa tải thì app sẽ báo rõ và làm nổi nút tải, không báo lỗi chung chung.
-- **GPU**: nút **Cài hỗ trợ GPU** tải PyTorch bản CUDA (vài GB, cần ≥ 12 GB trống).
-  Sau khi cài, khởi động lại app — VieNeu tự chuyển sang backend GPU (nhanh hơn ~25×).
+- **INT8**: chọn trong ⚙ Cài đặt, dùng ngay (không cần tải). CPU cần hỗ trợ **VNNI**
+  (Intel thế hệ 11+ / AMD Zen 3+); nếu không thì audio có thể bị nhiễu — hãy nghe thử trước.
+- **GPU**: không hỗ trợ. Bản phát hành chỉ chạy CPU (không kèm PyTorch).
+- Nếu bộ cài thiếu file (copy thiếu, antivirus cách ly…), app báo **đúng tên file thiếu**
+  và hướng dẫn chép lại thư mục `models/` — không hiện lỗi mạng gây hiểu nhầm.
 
 ## Yêu cầu
 

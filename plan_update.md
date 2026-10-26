@@ -1,7 +1,7 @@
 # KẾ HOẠCH CẬP NHẬT — v3.1 → v3.3
 
-> **Trạng thái:** CHỜ CHỐT — chưa triển khai. File này chỉ lưu kế hoạch.
-> **Cập nhật 21/10/2026:** Đợt 1 (P0) **đã triển khai xong** — xem mục 10.
+> **Trạng thái:** P0 + bản offline-only (`v3.2.0`) **đã xong** — xem mục 10. P1/P2 còn lại: xem mục 11.
+> **Cập nhật 26/10/2026:** Đợt 1 (P0) xong; đợt 1c (bỏ hẳn online + GPU) xong; header 3 hàng tinh lại.
 > **Người lập:** phiên làm việc nghiên cứu repo `Cuongyd196/cit-voice-studio` + đối chiếu app hiện tại.
 > **Mốc code hiện tại:** commit `47873cb` (v3.0.0) — đã push lên `origin/main`.
 > **Ngày lập:** 21/10/2026
@@ -407,3 +407,61 @@ powershell -ExecutionPolicy Bypass -File packaging\make_zip_v3.ps1
 
 **Lưu ý máy này:** CPU Intel Comet Lake (Model 140) — **không có VNNI** → INT8 có thể tiếng nhiễu.
 UI đã cảnh báo; khuyến nghị vẫn dùng FP32.
+
+### 10.3 Đợt 1c — Bỏ hẳn chế độ online (thay thế cách làm ở 10.2)
+
+**Quyết định:** bản phát hành đã chép sẵn toàn bộ model (FP32 + INT8 + `speaker_encoder.onnx`
++ `denoiser.onnx`) nên **xoá mọi đường tải về**, kể cả tải INT8 và cài GPU.
+
+| File | Thay đổi |
+|---|---|
+| `engine/vieneu_engine.py` | `HF_HUB_OFFLINE=1` **vô điều kiện** + `HF_HUB_DISABLE_TELEMETRY=1`; ép cả `huggingface_hub.constants.HF_HUB_OFFLINE`; `device` mặc định `"cpu"` |
+| `engine/setup_tools.py` | **Xoá** `online_window()`, `download_int8()`, `gpu_status()`, `install_gpu_support()`. **Thêm** `verify_bundle()` / `bundle_ok()` (danh sách file thiếu) |
+| `ui/components/settings_dialog.py` | Bỏ 2 nút "Tải model INT8" / "Cài hỗ trợ GPU"; chỉ còn precision + threads + lưu trữ |
+| `engine/model_manager.py` | Bỏ tham số `device` (chỉ CPU) |
+| `ui/config.py` | Bỏ key `gpu` khỏi `DEFAULT_SETTINGS` |
+| `ui/main_window.py` | Thiếu model → báo **đúng tên file thiếu** thay vì "chạy download_model.py" |
+| `tests/test_setup_tools.py` | 6 test: offline mặc định, `int8_installed()`, `verify_bundle()` (đủ/thiếu/không cache), thông báo lỗi |
+
+**Kiểm chứng (giả lập mất mạng `HF_ENDPOINT=http://127.0.0.1:9`):**
+
+| Trường hợp | Kết quả |
+|---|---|
+| Nạp FP32 | 10.1s → audio 2.56s, peak 0.824 ✓ |
+| Nạp INT8 | 7.7s → audio 2.40s, peak 0.671 ✓ |
+| `verify_bundle()` | `[]` — đủ file (11 mục cho FP32, 18 khi kiểm cả INT8) ✓ |
+| Xoá tạm 1 file INT8 | `RuntimeError: Bộ cài thiếu model (INT8): onnx_int8/vieneu_prefill.onnx. Hãy chép lại thư mục 'models/'…` ✓ |
+| Không còn request mạng | `HF_HUB_OFFLINE=1` + telemetry tắt ✓ |
+| `pytest` | **40/40 pass** ✓ |
+
+**Dung lượng bản cài:** ~765 MB (thêm 158 MB của `onnx_int8/`).
+
+### 10.4 Đợt 1d — Tinh lại header + streaming yield ngay (`v3.2.0`)
+
+| Thay đổi | Chi tiết |
+|---|---|
+| Header 3 hàng | Panel hành động 4 nút xếp dọc (166px) kéo 2 hàng đầu lên 89px/hàng → header **212px**. Chuyển 2 nút chính xuống cuối hàng nguồn (cao 32px), 2 nút công cụ vào panel phải (chia 3:2) → header **146px** (hàng 56/56/34) |
+| Thứ tự nút | `⚡ Chuyển đổi` → `💾 Xuất file` (hàng nguồn); `🎵 Ghép nhạc` → `⚙ Cài đặt` (panel phải) |
+| Chiều ngang | Panel phải giữ 166px → ô câu test không bị co (287px @1200px) |
+| Streaming | `tts_engine` bỏ lookahead 1 câu: `_pause_pad_estimate()` ước lượng `LEAD_EST_SEC` → yield ngay câu vừa tạo xong |
+| An toàn | Khoá nút ⚙ khi đang chuyển đổi (đổi precision giữa lúc đọc sẽ nạp lại model) |
+
+**Kiểm chứng:** `pytest` 40/40 · `probe_ui_flow.py` **OK** (3 ca: RAM / đĩa / bài dài) · header 146px @980/1100/1200/1440.
+
+---
+
+## 11. TIẾN ĐỘ P1 / P2
+
+| # | Hạng mục | Trạng thái |
+|---|---|---|
+| 2.1 | Xuất phụ đề `.srt` | ❌ **bỏ khỏi scope** (chốt 26/10/2026) |
+| 2.2 | Lịch sử bền vững | 🔜 đang làm |
+| 2.3 | Từ điển phát âm | ❌ chưa |
+| 2.4 | Thẻ cảm xúc + thẻ nghỉ | 🔜 đang làm (`[cười]/[thở dài]/[hắng giọng]` engine đã chạy; `[nghỉ Xs]` + UI chèn nhanh đang triển khai) |
+| 2.5 | Nút "Làm sạch" | ❌ chưa (ngoài đợt này) |
+| 2.6 | Đọc .srt/.vtt + lồng tiếng | ❌ chưa (ngoài đợt này) |
+| 2.7 | Batch `[P1][P2]` + zip | ❌ chưa (ngoài đợt này) |
+| 2.8 | Model Manager UI | ⚠️ chỉ còn precision FP32/INT8 trong Cài đặt (Nano/GPU đã loại) |
+| 4.1 | Hội thoại nhiều giọng | ❌ chưa |
+| 4.2 | Đa nền tảng | ⚠️ `data_dir()` đã có; thiếu build script + CI |
+| 4.3 | Điều khoản + Privacy | ❌ chưa |

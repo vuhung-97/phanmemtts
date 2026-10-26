@@ -31,7 +31,9 @@ from ui.components.voice_manager import VoiceManagerDialog
 from ui.components.waveform_timeline import WaveformTimeline
 
 TICK_MS = 40
-BUFFER_TRIGGER_SENTENCES = 5
+# Số câu tối thiểu phải có sẵn trong buffer trước khi bắt đầu phát.
+# 1 = bắt đầu đọc ngay khi có câu đầu tiên (không đệm 5 câu).
+BUFFER_TRIGGER_SENTENCES = 1
 # Chu kỳ vẽ lại waveform (giây) — tránh tính lại peaks mỗi câu (O(n²)).
 WAVEFORM_REDRAW_SEC = 0.4
 
@@ -156,10 +158,7 @@ class MainWindow(ctk.CTk):
             pass
         self._all_models = self._model_manager.scan()
         if not self._all_models:
-            self.topbar.set_status(
-                "Không tìm thấy mô hình — chạy download_model.py",
-                theme.ERROR,
-            )
+            self.topbar.set_status(self._bundle_problem(), theme.ERROR)
             return self._all_models
 
         enabled = load_enabled_voices()
@@ -180,6 +179,21 @@ class MainWindow(ctk.CTk):
         self.topbar.set_status(
             f"{len(names)}/{len(self._all_models)} giọng sẵn sàng.", theme.TEXT_DIM)
         return self._all_models
+
+    def _bundle_problem(self) -> str:
+        """Thông báo khi không thấy model: nêu rõ file nào thiếu trong bộ cài."""
+        try:
+            from engine import setup_tools
+
+            missing = setup_tools.verify_bundle()
+        except Exception:
+            missing = []
+        if not missing:
+            return "Không tìm thấy mô hình trong thư mục 'models/'."
+        preview = ", ".join(missing[:3])
+        more = f"… (+{len(missing) - 3})" if len(missing) > 3 else ""
+        return (f"Bộ cài thiếu {len(missing)} file model: {preview}{more}. "
+                "Hãy chép lại thư mục 'models/' từ bộ cài gốc.")
 
     def _selected_model(self):
         name = self.topbar.get_selected_voice()
@@ -442,7 +456,7 @@ class MainWindow(ctk.CTk):
             base_spans: list[tuple[int, int]] = []
             base_sentences: list[SentenceItem] = []
 
-            # Gửi stream_start ngay (generator nay trễ 1 câu vì lookahead nối pause-pad)
+            # Gửi stream_init ngay (generator không còn lookahead)
             self._messages.put(("stream_init", sample_rate, sentences_count, text,
                                 base_store, play_store, disk))
             self._messages.put(("status",
@@ -676,7 +690,7 @@ class MainWindow(ctk.CTk):
                         f"Đang phát ({cur}/{tot} câu)...", theme.SUCCESS)
                 else:
                     self.topbar.set_status(
-                        f"Đang đệm câu {cur}/{min(BUFFER_TRIGGER_SENTENCES, tot)}...",
+                        f"Đang đệm câu {cur}...",
                         theme.TEXT_DIM)
             else:
                 if cur < tot:

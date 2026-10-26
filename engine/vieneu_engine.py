@@ -16,15 +16,25 @@ HF_CACHE_DIR = _BASE_DIR / "models" / "vieneu" / "hf_cache"
 _HF_CACHE = HF_CACHE_DIR   # alias giữ tương thích code cũ
 HF_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("HF_HUB_CACHE", str(HF_CACHE_DIR))
-# Nếu model đã có trong cache thì bỏ qua kiểm tra mạng (hoạt động offline 100%).
-if any(HF_CACHE_DIR.glob("models--*")):
-    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+# Bản phát hành chép sẵn toàn bộ model -> app chạy 100% offline, KHÔNG gọi mạng.
+# (download_model.py là công cụ riêng của người phát triển, không import module này.)
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+# huggingface_hub đọc biến môi trường LÚC IMPORT -> ép cả hằng số cho chắc,
+# kể cả khi thư viện đã được import trước đó.
+try:
+    import huggingface_hub.constants as _hf_constants
+
+    _hf_constants.HF_HUB_OFFLINE = True
+except Exception:      # thiếu hub thì lỗi sẽ hiện khi nạp model
+    pass
 
 SAMPLE_RATE = 48000
 
-# Dấu hiệu lỗi "file không có trong cache" của huggingface_hub.
-# Thông báo gốc tiếng Anh ("check your Internet connection") gây hiểu nhầm —
-# thực tế nguyên nhân là "chưa tải model INT8" chứ không phải mất mạng.
+# Dấu hiệu lỗi "không tìm thấy file trong cache" của huggingface_hub.
+# Bản phát hành kèm sẵn model nên đây luôn là lỗi bộ cài thiếu file,
+# không phải lỗi mạng — thông báo gốc tiếng Anh gây hiểu nhầm.
 _MISSING_CACHE_MARKERS = (
     "localentrynotfounderror",
     "offlinemodeisenabled",
@@ -38,19 +48,31 @@ def _friendly_load_error(exc: Exception, precision: str) -> Exception:
     """Đổi lỗi kỹ thuật của SDK thành thông báo tiếng Việt dễ hiểu."""
     text = str(exc)
     hay = text.lower()
-    if any(marker in hay for marker in _MISSING_CACHE_MARKERS) or \
-            type(exc).__name__.lower() in _MISSING_CACHE_MARKERS:
-        if precision == "int8":
-            return RuntimeError(
-                "Chưa tải model INT8 trên máy này. Mở ⚙ Cài đặt → bấm "
-                "«Tải model INT8» (cần kết nối Internet một lần), hoặc "
-                "chuyển lại FP32 trong Cài đặt."
-            )
+    looks_missing = (
+        any(marker in hay for marker in _MISSING_CACHE_MARKERS)
+        or type(exc).__name__.lower() in _MISSING_CACHE_MARKERS
+    )
+    if not looks_missing:
+        return exc
+
+    try:
+        from engine import setup_tools
+
+        missing = setup_tools.verify_bundle(precision)
+    except Exception:
+        missing = []
+
+    if missing:
+        preview = ", ".join(missing[:4])
+        more = f" (và {len(missing) - 4} file khác)" if len(missing) > 4 else ""
         return RuntimeError(
-            "Không tìm thấy model trong cache. Hãy chạy lại "
-            "download_model.py, hoặc kiểm tra kết nối Internet."
+            f"Bộ cài thiếu model ({precision.upper()}): {preview}{more}. "
+            "Hãy chép lại thư mục 'models/' từ bộ cài gốc rồi mở lại app."
         )
-    return exc
+    return RuntimeError(
+        f"Không nạp được model {precision.upper()} dù đã có đủ file. "
+        f"Chi tiết: {text}"
+    )
 
 
 # Giọng tự thêm (clone) — nằm trong dự án, copy cả thư mục là mang theo.
@@ -172,13 +194,13 @@ class VieneuTTS:
     """
 
     def __init__(self, voice: str = "Hải Đăng", precision: str = "fp32",
-                 threads: int = 0, device: str = "auto") -> None:
+                 threads: int = 0, device: str = "cpu") -> None:
         """Bọc SDK VieNeu v3 Turbo (48 kHz).
 
-        - precision: "fp32" (chất lượng cao, mặc định) | "int8" (nhanh ~1.6x,
-          nhỏ ~4x, cần CPU có VNNI).
+        - precision: "fp32" (chất lượng cao, mặc định) | "int8" (nhanh hơn,
+          nhỏ hơn — cần CPU có VNNI).
         - threads: số thread intra-op của ONNX Runtime (0 = tự động).
-        - device: "auto" (tự dòng CUDA nếu đã cài PyTorch) | "cpu" | "cuda".
+        - device: luôn "cpu" — bản phát hành không kèm PyTorch/GPU.
         """
         from vieneu import Vieneu
 

@@ -19,7 +19,6 @@ DEFAULT_SETTINGS: dict = {
     "precision": "fp32",   # "fp32" | "int8"
     "threads": 0,          # 0 = tu dong, nguon dinh cua ONNX Runtime
     "storage": "auto",     # "auto" | "memory" | "disk"
-    "gpu": False,          # dung backend PyTorch/CUDA neu co
 }
 
 

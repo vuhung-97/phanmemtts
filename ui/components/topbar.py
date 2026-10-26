@@ -19,8 +19,8 @@ _NO_FILE_TEXT = "(chưa mở văn bản)"
 
 class TopBar(ctk.CTkFrame):
     """Header 3 hàng, các nhóm nút nằm trong panel có viền:
-    Hàng 1: logo | nguồn văn bản | khối hành động.
-    Hàng 2: giọng đọc | nghe thử + tốc độ.
+    Hàng 1: logo | nguồn văn bản (+ Chuyển đổi, Xuất file) | Ghép nhạc.
+    Hàng 2: giọng đọc + tốc độ | nghe thử | Cài đặt.
     Hàng 3: dòng thông báo riêng full-width.
     """
 
@@ -90,7 +90,26 @@ class TopBar(ctk.CTkFrame):
             src, text=_NO_FILE_TEXT, text_color=theme.TEXT_DIM, anchor="w",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE),
         )
-        self.source_label.grid(row=0, column=1, padx=(8, 0), sticky="ew")
+        self.source_label.grid(row=0, column=1, padx=(8, 8), sticky="ew")
+
+        # Hai nút hành động chính nằm cuối hàng nguồn (hàng đã cao 56px nên
+        # không làm header cao thêm, đồng thời trả chiều ngang cho ô test).
+        # Chiều cao ≤ 32px để hàng nguồn không tăng thêm.
+        self.convert_btn = ctk.CTkButton(
+            src, text="⚡  Chuyển đổi", height=32, width=118, fg_color=theme.SUCCESS,
+            hover_color=theme.SUCCESS_HOVER, corner_radius=6,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
+            command=self._on_convert,
+        )
+        self.convert_btn.grid(row=0, column=2, sticky="e")
+        self.export_btn = ctk.CTkButton(
+            src, text="💾  Xuất file", height=32, width=106,
+            fg_color="transparent", border_width=1, border_color=theme.ACCENT,
+            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=6,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
+            command=self._on_export,
+        )
+        self.export_btn.grid(row=0, column=3, padx=(6, 0), sticky="e")
 
         # ── Panel giọng đọc: combo + thêm + tốc độ ──
         voice = self._panel(row=1, column=1, columnspan=2, sticky="w")
@@ -163,35 +182,26 @@ class TopBar(ctk.CTkFrame):
 
         # KHÔNG render nút Ghép nhạc (SHOW_MERGE = False)
 
-        # ── Panel hành động cuối cùng: chiếm dọc 2 hàng đầu ──
+        # ── Panel phải: 2 nút công cụ, chia đều chiều cao 2 hàng đầu ──
+        # Chiều cao khả dụng ≈ 112px -> chia 3:2 (nút ghép nhạc cao hơn), header giữ 3 hàng.
         actions = self._panel(row=0, column=4, rowspan=2)
-        self.convert_btn = ctk.CTkButton(
-            actions, text="⚡  Chuyển đổi", height=40, width=150, fg_color=theme.SUCCESS,
-            hover_color=theme.SUCCESS_HOVER, corner_radius=8,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
-            command=self._on_convert,
-        )
-        self.convert_btn.pack(fill="x", pady=(0, 6))
-        self.export_btn = ctk.CTkButton(
-            actions, text="💾  Xuất file", height=32, width=150,
-            fg_color="transparent", border_width=1, border_color=theme.ACCENT,
-            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=8,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
-            command=self._on_export,
-        )
-        self.export_btn.pack(fill="x")
-        # Không dùng nút Dừng riêng: khi bận, convert_btn biến thành nút Dừng.
-        if SHOW_MERGE and self._on_merge is not None:
+        actions.grid_columnconfigure(0, weight=1)
+        has_merge = SHOW_MERGE and self._on_merge is not None
+        if has_merge:
+            actions.grid_rowconfigure(0, weight=3)
+            actions.grid_rowconfigure(1, weight=2)
+
+        if has_merge:
             self.merge_btn = ctk.CTkButton(
-                actions, text="🎵  Ghép nhạc", height=32, width=150,
+                actions, text="🎵  Ghép nhạc", height=40, width=150,
                 fg_color="transparent", border_width=1, border_color=theme.ACCENT,
                 text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=8,
                 font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
                 command=self._on_merge,
             )
-            self.merge_btn.pack(fill="x", pady=(6, 0))
+            self.merge_btn.grid(row=0, column=0, pady=(0, 6), sticky="nsew")
 
-        # Nút cài đặt (precision / threads / lưu trữ / GPU)
+        # Nút cài đặt (precision / threads / lưu trữ)
         if self._on_settings is not None:
             self.settings_btn = ctk.CTkButton(
                 actions, text="⚙  Cài đặt", height=32, width=150,
@@ -200,7 +210,9 @@ class TopBar(ctk.CTkFrame):
                 font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
                 command=self._on_settings,
             )
-            self.settings_btn.pack(fill="x", pady=(6, 0))
+            self.settings_btn.grid(row=1 if has_merge else 0, column=0,
+                                   rowspan=1 if has_merge else 2, sticky="nsew")
+        # Không dùng nút Dừng riêng: khi bận, convert_btn biến thành nút Dừng.
 
         # ── Hàng 3: dòng thông báo riêng full-width ──
         self.status_label = ctk.CTkLabel(
@@ -278,6 +290,9 @@ class TopBar(ctk.CTkFrame):
         self.test_btn.configure(state=state)
         if hasattr(self, "merge_btn"):
             self.merge_btn.configure(state=state)
+        if hasattr(self, "settings_btn"):
+            # Đổi precision giữa lúc chuyển đổi sẽ nạp lại model -> khoá luôn.
+            self.settings_btn.configure(state=state)
         if busy:
             self.convert_btn.configure(
                 text="⏹  Dừng", fg_color=theme.ERROR, hover_color="#b91c1c",
