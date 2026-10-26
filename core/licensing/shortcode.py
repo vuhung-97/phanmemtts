@@ -92,8 +92,8 @@ def day_index(day: date) -> int:
     return (day - EPOCH).days
 
 
-def _tag(prefix: int) -> int:
-    digest = hmac.new(secret_key(), prefix.to_bytes(5, "big"), sha256).digest()
+def _tag(prefix: int, key: bytes | None = None) -> int:
+    digest = hmac.new(key or secret_key(), prefix.to_bytes(5, "big"), sha256).digest()
     return int.from_bytes(digest[:5], "big") >> 4
 
 
@@ -108,7 +108,7 @@ def _build_prefix(kind: int, expiry_day: int, machine24: int) -> int:
 
 
 def issue(machine24: int, kind: int, days: int | None = None,
-          today: date | None = None) -> str:
+          today: date | None = None, key: bytes | None = None) -> str:
     """Tạo mã kích hoạt 15 ký tự (đã chia 3 nhóm 5)."""
     base_day = day_index(today or utc_today())
 
@@ -129,11 +129,11 @@ def issue(machine24: int, kind: int, days: int | None = None,
         raise ValueError("Hạn vượt quá giới hạn định dạng (03/2038)")
 
     prefix = _build_prefix(kind, expiry_day, machine24)
-    value = (prefix << _TAG_BITS) | _tag(prefix)
+    value = (prefix << _TAG_BITS) | _tag(prefix, key)
     return format_code(codec.encode_int(value, CODE_LEN))
 
 
-def decode(code: str) -> ShortCode:
+def decode(code: str, key: bytes | None = None) -> ShortCode:
     """Giải mã + xác thực chữ ký. Sai -> InvalidCode."""
     try:
         value = codec.decode_text(code, CODE_LEN)
@@ -150,7 +150,7 @@ def decode(code: str) -> ShortCode:
     if ver != VER:
         raise InvalidCode("Phiên bản mã kích hoạt không được hỗ trợ")
 
-    expected = _tag(prefix)
+    expected = _tag(prefix, key)
     if not hmac.compare_digest(expected.to_bytes(5, "big"), tag.to_bytes(5, "big")):
         raise InvalidCode("Mã kích hoạt không hợp lệ hoặc đã bị sửa")
 
