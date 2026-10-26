@@ -1,38 +1,33 @@
+"""Cửa sổ chính của ứng dụng.
+
+Phần tổng hợp/xuất file và phần công cụ (model, cài đặt, trợ giúp) được tách
+thành mixin trong gói `ui.window` để mỗi file nằm dưới giới hạn 32 KB của
+PyArmor bản miễn phí.
+"""
+
 from __future__ import annotations
 
 import queue
 import threading
 import time
-from pathlib import Path
-from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
-import numpy as np
 
 import version
-from audio import exporter
-from audio.buffer import GrowableBuffer
 from audio.player import AudioPlayer
-from audio.speed import apply_speed
-from audio.temp_store import (TempSession, cleanup_stale_sessions,
-                              should_use_disk)
-from core.document_reader import read_document
+from audio.temp_store import TempSession, cleanup_stale_sessions
 from core.history import HistoryStore
-from core.models import SentenceItem, TimelineMap
+from core.models import TimelineMap
 from core.tags import find_unknown_tags
-from core.text_processor import build_sentences
 from engine.model_manager import ModelManager
-from engine.tts_engine import TtsEngine
 from ui import theme
-from ui.config import (load_enabled_voices, load_settings, save_enabled_voices,
-                        save_settings)
-from ui.components.topbar import TopBar
-from ui.components.history_dialog import HistoryDialog, open_in_system
+from ui.config import load_settings
 from ui.components.playback_bar import PlaybackBar
 from ui.components.sync_textbox import SyncTextbox
 from ui.components.tag_bar import TagBar
-from ui.components.voice_manager import VoiceManagerDialog
+from ui.components.topbar import TopBar
 from ui.components.waveform_timeline import WaveformTimeline
+from ui.window import ConvertMixin, ExportMixin, ToolsMixin
 
 TICK_MS = 40
 # Số câu tối thiểu phải có sẵn trong buffer trước khi bắt đầu phát.
@@ -42,7 +37,7 @@ BUFFER_TRIGGER_SENTENCES = 1
 WAVEFORM_REDRAW_SEC = 0.4
 
 
-class MainWindow(ctk.CTk):
+class MainWindow(ConvertMixin, ExportMixin, ToolsMixin, ctk.CTk):
     """Điều phối: TopBar ↔ Textbox ↔ PlaybackBar ↔ TTS Engine.
 
     Kiến trúc âm thanh:
@@ -161,192 +156,6 @@ class MainWindow(ctk.CTk):
         )
         self.playback_bar.grid(row=3, column=0, sticky="ew", pady=(6, 0))
 
-    # ── Scan & voice management ──
-
-    def _scan_models(self) -> list:
-        prev = None
-        try:
-            prev = self.topbar.get_selected_voice()
-        except Exception:
-            pass
-        self._all_models = self._model_manager.scan()
-        if not self._all_models:
-            self.topbar.set_status(self._bundle_problem(), theme.ERROR)
-            return self._all_models
-
-        enabled = load_enabled_voices()
-        if enabled is not None:
-            visible = [m for m in self._all_models if m.model_id in enabled]
-        else:
-            visible = self._all_models
-
-        if not visible:
-            self.topbar.set_voices([], None)
-            self.topbar.set_status(
-                "Tất cả giọng đều bị tắt — bấm ＋ Thêm để bật lại.", theme.ERROR)
-            return self._all_models
-
-        names = [m.display_name for m in visible]
-        selected = prev if prev in names else names[0]
-        self.topbar.set_voices(names, selected)
-        self.topbar.set_status(
-            f"{len(names)}/{len(self._all_models)} giọng sẵn sàng.", theme.TEXT_DIM)
-        return self._all_models
-
-    def _bundle_problem(self) -> str:
-        """Thông báo khi không thấy model: nêu rõ file nào thiếu trong bộ cài."""
-        try:
-            from engine import setup_tools
-
-            missing = setup_tools.verify_bundle()
-        except Exception:
-            missing = []
-        if not missing:
-            return "Không tìm thấy mô hình trong thư mục 'models/'."
-        preview = ", ".join(missing[:3])
-        more = f"… (+{len(missing) - 3})" if len(missing) > 3 else ""
-        return (f"Bộ cài thiếu {len(missing)} file model: {preview}{more}. "
-                "Hãy chép lại thư mục 'models/' từ bộ cài gốc.")
-
-    def _selected_model(self):
-        name = self.topbar.get_selected_voice()
-        for m in self._all_models:
-            if m.display_name == name:
-                return m
-        return None
-
-    def _open_voice_manager(self) -> None:
-        enabled = load_enabled_voices()
-        if enabled is None:
-            enabled = {m.model_id for m in self._all_models}
-
-        def on_save(new_enabled: set[str]) -> None:
-            save_enabled_voices(new_enabled)
-            self._scan_models()
-
-        def on_voice_changed(name: str) -> None:
-            # Ghi đè/xóa giọng đang được nạp -> giải phóng, lần sinh sau tải lại
-            self._model_manager.unload_if(f"vieneu:{name}")
-
-        VoiceManagerDialog(
-            self, self._all_models, enabled, on_save,
-            get_models=self._scan_models,
-            on_voice_changed=on_voice_changed,
-        )
-
-    # ── Cài đặt ──
-
-    def _open_settings(self) -> None:
-        from ui.components.settings_dialog import SettingsDialog
-
-        def on_save(settings: dict) -> None:
-            changed = (
-                settings["precision"] != self._settings["precision"]
-                or settings["threads"] != self._settings["threads"]
-            )
-            self._settings = dict(settings)
-            save_settings(settings)
-            if changed:
-                self._model_manager.set_runtime(
-                    precision=settings["precision"], threads=settings["threads"])
-                self.topbar.set_status(
-                    "Đã cập nhật cấu hình model — giọng sẽ nạp lại khi chuyển đổi.",
-                    theme.TEXT_DIM)
-            else:
-                self.topbar.set_status("Đã lưu cài đặt.", theme.SUCCESS)
-
-        SettingsDialog(self, dict(self._settings), on_save)
-
-    # ── Lịch sử bản dựng ──
-
-    def _open_history(self) -> None:
-        HistoryDialog(self, self._history)
-
-    # ── Trợ giúp ──
-
-    def _open_help(self) -> None:
-        """Mở file hướng dẫn đi kèm (bản cài: HUONG_DAN_V3.txt, dev: docs/*.docx)."""
-        from core.paths import app_dir
-
-        candidates = [app_dir() / "HUONG_DAN_V3.txt"]
-        candidates += sorted(app_dir().glob("docs/Huong_dan_su_dung_*.docx"), reverse=True)
-        for path in candidates:
-            if path.exists():
-                open_in_system(path)
-                self.topbar.set_status(f"Đã mở hướng dẫn: {path.name}", theme.SUCCESS)
-                return
-        self.topbar.set_status(
-            "Không tìm thấy file hướng dẫn trong thư mục cài đặt.", theme.ERROR)
-
-    def _show_about(self) -> None:
-        messagebox.showinfo(
-            "Giới thiệu",
-            f"{version.__app_name__}\n"
-            f"Phiên bản {version.__version__}\n\n"
-            "Chuyển văn bản thành giọng nói tiếng Việt, chạy hoàn toàn offline trên CPU.\n"
-            "Không gửi dữ liệu ra ngoài.",
-            parent=self,
-        )
-
-    # Chức năng ghép nhạc (đấu dây từ TopBar qua on_merge).
-    def _open_merge_dialog(self) -> None:
-        from ui.components.merge_dialog import MergeDialog
-
-        MergeDialog(
-            self,
-            export_history=self._export_history,
-            on_merged=lambda path: self.topbar.set_status(
-                f"Đã ghép: {path}", theme.SUCCESS),
-        )
-
-    # ── Test giọng ──
-
-    def _test_voice(self) -> None:
-        model = self._selected_model()
-        if model is None:
-            self.topbar.set_status("Không có giọng để test.", theme.ERROR)
-            return
-        test_text = self.topbar.get_test_text()
-        speed = self.topbar.get_speed()
-        self.topbar.set_status(f"Đang nạp {model.display_name}...", theme.TEXT_DIM)
-        threading.Thread(target=self._test_voice_worker,
-                         args=(model, test_text, speed), daemon=True).start()
-
-    def _test_voice_worker(self, model, test_text: str, speed: float) -> None:
-        try:
-            tts = self._model_manager.load_tts(model)
-            engine = TtsEngine(tts)
-            self._messages.put(("status", "Đang tạo âm thanh test...", theme.TEXT_DIM))
-            audio, _ = engine.synthesize(test_text, speed=speed)
-            self._messages.put(("status", "Đang phát test...", theme.SUCCESS))
-            self._player.load(audio, engine.sample_rate, has_more=False)
-            self._player.play()
-        except Exception as exc:
-            self._messages.put(("error", str(exc)))
-
-    # ── Mở file ──
-
-    def _open_file(self) -> None:
-        path = filedialog.askopenfilename(
-            title="Chọn file văn bản",
-            filetypes=[
-                ("Văn bản", "*.docx;*.txt"),
-                ("Word Document", "*.docx"),
-                ("Text Document", "*.txt"),
-                ("Tất cả tập tin", "*.*"),
-            ],
-        )
-        if not path:
-            return
-        try:
-            content = read_document(path)
-            self.textbox.set_text(content)
-            self.topbar.set_source_name(Path(path).name)
-            self.topbar.set_status(f"Đã mở: {path}", theme.SUCCESS)
-            self._refresh_tag_hint()
-        except Exception as exc:
-            self.topbar.set_status(f"Không mở được file: {exc}", theme.ERROR)
-
     # ── Callbacks từ topbar ──
 
     def _on_voice_change(self, _value: str) -> None:
@@ -369,239 +178,6 @@ class MainWindow(ctk.CTk):
         else:
             self.topbar.set_status(
                 "Đã đổi tốc độ — bấm Phát để áp dụng.", theme.TEXT_DIM)
-
-    # ── Convert ──
-
-    def _request_speed_apply(self, auto_play: bool) -> None:
-        """Dựng lại audio theo speed hiện tại (thread nền)."""
-        if (self._speed_applying or self._busy
-                or self._base_store is None or self._base_timeline is None):
-            return
-        speed = self.topbar.get_speed()
-        if abs(speed - self._applied_speed) < 1e-9:
-            self._speed_dirty = False
-            if auto_play and not self._player.is_playing:
-                self._player.play()
-                self.playback_bar.set_playing(True)
-            return
-        self._speed_applying = True
-        self.topbar.set_status("Đang đổi tốc độ...", theme.TEXT_DIM)
-        threading.Thread(
-            target=self._speed_worker, args=(speed, auto_play), daemon=True,
-        ).start()
-
-    def _speed_worker(self, speed: float, auto_play: bool) -> None:
-        try:
-            store, timeline = self._build_play_store(speed)
-            self._messages.put(("speed_applied", store, timeline, speed, auto_play))
-        except Exception as exc:
-            self._messages.put(("speed_apply_error", str(exc)))
-
-    # ── Store ──
-
-    def _new_store(self, name: str):
-        """Tạo store mới theo chế độ lưu hiện tại (RAM hay file tạm).
-
-        Tên file có số thứ tự để mỗi lần dựng lại (đổi tốc độ) tạo file
-        riêng — tránh ghi đè file mà store cũ còn đang đọc.
-        """
-        self._store_seq += 1
-        unique = f"{name}{self._store_seq}"
-        if self._disk_mode:
-            if self._temp_session is None:
-                from core.paths import data_dir
-
-                self._temp_session = TempSession(data_dir() / "tmp")
-            return self._temp_session.store(unique, self._sample_rate)
-        return GrowableBuffer()
-
-    def _build_play_store(self, speed: float):
-        """Dựng lại audio đã áp tốc độ từ audio gốc 1.0x.
-
-        Trả về (store, timeline). Với speed = 1.0 -> dùng luôn store gốc
-        (alias, không tốn thêm RAM/disk).
-        """
-        base = self._base_store
-        base_timeline = self._base_timeline
-        if base is None or base_timeline is None:
-            return None, None
-        if abs(speed - 1.0) < 1e-9:
-            return base, base_timeline
-
-        new_store = self._new_store("play")
-        for start, end in self._base_spans:
-            piece = base.read(start, end - start)
-            if piece is None or piece.size == 0:
-                continue
-            # Copy để không đụng vào buffer gốc (time-stretch có thể ghi tại chỗ).
-            new_store.append(apply_speed(np.array(piece, dtype=np.float32), speed))
-        timeline = base_timeline.scaled(speed)
-        return new_store, timeline
-
-    def _start_convert(self) -> None:
-        if self._busy:
-            return
-        text = self.textbox.get_text().strip()
-        if not text:
-            self.topbar.set_status("Chưa có nội dung để chuyển đổi.", theme.ERROR)
-            return
-        model = self._selected_model()
-        if model is None:
-            self.topbar.set_status("Không tìm thấy model giọng đọc.", theme.ERROR)
-            return
-        speed = self.topbar.get_speed()
-
-        self._player.stop()
-        self._release_stores()
-        self._synth_text = None
-        self._applied_speed = speed
-        self._speed_dirty = False
-        self._current_sentence = -1
-        self._stream_has_started_playing = False
-        self.waveform_timeline.clear()
-        self._stop_event.clear()
-
-        self._set_busy(True)
-        self.topbar.set_status("Đang chuẩn bị mô hình...", theme.TEXT_DIM)
-        threading.Thread(
-            target=self._convert_worker, args=(model, text, speed), daemon=True,
-        ).start()
-
-    def _stop_convert(self) -> None:
-        """Dừng tiến trình tạo âm thanh."""
-        if not self._busy:
-            return
-        self._stop_event.set()
-        self.topbar.set_status("Đang dừng...", theme.TEXT_DIM)
-
-    def _convert_worker(self, model, text: str, speed: float) -> None:
-        try:
-            if self._stop_event.is_set():
-                self._messages.put(("stream_stopped",))
-                return
-            tts = self._model_manager.load_tts(model)
-            engine = TtsEngine(tts)
-            self._messages.put(("status", "Đang khởi tạo engine...", theme.TEXT_DIM))
-
-            sample_rate = engine.sample_rate
-            sentences_count = len(build_sentences(text))
-            if sentences_count == 0:
-                self._messages.put(("stream_empty",))
-                return
-
-            # Chế độ lưu: bài ngắn giữ trong RAM, bài dài ghi ra file tạm.
-            disk = should_use_disk(text, self._settings.get("storage", "auto"))
-            self._disk_mode = disk
-            self._sample_rate = sample_rate
-            base_store = self._new_store("base")
-            play_store = base_store if abs(speed - 1.0) < 1e-9 else self._new_store("play")
-
-            # Luôn sinh bản gốc 1.0x — speed áp bằng time-stretch để giữ bản gốc
-            stream_gen = engine.synthesize_stream(text, speed=1.0)
-            base_spans: list[tuple[int, int]] = []
-            base_sentences: list[SentenceItem] = []
-
-            # Gửi stream_init ngay (generator không còn lookahead)
-            self._messages.put(("stream_init", sample_rate, sentences_count, text,
-                                base_store, play_store, disk))
-            self._messages.put(("status",
-                                f"Đang tổng hợp câu 1/{sentences_count}...",
-                                theme.TEXT_DIM))
-            if self._stop_event.is_set():
-                self._messages.put(("stream_stopped",))
-                return
-
-            for timed, piece, cur, tot in stream_gen:
-                if self._stop_event.is_set():
-                    break
-                start_sample = base_store.total_samples
-                base_store.append(piece)
-                base_spans.append((start_sample, base_store.total_samples))
-                base_sentences.append(timed)
-                if play_store is not base_store:
-                    play_store.append(apply_speed(piece, speed))
-                timed_out = SentenceItem(
-                    index=timed.index, text=timed.text,
-                    char_start=timed.char_start, char_end=timed.char_end,
-                    start_sec=timed.start_sec / speed,
-                    end_sec=timed.end_sec / speed,
-                )
-                self._messages.put(("stream_chunk", timed_out, cur, tot))
-
-            base_timeline = TimelineMap(sentences=base_sentences,
-                                        sample_rate=sample_rate)
-            play_timeline = (base_timeline if abs(speed - 1.0) < 1e-9
-                             else base_timeline.scaled(speed))
-            self._messages.put(("stream_base", base_spans, base_timeline,
-                                play_timeline, speed))
-            if self._stop_event.is_set():
-                self._messages.put(("stream_stopped",))
-                return
-            self._messages.put(("stream_end",))
-        except Exception as exc:
-            self._messages.put(("error", str(exc)))
-
-    # ── Export ──
-
-    def _start_export(self) -> None:
-        if self._busy:
-            return
-        if self._speed_applying:
-            self.topbar.set_status(
-                "Đang đổi tốc độ — thử xuất lại sau.", theme.TEXT_DIM)
-            return
-        if self._play_store is None or self._timeline is None:
-            self.topbar.set_status("Chưa có âm thanh — hãy chuyển đổi trước.", theme.ERROR)
-            return
-        path = filedialog.asksaveasfilename(
-            title="Xuất file âm thanh",
-            defaultextension=".mp3",
-            filetypes=[("MP3", "*.mp3"), ("WAV", "*.wav")],
-        )
-        if not path:
-            return
-        speed = self.topbar.get_speed()
-        voice = self.topbar.get_selected_voice()
-        self._set_busy(True)
-        self.topbar.set_status("Đang xuất file...", theme.TEXT_DIM)
-        threading.Thread(target=self._export_worker, args=(path, speed, voice),
-                         daemon=True).start()
-
-    def _export_worker(self, path: str, speed: float, voice: str) -> None:
-        try:
-            store = self._play_store
-            timeline = self._timeline
-            # Speed đã đổi nhưng chưa áp -> dựng lại audio theo speed mới
-            if self._speed_dirty and abs(speed - self._applied_speed) > 1e-9:
-                new_store, new_timeline = self._build_play_store(speed)
-                if new_store is not None:
-                    store, timeline = new_store, new_timeline
-                    self._messages.put(
-                        ("speed_applied", new_store, new_timeline, speed, False))
-            out = exporter.export_source(store, timeline.sample_rate, path)
-            self._record_history(path, speed, voice)
-            self._messages.put(("exported", str(out)))
-        except Exception as exc:
-            self._messages.put(("error", str(exc)))
-
-    def _record_history(self, path: str, speed: float, voice: str) -> None:
-        """Ghi lịch sử bản dựng; lỗi lịch sử không được làm hỏng luồng xuất."""
-        try:
-            timeline = self._timeline
-            duration = 0.0
-            if timeline is not None and timeline.sentences:
-                duration = float(timeline.sentences[-1].end_sec)
-            text = self._synth_text or ""
-            self._history.add(
-                path,
-                voice=voice,
-                speed=speed,
-                duration=duration,
-                chars=len(text),
-                preview=text,
-            )
-        except Exception:
-            pass
 
     # ── Playback ──
 
