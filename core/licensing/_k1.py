@@ -1,4 +1,4 @@
-﻿"""Mảnh 1/4 của secret ký mã kích hoạt.
+"""Mảnh 1/4 của secret ký mã kích hoạt.
 
 GIÁ TRỊ DƯỚI ĐÂY LÀ GIẢ (dùng cho dev và test). Bản build chính thức được
 tools/inject_secret.py ghi đè bằng mảnh thật lấy từ
