@@ -31,16 +31,37 @@ Get-FileHash -Algorithm SHA256 "E:\backup\license_secret.bin"
 
 ---
 
-## 2. Cấp mã cho khách (3 bước)
+## 2. Chạy tool
+
+### 2.1 Bản đóng gói `KeygenTTS.exe` (khuyến nghị)
+
+```
+dist\KeygenTTS\
+├─ KeygenTTS.exe               ← double-click để mở
+├─ keys\license_secret.bin     ← secret (bắt buộc)
+├─ keys\issued.sqlite          ← sổ key (tự tạo)
+└─ HUONG_DAN_CAP_KEY.md
+```
+
+- Không cần Python, không cần repo, không cần mạng.
+- Copy **cả thư mục** sang USB / máy khác là chạy được.
+- Không tách `KeygenTTS.exe` khỏi thư mục `keys\` — exe không chứa secret nên sẽ báo thiếu.
+- Build lại: chạy `build_keygen.bat` (giữ nguyên `keys\issued.sqlite` đang có).
+
+### 2.2 Chạy từ repo (khi đang sửa code)
+
+```powershell
+tools\license_tool\keygen.bat
+# hoặc
+.venv\Scripts\pythonw.exe tools\license_tool\keygen.pyw
+```
+
+## 3. Cấp mã cho khách (3 bước)
 
 1. Khách mở app → hộp thoại kích hoạt → bấm **Sao chép** mã máy (10 ký tự, dạng `7K2QF-9M3XA`).
-2. Bạn mở tool:
+2. Bạn mở tool (xem mục 2 — `dist\KeygenTTS\KeygenTTS.exe` hoặc `tools\license_tool\keygen.bat`):
 
-   ```
-   tools\license_tool\keygen.bat
-   ```
-
-   - Dán mã máy (nút **Dán**).
+   - Dán mã máy (nút **Dán**) — dán **cả tin nhắn** khách gửi cũng được, tool tự lấy mã 10 ký tự.
    - Chọn loại: 7 ngày / 30 ngày / Vĩnh viễn / Tuỳ chỉnh N ngày.
    - Nhập tên khách / SĐT / ghi chú (tuỳ chọn).
    - Bấm **Tạo mã kích hoạt**.
@@ -62,7 +83,7 @@ Khách dán mã vào ô "Mã kích hoạt" → **Kích hoạt**.
 
 ---
 
-## 3. Loại mã
+## 4. Loại mã
 
 | Loại | Ý nghĩa | Hạn dùng |
 |---|---|---|
@@ -77,17 +98,21 @@ Khách dán mã vào ô "Mã kích hoạt" → **Kích hoạt**.
 
 ---
 
-## 4. Sổ key
+## 5. Sổ key
 
-- File: `tools\license_tool\keys\issued.sqlite`.
-- Xem trong tool: nút **Xem sổ key** (100 bản ghi gần nhất).
+- File: `tools\license_tool\keys\issued.sqlite` (bản exe: `dist\KeygenTTS\keys\issued.sqlite`).
+- Xem trong tool: nút **Xem sổ key**.
+  - **100 key / trang**, sắp xếp **mới nhất trước**, nút **◀ Trước** / **Sau ▶**.
+  - Ô **Tìm**: gõ tên khách (không cần dấu, không phân biệt hoa thường), SĐT hoặc mã máy
+    (có hay không có dấu `-` đều khớp). Enter để tìm, **Xoá lọc** để xem tất cả.
+  - Có thể tìm bằng dòng lệnh: `license_cli.py --list --search "nguyen" --page 1`.
 - Dùng để: tra khách đã cấp gì, cấp lại khi đổi máy, thống kê.
-- **Backup định kỳ** cùng thư mục `keys/` (chứa cả secret và sổ key).
+- **Backup định kỳ** file `issued.sqlite` cùng thư mục `keys/` (chứa cả secret).
 - Không có chức năng thu hồi (offline không thu hồi được).
 
 ---
 
-## 5. Khi nào cấp lại mã (miễn phí)
+## 6. Khi nào cấp lại mã (miễn phí)
 
 | Tình huống | Xử lý |
 |---|---|
@@ -101,18 +126,20 @@ Khi cấp lại, ghi `--reissued-from <id>` (CLI) hoặc ghi chú id cũ vào ô
 
 ---
 
-## 6. Bảo mật — những điều không được làm
+## 7. Bảo mật — những điều không được làm
 
 - ❌ Commit `license_secret.bin` hoặc `issued.sqlite` lên git.
 - ❌ Gửi secret qua Zalo/email/chat (kể cả cho chính mình).
-- ❌ Copy secret vào `dist\` hoặc gói cập nhật gửi khách (build script sẽ chặn).
+- ❌ Copy secret vào `dist\<APP>\` hoặc gói cập nhật gửi khách (build script sẽ chặn).
 - ❌ Đặt secret ở thư mục đồng bộ công khai (ổ chia sẻ, link public).
+- ❌ Gửi **thư mục `dist\KeygenTTS\`** cho bất kỳ ai — trong đó có secret.
 - ✅ Chỉ giữ secret trên máy bạn + 2 bản backup ngoại tuyến.
 - ✅ Kiểm tra repo vẫn **private** sau mỗi lần đổi quyền.
+- ✅ Khi mang tool đi xa: dùng USB riêng, không để trong thư mục chia sẻ/cloud công khai.
 
 ---
 
-## 7. Xử lý sự cố
+## 8. Xử lý sự cố
 
 | Khách báo | Nguyên nhân | Cách xử lý |
 |---|---|---|
@@ -126,8 +153,12 @@ Khi cấp lại, ghi `--reissued-from <id>` (CLI) hoặc ghi chú id cũ vào ô
 
 ---
 
-## 8. Liên quan đến build
+## 9. Liên quan đến build
 
 - `build_v3.bat` chạy `tools\inject_secret.py build\src` để ghi 4 mảnh secret vào cây source tạm **trước khi obfuscate**, sau đó xoá `build\src`.
 - Bản build từ repo sạch (không inject) dùng secret giả → mã do tool cấp **không** kích hoạt được. Đây là hành vi đúng.
+- `build_keygen.bat` đóng gói tool thành `dist\KeygenTTS\KeygenTTS.exe` (one-file, ~11 MB):
+  - tự kiểm tra secret **không** bị nhúng vào exe (`check_release.py`);
+  - chạy `KeygenTTS.exe --selftest` rồi so mã với repo để chắc bản exe dùng đúng secret;
+  - **giữ nguyên** `dist\KeygenTTS\keys\issued.sqlite` qua các lần build (không xoá sổ key).
 - Chạy app từ source (dev) thì app đọc trực tiếp `keys\license_secret.bin` để test được mã thật.

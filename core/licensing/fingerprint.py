@@ -13,12 +13,15 @@ from __future__ import annotations
 import hashlib
 import os
 import platform
+import re
 
 from core.licensing import codec
 
 MACHINE_CODE_LEN = 10
 _BIND_SALT = b"PPMTTS|bind|v1|"
 _FP_SALT = b"PPMTTS|fp|v1|"
+_MACHINE_PATTERN = re.compile(
+    r"([0-9A-Za-z]{5})[-\s]?([0-9A-Za-z]{5})(?![0-9A-Za-z])")
 
 _GUID_KEY = r"SOFTWARE\Microsoft\Cryptography"
 _CPU_KEY = r"HARDWARE\DESCRIPTION\System\CentralProcessor\0"
@@ -129,6 +132,30 @@ def parse_machine_code(code: str) -> bytes:
     if value >> 48:
         raise ValueError("Mã máy không hợp lệ")
     return value.to_bytes(6, "big")
+
+
+def extract_machine_code(text: str) -> str:
+    """Tìm mã máy 10 ký tự trong chuỗi bất kỳ (dán cả tin nhắn vẫn được).
+
+    Nhận: "7K2QF-9M3XA", "7k2qf 9m3xa", "7K2QF9M3XA",
+    "Mã máy: 7K2QF-9M3XA | Phiên bản: 3.3.0".
+    """
+    raw = text or ""
+    cleaned = codec.normalize(raw)
+    if len(cleaned) == MACHINE_CODE_LEN:
+        parse_machine_code(cleaned)
+        return cleaned
+
+    for match in _MACHINE_PATTERN.finditer(raw):
+        candidate = codec.normalize(match.group(1) + match.group(2))
+        try:
+            parse_machine_code(candidate)
+        except ValueError:
+            continue
+        return candidate
+
+    raise ValueError(
+        "Không tìm thấy mã máy 10 ký tự (dạng 7K2QF-9M3XA) trong nội dung đã dán")
 
 
 def machine24_from_code(code: str) -> int:

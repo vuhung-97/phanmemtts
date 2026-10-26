@@ -1,7 +1,8 @@
-"""Tool cấp mã kích hoạt — chạy trên máy owner.
+r"""Tool cấp mã kích hoạt — chạy trên máy owner.
 
-Mở bằng:  tools\\license_tool\\keygen.bat
-(hoặc:    .venv\\Scripts\\pythonw.exe tools\\license_tool\\keygen.pyw)
+Chạy từ repo:  tools\\license_tool\\keygen.bat
+Bản đóng gói:  KeygenTTS.exe (secret + sổ key trong thư mục `keys\\` cạnh exe)
+Tự kiểm tra:   KeygenTTS.exe --selftest <file>
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 import tkinter as tk
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -19,7 +20,7 @@ import common  # noqa: E402
 import ledger  # noqa: E402
 from core.licensing import shortcode  # noqa: E402
 
-PAD = {"padx": 12, "pady": 4}
+SELFTEST_MACHINE = "00000-00000"
 
 
 def _date_text(day_index: int | None) -> str:
@@ -72,6 +73,10 @@ class KeygenApp(tk.Tk):
         self.entry_machine.grid(row=0, column=1, sticky="ew", padx=8)
         ttk.Button(box, text="Dán", width=7, command=self._paste).grid(
             row=0, column=2)
+        ttk.Label(
+            box, text="Dán mã máy hoặc dán cả tin nhắn khách gửi (có \"Phiên bản\" cũng được)",
+            foreground="#666666",
+        ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(4, 0))
 
         # Loại mã
         box2 = ttk.LabelFrame(outer, text=" 2. Loại mã ", padding=10)
@@ -154,15 +159,15 @@ class KeygenApp(tk.Tk):
     # ── Logic ──
 
     def _check_secret(self) -> None:
-        if common.SECRET_PATH.exists():
+        path = common.secret_path()
+        if path.exists():
             return
-        self.var_status.set("Chưa có secret — hãy chạy gen_secret.py trước.")
+        self.var_status.set("Chưa có secret — hãy đặt license_secret.bin vào thư mục keys\\")
         messagebox.showerror(
             "Thiếu secret",
             "Không thấy file:\n"
-            f"{common.SECRET_PATH}\n\n"
-            "Chạy lệnh sau ở thư mục dự án:\n"
-            r"  .venv\Scripts\python.exe tools\license_tool\gen_secret.py",
+            f"{path}\n\n"
+            "Chép license_secret.bin vào thư mục đó (lấy từ bản backup).",
             parent=self,
         )
 
@@ -178,7 +183,7 @@ class KeygenApp(tk.Tk):
             text = self.clipboard_get()
         except Exception:
             return
-        self.var_machine.set(text.strip())
+        self.var_machine.set((text or "").strip())
         self.entry_machine.focus_set()
 
     def _generate(self) -> None:
@@ -249,11 +254,17 @@ class KeygenApp(tk.Tk):
         if not self._last:
             return
         code, machine, kind, days, sc = self._last
+        if kind == shortcode.KIND_CUSTOM:
+            days_value = int(days or 0)
+        elif kind == shortcode.KIND_LIFETIME:
+            days_value = 0
+        else:
+            days_value = shortcode.KIND_DAYS[kind]
         record_id = ledger.add(
             code=code,
             machine=machine,
             kind=kind,
-            days=int(days or 0),
+            days=days_value,
             issued_day=shortcode.day_index(shortcode.utc_today()),
             expiry_day=None if sc.is_lifetime else sc.expiry_day,
             customer=self.var_customer.get().strip(),
@@ -270,40 +281,54 @@ class KeygenApp(tk.Tk):
         except Exception:
             self.var_count.set("Sổ key: —")
 
-    # ── Sổ key ──
-
     def _show_ledger(self) -> None:
         LedgerWindow(self)
 
 
 class LedgerWindow(tk.Toplevel):
-    COLUMNS = (("id", "ID", 50), ("machine", "Mã máy", 120),
+    COLUMNS = (("id", "ID", 50), ("machine", "Mã máy", 130),
                ("kind", "Loại", 110), ("expiry", "Hạn", 90),
-               ("customer", "Khách", 150), ("phone", "SĐT", 100),
-               ("created", "Tạo lúc", 140))
+               ("customer", "Khách", 170), ("phone", "SĐT", 110),
+               ("created", "Tạo lúc", 135))
 
     def __init__(self, master: KeygenApp) -> None:
         super().__init__(master)
         self.title("Sổ key đã cấp")
-        self.geometry("820x460")
+        self.geometry("880x520")
+        self.minsize(760, 420)
         self.transient(master)
-        self._master = master
+
+        self._page = 1
+        self._keyword = ""
+        self._total = 0
+
         self._build()
         self._load()
+
+    # ── UI ──
 
     def _build(self) -> None:
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
+        # Tìm kiếm
         top = ttk.Frame(self, padding=(10, 8))
         top.grid(row=0, column=0, sticky="ew")
-        top.columnconfigure(0, weight=1)
-        ttk.Label(top, text="100 bản ghi gần nhất").grid(row=0, column=0, sticky="w")
-        ttk.Button(top, text="Làm mới", command=self._load).grid(row=0, column=1,
-                                                                sticky="e")
+        top.columnconfigure(1, weight=1)
 
+        ttk.Label(top, text="Tìm:").grid(row=0, column=0, sticky="w")
+        self.var_search = tk.StringVar()
+        self.entry_search = ttk.Entry(top, textvariable=self.var_search)
+        self.entry_search.grid(row=0, column=1, sticky="ew", padx=(6, 6))
+        self.entry_search.bind("<Return>", lambda _e: self._search())
+        ttk.Button(top, text="Tìm", width=8, command=self._search).grid(
+            row=0, column=2)
+        ttk.Button(top, text="Xoá lọc", width=10, command=self._clear).grid(
+            row=0, column=3, padx=(6, 0))
+
+        # Bảng
         frame = ttk.Frame(self)
-        frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        frame.grid(row=1, column=0, sticky="nsew", padx=10)
         frame.columnconfigure(0, weight=1)
         frame.rowconfigure(0, weight=1)
 
@@ -318,17 +343,44 @@ class LedgerWindow(tk.Toplevel):
         scroll.grid(row=0, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=scroll.set)
 
+        self.empty_label = ttk.Label(frame, text="", foreground="#a33")
+        self.empty_label.grid(row=1, column=0, sticky="w", pady=(4, 0))
+
+        # Phân trang
+        bottom = ttk.Frame(self, padding=(10, 8))
+        bottom.grid(row=2, column=0, sticky="ew")
+        bottom.columnconfigure(0, weight=1)
+
+        self.var_info = tk.StringVar()
+        ttk.Label(bottom, textvariable=self.var_info).grid(row=0, column=0,
+                                                           sticky="w")
+        self.btn_prev = ttk.Button(bottom, text="◀ Trước", width=10,
+                                   command=self._prev)
+        self.btn_prev.grid(row=0, column=1, padx=(0, 6))
+        self.btn_next = ttk.Button(bottom, text="Sau ▶", width=10,
+                                   command=self._next)
+        self.btn_next.grid(row=0, column=2)
+
+    # ── Dữ liệu ──
+
     def _load(self) -> None:
-        for item in self.tree.get_children():
-            self.tree.delete(item)
         try:
-            rows = ledger.recent(100)
+            rows, total = ledger.query(self._keyword, self._page, ledger.PAGE_SIZE)
         except Exception as exc:
             messagebox.showerror("Không đọc được sổ key", str(exc), parent=self)
             return
+
+        pages = max(1, (total + ledger.PAGE_SIZE - 1) // ledger.PAGE_SIZE)
+        if self._page > pages:
+            self._page = pages
+            rows, total = ledger.query(self._keyword, self._page, ledger.PAGE_SIZE)
+
+        self._total = total
+        for item in self.tree.get_children():
+            self.tree.delete(item)
         for row in rows:
             kind = common.kind_text(int(row["kind"]), int(row["days"] or 0))
-            created = date.fromtimestamp(int(row["created_at"])).strftime(
+            created = datetime.fromtimestamp(int(row["created_at"])).strftime(
                 "%d/%m/%Y %H:%M")
             self.tree.insert("", "end", values=(
                 row["id"],
@@ -340,8 +392,58 @@ class LedgerWindow(tk.Toplevel):
                 created,
             ))
 
+        suffix = f" · lọc: “{self._keyword}”" if self._keyword else ""
+        self.var_info.set(f"Tổng {total} key · Trang {self._page}/{pages}{suffix}")
+        self.empty_label.configure(
+            text="" if rows else "Không có bản ghi nào khớp.")
+
+        self.btn_prev.configure(state="normal" if self._page > 1 else "disabled")
+        self.btn_next.configure(
+            state="normal" if self._page < pages else "disabled")
+
+    def _search(self) -> None:
+        self._keyword = self.var_search.get().strip()
+        self._page = 1
+        self._load()
+
+    def _clear(self) -> None:
+        self.var_search.set("")
+        self._keyword = ""
+        self._page = 1
+        self._load()
+
+    def _prev(self) -> None:
+        if self._page > 1:
+            self._page -= 1
+            self._load()
+
+    def _next(self) -> None:
+        pages = max(1, (self._total + ledger.PAGE_SIZE - 1) // ledger.PAGE_SIZE)
+        if self._page < pages:
+            self._page += 1
+            self._load()
+
+
+def _selftest(out_path: str) -> int:
+    """Sinh mã cho mã máy cố định, ghi ra file — dùng để kiểm tra bản đóng gói."""
+    target = Path(out_path)
+    try:
+        key = common.load_key()
+        code, sc = common.create_code(SELFTEST_MACHINE,
+                                      common.KIND_CHOICES["30"], key=key)
+    except Exception as exc:
+        target.write_text(f"ERROR: {exc}", encoding="utf-8")
+        return 1
+    target.write_text(f"{code}\n{common.expiry_text(sc)}\n", encoding="utf-8")
+    return 0
+
 
 def main() -> int:
+    args = sys.argv[1:]
+    if "--selftest" in args:
+        index = args.index("--selftest")
+        out = args[index + 1] if index + 1 < len(args) else "keygen_selftest.txt"
+        return _selftest(out)
     app = KeygenApp()
     app.mainloop()
     return 0

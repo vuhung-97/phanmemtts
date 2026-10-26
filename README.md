@@ -90,6 +90,13 @@ Bản phát hành dùng **khoá offline theo máy**:
 
 > Cấp mã: xem `docs/HUONG_DAN_CAP_KEY.md` (tài liệu dành cho chủ phần mềm).
 
+## Tool cấp mã (nội bộ)
+
+- Bản đóng gói: `dist\KeygenTTS\KeygenTTS.exe` (+ `keys\license_secret.bin`, `keys\issued.sqlite`).
+- Build lại: `build_keygen.bat` (one-file, ~11 MB, tự kiểm tra không nhúng secret).
+- Sổ key: 100 key/trang, sắp xếp mới nhất trước, tìm theo tên/SĐT/mã máy.
+- Hướng dẫn đầy đủ: `docs/HUONG_DAN_CAP_KEY.md`.
+
 ## Cài đặt
 
 ```bash

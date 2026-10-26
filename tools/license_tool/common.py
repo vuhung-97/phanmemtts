@@ -1,19 +1,25 @@
-"""Tiện ích dùng chung cho keygen GUI và CLI (chạy trên máy owner)."""
+r"""Tiện ích dùng chung cho keygen GUI/CLI (chạy trên máy owner).
+
+Hoạt động cả khi chạy từ repo lẫn khi đóng gói thành `KeygenTTS.exe`:
+- Bản exe: secret + sổ key nằm trong `keys\` cạnh exe.
+- Bản dev: dùng `tools\license_tool\keys\`.
+- Có thể override bằng biến môi trường `PPMTTS_KEYGEN_DIR`,
+  `PPMTTS_SECRET_FILE`, `PPMTTS_LEDGER`.
+"""
 
 from __future__ import annotations
 
+import os
 import sys
 from datetime import date
 from pathlib import Path
 
-# Cho phép chạy trực tiếp từ tools/license_tool/ (sys.path[0] là thư mục script).
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.licensing import codec, fingerprint, shortcode  # noqa: E402
-from core.licensing.secret import (SECRET_PATH, derive_key,  # noqa: E402
-                                   load_secret_file)
+from core.licensing.secret import derive_key, load_secret_file  # noqa: E402
 
 KIND_CHOICES = {
     "7": shortcode.KIND_WEEK,
@@ -22,10 +28,45 @@ KIND_CHOICES = {
     "custom": shortcode.KIND_CUSTOM,
 }
 
+SECRET_NAME = "license_secret.bin"
+LEDGER_NAME = "issued.sqlite"
+
+
+def is_frozen() -> bool:
+    return bool(getattr(sys, "frozen", False))
+
+
+def base_dir() -> Path:
+    """Thư mục gốc của tool (cạnh exe khi đóng gói, repo khi dev)."""
+    env = os.environ.get("PPMTTS_KEYGEN_DIR")
+    if env:
+        return Path(env)
+    if is_frozen():
+        return Path(sys.executable).resolve().parent
+    return ROOT
+
+
+def secret_path() -> Path:
+    env = os.environ.get("PPMTTS_SECRET_FILE")
+    if env:
+        return Path(env)
+    if is_frozen():
+        return base_dir() / "keys" / SECRET_NAME
+    return ROOT / "tools" / "license_tool" / "keys" / SECRET_NAME
+
+
+def ledger_path() -> Path:
+    env = os.environ.get("PPMTTS_LEDGER")
+    if env:
+        return Path(env)
+    if is_frozen():
+        return base_dir() / "keys" / LEDGER_NAME
+    return ROOT / "tools" / "license_tool" / "keys" / LEDGER_NAME
+
 
 def load_key(path: Path | None = None) -> bytes:
     """Đọc secret từ file và suy ra khoá HMAC."""
-    return derive_key(load_secret_file(path))
+    return derive_key(load_secret_file(path or secret_path()))
 
 
 def format_machine(text: str) -> str:
@@ -34,14 +75,8 @@ def format_machine(text: str) -> str:
 
 
 def normalize_machine(text: str) -> str:
-    """Chuẩn hoá mã máy, raise ValueError nếu không hợp lệ."""
-    cleaned = codec.normalize(text)
-    if len(cleaned) != fingerprint.MACHINE_CODE_LEN:
-        raise ValueError(
-            f"Mã máy phải có đúng {fingerprint.MACHINE_CODE_LEN} ký tự "
-            f"(đang {len(cleaned)})")
-    fingerprint.parse_machine_code(cleaned)
-    return cleaned
+    """Lấy mã máy 10 ký tự từ chuỗi bất kỳ (kể cả tin nhắn có version)."""
+    return fingerprint.extract_machine_code(text)
 
 
 def create_code(machine: str, kind: int, days: int | None = None,

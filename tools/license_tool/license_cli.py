@@ -1,4 +1,4 @@
-"""Cấp mã kích hoạt từ dòng lệnh (chạy trên máy owner).
+r"""Cấp mã kích hoạt từ dòng lệnh (chạy trên máy owner).
 
 Ví dụ:
     python tools\\license_tool\\license_cli.py -m 7K2QF-9M3XA -k 30
@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -38,26 +39,35 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--reissued-from", type=int, default=None,
                    help="id bản ghi cũ nếu cấp lại")
     p.add_argument("--list", action="store_true", help="liệt kê key đã cấp")
+    p.add_argument("--search", default="",
+                   help="lọc sổ key theo tên / SĐT / mã máy (dùng với --list)")
+    p.add_argument("--page", type=int, default=1,
+                   help="trang sổ key (100 dòng/trang, dùng với --list)")
     p.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
     p.add_argument("--key-file", help="file secret (mặc định keys/license_secret.bin)")
     return p
 
 
-def _print_list() -> int:
-    rows = ledger.recent(100)
+def _print_list(keyword: str = "", page: int = 1) -> int:
+    rows, total = ledger.query(keyword, page, ledger.PAGE_SIZE)
+    pages = max(1, (total + ledger.PAGE_SIZE - 1) // ledger.PAGE_SIZE)
     if not rows:
-        print("(sổ key trống)")
+        print("(không có bản ghi nào khớp)" if keyword else "(sổ key trống)")
         return 0
-    print(f"{'ID':>4}  {'Mã máy':<13}  {'Loại':<12}  {'Hạn':<10}  {'Khách':<20}  Mã")
-    print("-" * 96)
+    print(f"{'ID':>4}  {'Mã máy':<13}  {'Loại':<14}  {'Hạn':<10}  "
+          f"{'Khách':<22}  {'Tạo lúc':<16}  Mã")
+    print("-" * 120)
     for row in rows:
         kind = common.kind_text(int(row["kind"]), int(row["days"] or 0))
         expiry = ("Vĩnh viễn" if row["expiry_day"] is None
                   else _epoch_text(int(row["expiry_day"])))
+        created = datetime.fromtimestamp(
+            int(row["created_at"])).strftime("%d/%m/%Y %H:%M")
         print(f"{row['id']:>4}  {common.format_machine(row['machine']):<13}  "
-              f"{kind:<12}  {expiry:<10}  {(row['customer'] or '')[:20]:<20}  "
-              f"{row['code']}")
-    print(f"\nTổng: {ledger.count()} key")
+              f"{kind:<14}  {expiry:<10}  {(row['customer'] or '')[:22]:<22}  "
+              f"{created:<16}  {row['code']}")
+    suffix = f" · lọc: '{keyword}'" if keyword else ""
+    print(f"\nTổng {total} key · Trang {page}/{pages}{suffix}")
     return 0
 
 
@@ -71,7 +81,7 @@ def main() -> int:
     args = _parser().parse_args()
 
     if args.list:
-        return _print_list()
+        return _print_list(args.search, args.page)
 
     if not args.machine:
         print("Thiếu --machine (mã máy 10 ký tự của khách). Dùng --list để xem sổ key.")

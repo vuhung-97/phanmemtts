@@ -57,6 +57,27 @@ def test_parse_machine_code_sai(env):
         fingerprint.parse_machine_code("ABC")
 
 
+def test_extract_machine_code_tu_nhieu_dang(env):
+    code = fingerprint.machine_code()
+    grouped = fingerprint.format_machine_code(code)
+    assert fingerprint.extract_machine_code(grouped) == code
+    assert fingerprint.extract_machine_code(grouped.lower()) == code
+    assert fingerprint.extract_machine_code(grouped.replace("-", " ")) == code
+    assert fingerprint.extract_machine_code(f"  {code}  ") == code
+    assert fingerprint.extract_machine_code(
+        f"Mã máy: {grouped} | Phiên bản: 3.3.0") == code
+
+
+def test_extract_machine_code_co_dinh(env):
+    assert fingerprint.extract_machine_code("00000-00000") == "0000000000"
+
+
+@pytest.mark.parametrize("text", ["", "xin chào", "không có mã", "12345"])
+def test_extract_machine_code_rac(env, text):
+    with pytest.raises(ValueError):
+        fingerprint.extract_machine_code(text)
+
+
 def test_fp4_hop_le(env):
     fp = fingerprint.fp4()
     assert set(fp) == {"guid", "vol", "cpu", "board"}
