@@ -56,7 +56,7 @@ thu hồi key đã cấp (offline không làm được).
 | 15 | Chế độ chưa kích hoạt | **Freemium**: vẫn chuyển đổi/nghe thử; khoá **Xuất file** + **Ghép nhạc**; hộp thoại kích hoạt mở 1 lần ở lần chạy đầu |
 | 16 | Bảo vệ code | PyArmor **free** (obfuscate `.py` → `.py` mã hoá), tách 2 file > 32 KB |
 | 17 | Đóng gói | PyInstaller one-dir modular như v2; code rời cạnh exe |
-| 18 | Cập nhật | Zip chỉ gồm file đổi + `pyarmor_runtime_000000` + `manifest.json` + `capnhat.bat` |
+| 18 | Cập nhật | Zip chỉ gồm file đổi + `pyarmor_runtime_000000` + manifest + `capnhat.bat` (0,25 MB khi đổi code; ~29 MB nếu exe đổi) |
 | 19 | Repo | **Private** (xác nhận 26/10/2026) — vẫn không commit secret |
 | 20 | Phiên bản | `3.3.0` |
 
@@ -585,27 +585,34 @@ Chỉ liệt kê file thuộc gói cập nhật được (code, docs, config); b
 ### 11.3 Gói cập nhật + `capnhat.bat`
 
 ```
-update_3.3.1.zip  (~0,4–2 MB)
-├─ payload\            # đúng cấu trúc thư mục app, chỉ file đã đổi
-│   ├─ ui\main_window.py
-│   ├─ pyarmor_runtime_000000\…
-│   └─ …
-├─ manifest.json
-├─ capnhat.bat
-└─ capnhat.ps1
+update_3.3.1.zip
+└─ capnhat_3.3.1\
+    ├─ payload\                 # file đã đổi (+ runtime, + exe nếu exe đổi)
+    │   ├─ ui\main_window.py
+    │   ├─ pyarmor_runtime_000000\…
+    │   └─ …
+    ├─ manifest_update.json     # manifest của bản mới
+    ├─ delete.txt               # file cần xoá (nếu có)
+    ├─ capnhat.bat
+    └─ capnhat.ps1
 ```
+
+Kích thước thực tế đã đo: **0,25 MB** khi chỉ đổi code; **~29 MB** khi file `.exe`
+cũng đổi (PyInstaller không tái lập byte-for-byte) — vẫn nhỏ hơn nhiều so với
+gửi cả bộ cài ~1 GB.
 
 `capnhat.bat` → `powershell -ExecutionPolicy Bypass -File capnhat.ps1`:
 
-1. Kiểm tra app không chạy (`tasklist`), nếu đang chạy thì hỏi đóng.
-2. So `version` giữa manifest bản cài và manifest trong gói.
-3. Backup file sắp ghi đè vào `backup\<ver_cu>_<yyyymmdd_HHmm>\`.
-4. Copy `payload\*` đè lên thư mục app.
-5. Tính `sha256` các file vừa copy, so với manifest; sai → rollback và báo lỗi.
-6. Cập nhật `manifest.json`.
-7. Khởi động lại exe.
+1. Xác định thư mục app (cạnh gói, hoặc chọn bằng hộp thoại).
+2. Kiểm tra app không chạy; nếu đang chạy thì nhắc đóng.
+3. So `version` giữa `manifest.json` của app và `manifest_update.json`.
+4. Backup file sắp ghi đè **và** file sắp xoá vào `backup\<ver_cu>_<yyyymmdd_HHmmss>\`.
+5. Copy `payload\*` đè lên thư mục app; xoá file trong `delete.txt`.
+6. Tính `sha256` từng file vừa copy, so với manifest; sai → **rollback** toàn bộ và báo lỗi.
+7. Ghi `manifest.json` mới, thông báo version, mở lại app.
 
-Nếu exe hoặc `_internal/` thay đổi (nâng Python/thư viện) → `make_update_zip.py` báo "cần build full".
+Chỉ khi **Python hoặc PyArmor** thay đổi (nâng thư viện) mới cần build full.
+Script hỗ trợ `-NoLaunch` và `-Quiet` để chạy tự động/kiểm thử.
 
 ### 11.4 Chặn lọt secret
 
