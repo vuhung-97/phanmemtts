@@ -73,7 +73,7 @@ class ModelManager:
             results.append(
                 VoiceModelInfo(
                     model_id=f"vieneu:{voice_id}",
-                    display_name=f"{label} (VieNeu)",
+                    display_name=label,
                     language="vi",
                     model_path=marker,
                     config_path=marker,
@@ -83,11 +83,14 @@ class ModelManager:
                 )
             )
         # Giọng tùy chỉnh (import file từ máy khác / tạo bằng CLI)
+        # Không gắn hậu tố vào tên hiển thị: combo giọng chỉ rộng 180px, hậu tố
+        # làm tên bị cắt. Giọng tùy chỉnh đã được phân biệt trong dialog quản lý
+        # giọng (có nút xuất ⬇ / xoá 🗑 riêng).
         for custom in VieneuTTS.list_custom_voice_names():
             results.append(
                 VoiceModelInfo(
                     model_id=f"vieneu:{custom}",
-                    display_name=f"{custom} (Tùy chỉnh)",
+                    display_name=custom,
                     language="vi",
                     model_path=marker,
                     config_path=marker,

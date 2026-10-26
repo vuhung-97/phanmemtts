@@ -36,6 +36,21 @@ class SyncTextbox(ctk.CTkTextbox):
     def get_text(self) -> str:
         return self.get("1.0", "end-1c")
 
+    def insert_at_cursor(self, text: str) -> None:
+        """Chèn ``text`` tại con trỏ, tự thêm khoảng trắng để không dính chữ."""
+        inner = self._textbox
+        try:
+            index = inner.index("insert")
+        except Exception:      # pragma: no cover - widget chưa sẵn sàng
+            index = inner.index("end-1c")
+        before = inner.get("1.0", index)
+        after = inner.get(index, "end-1c")
+        prefix = " " if before and not before[-1].isspace() else ""
+        suffix = " " if after and not after[0].isspace() and after[0] not in ".,!?;:)]" else ""
+        inner.insert("insert", f"{prefix}{text}{suffix}")
+        self.clear_highlight()
+        self.after(50, self._on_text_changed)
+
     def highlight_span(self, char_start: int, char_end: int) -> None:
         inner = self._textbox
         inner.tag_remove(ACTIVE_TAG, "1.0", "end")

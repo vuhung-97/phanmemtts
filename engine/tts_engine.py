@@ -5,6 +5,7 @@ from typing import Iterator
 import numpy as np
 
 from core.models import SentenceItem, TimelineMap
+from core.tags import clean_for_model, has_speech, split_pieces
 from core.text_normalizer import normalize_numbers_vi
 from core.text_processor import build_sentences
 
@@ -120,6 +121,8 @@ class TtsEngine:
           Pad ước lượng từ đuôi câu hiện tại -> không cần chờ câu kế.
         - Timeline: end_sec = hết tiếng (không tính pad), start_sec câu sau
           tính từ sau pad.
+        - Thẻ nghỉ ``[nghỉ 3s]``: câu được cắt tại thẻ, chèn đúng số giây
+          lặng vào giữa (thẻ cảm xúc giữ nguyên cho model).
 
         yields: (SentenceItem, piece_waveform, current_idx_1based, total_sentences)
         """
@@ -148,15 +151,33 @@ class TtsEngine:
 
         # Không lookahead: yield ngay câu vừa tạo xong.
         for i, sentence in enumerate(sentences):
-            audio = self.tts.generate(prepare_for_tts(sentence.text), speed=speed)
-            raw = np.asarray(audio.samples, dtype=np.float32)
-            faded = _fade_edges(raw, sr)
+            parts: list[np.ndarray] = []
+            last_raw: np.ndarray | None = None
+            for piece in split_pieces(sentence.text):
+                body = clean_for_model(piece.text)
+                if has_speech(body):
+                    audio = self.tts.generate(prepare_for_tts(body), speed=speed)
+                    raw = np.asarray(audio.samples, dtype=np.float32)
+                    last_raw = raw
+                    parts.append(_fade_edges(raw, sr))
+                if piece.pause_sec > 0:
+                    n = int(round(piece.pause_sec * sr))
+                    if n > 0:
+                        parts.append(np.zeros(n, dtype=np.float32))
+
+            if not parts:
+                merged = np.zeros(0, dtype=np.float32)
+            elif len(parts) == 1:
+                merged = parts[0]
+            else:
+                merged = np.concatenate(parts)
+
             last = (i == total - 1)
-            pad = 0 if last else _pause_pad_estimate(
-                raw, sr, gap_sec, target_sec, lead_est)
-            piece = (faded if pad == 0
-                     else np.concatenate([faded, np.zeros(pad, dtype=np.float32)]))
+            pad = 0 if (last or last_raw is None) else _pause_pad_estimate(
+                last_raw, sr, gap_sec, target_sec, lead_est)
+            piece_wave = (merged if pad == 0
+                          else np.concatenate([merged, np.zeros(pad, dtype=np.float32)]))
             start_sec = cursor_samples / sr
-            cursor_samples += len(piece)
+            cursor_samples += len(piece_wave)
             end_sec = (cursor_samples - pad) / sr
-            yield make_timed(sentence, start_sec, end_sec), piece, i + 1, total
+            yield make_timed(sentence, start_sec, end_sec), piece_wave, i + 1, total

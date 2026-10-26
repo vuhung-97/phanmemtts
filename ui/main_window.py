@@ -4,7 +4,7 @@ import queue
 import threading
 import time
 from pathlib import Path
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 import numpy as np
@@ -17,7 +17,9 @@ from audio.speed import apply_speed
 from audio.temp_store import (TempSession, cleanup_stale_sessions,
                               should_use_disk)
 from core.document_reader import read_document
+from core.history import HistoryStore
 from core.models import SentenceItem, TimelineMap
+from core.tags import find_unknown_tags
 from core.text_processor import build_sentences
 from engine.model_manager import ModelManager
 from engine.tts_engine import TtsEngine
@@ -25,8 +27,10 @@ from ui import theme
 from ui.config import (load_enabled_voices, load_settings, save_enabled_voices,
                         save_settings)
 from ui.components.topbar import TopBar
+from ui.components.history_dialog import HistoryDialog, open_in_system
 from ui.components.playback_bar import PlaybackBar
 from ui.components.sync_textbox import SyncTextbox
+from ui.components.tag_bar import TagBar
 from ui.components.voice_manager import VoiceManagerDialog
 from ui.components.waveform_timeline import WaveformTimeline
 
@@ -61,6 +65,7 @@ class MainWindow(ctk.CTk):
             precision=self._settings["precision"],
             threads=self._settings["threads"],
         )
+        self._history = HistoryStore()
         self._player = AudioPlayer()
         self._messages: queue.Queue = queue.Queue()
         self._worker: threading.Thread | None = None
@@ -122,22 +127,30 @@ class MainWindow(ctk.CTk):
             on_test_voice=self._test_voice,
             on_merge=self._open_merge_dialog,
             on_settings=self._open_settings,
+            on_history=self._open_history,
+            on_help=self._open_help,
+            on_about=self._show_about,
+            on_close=self._on_close,
         )
         self.topbar.grid(row=0, column=0, sticky="ew")
 
         # ── Main area (full-width) ──
         main = ctk.CTkFrame(self, fg_color="transparent")
         main.grid(row=1, column=0, sticky="nsew", padx=14, pady=(0, 14))
-        main.grid_rowconfigure(0, weight=1)
-        main.grid_rowconfigure(1, weight=0)
+        main.grid_rowconfigure(0, weight=0)
+        main.grid_rowconfigure(1, weight=1)
         main.grid_rowconfigure(2, weight=0)
+        main.grid_rowconfigure(3, weight=0)
         main.grid_columnconfigure(0, weight=1)
 
+        self.tag_bar = TagBar(main, on_insert=self._insert_tag)
+        self.tag_bar.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+
         self.textbox = SyncTextbox(main, on_text_changed=self._on_text_changed)
-        self.textbox.grid(row=0, column=0, sticky="nsew")
+        self.textbox.grid(row=1, column=0, sticky="nsew")
 
         self.waveform_timeline = WaveformTimeline(main)
-        self.waveform_timeline.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        self.waveform_timeline.grid(row=2, column=0, sticky="ew", pady=(6, 0))
 
         self.playback_bar = PlaybackBar(
             main,
@@ -146,7 +159,7 @@ class MainWindow(ctk.CTk):
             on_prev_sentence=self._prev_sentence,
             on_next_sentence=self._next_sentence,
         )
-        self.playback_bar.grid(row=2, column=0, sticky="ew", pady=(6, 0))
+        self.playback_bar.grid(row=3, column=0, sticky="ew", pady=(6, 0))
 
     # ── Scan & voice management ──
 
@@ -244,6 +257,37 @@ class MainWindow(ctk.CTk):
 
         SettingsDialog(self, dict(self._settings), on_save)
 
+    # ── Lịch sử bản dựng ──
+
+    def _open_history(self) -> None:
+        HistoryDialog(self, self._history)
+
+    # ── Trợ giúp ──
+
+    def _open_help(self) -> None:
+        """Mở file hướng dẫn đi kèm (bản cài: HUONG_DAN_V3.txt, dev: docs/*.docx)."""
+        from core.paths import app_dir
+
+        candidates = [app_dir() / "HUONG_DAN_V3.txt"]
+        candidates += sorted(app_dir().glob("docs/Huong_dan_su_dung_*.docx"), reverse=True)
+        for path in candidates:
+            if path.exists():
+                open_in_system(path)
+                self.topbar.set_status(f"Đã mở hướng dẫn: {path.name}", theme.SUCCESS)
+                return
+        self.topbar.set_status(
+            "Không tìm thấy file hướng dẫn trong thư mục cài đặt.", theme.ERROR)
+
+    def _show_about(self) -> None:
+        messagebox.showinfo(
+            "Giới thiệu",
+            f"{version.__app_name__}\n"
+            f"Phiên bản {version.__version__}\n\n"
+            "Chuyển văn bản thành giọng nói tiếng Việt, chạy hoàn toàn offline trên CPU.\n"
+            "Không gửi dữ liệu ra ngoài.",
+            parent=self,
+        )
+
     # Chức năng ghép nhạc (đấu dây từ TopBar qua on_merge).
     def _open_merge_dialog(self) -> None:
         from ui.components.merge_dialog import MergeDialog
@@ -299,6 +343,7 @@ class MainWindow(ctk.CTk):
             self.textbox.set_text(content)
             self.topbar.set_source_name(Path(path).name)
             self.topbar.set_status(f"Đã mở: {path}", theme.SUCCESS)
+            self._refresh_tag_hint()
         except Exception as exc:
             self.topbar.set_status(f"Không mở được file: {exc}", theme.ERROR)
 
@@ -516,12 +561,13 @@ class MainWindow(ctk.CTk):
         if not path:
             return
         speed = self.topbar.get_speed()
+        voice = self.topbar.get_selected_voice()
         self._set_busy(True)
         self.topbar.set_status("Đang xuất file...", theme.TEXT_DIM)
-        threading.Thread(target=self._export_worker, args=(path, speed),
+        threading.Thread(target=self._export_worker, args=(path, speed, voice),
                          daemon=True).start()
 
-    def _export_worker(self, path: str, speed: float) -> None:
+    def _export_worker(self, path: str, speed: float, voice: str) -> None:
         try:
             store = self._play_store
             timeline = self._timeline
@@ -533,9 +579,29 @@ class MainWindow(ctk.CTk):
                     self._messages.put(
                         ("speed_applied", new_store, new_timeline, speed, False))
             out = exporter.export_source(store, timeline.sample_rate, path)
+            self._record_history(path, speed, voice)
             self._messages.put(("exported", str(out)))
         except Exception as exc:
             self._messages.put(("error", str(exc)))
+
+    def _record_history(self, path: str, speed: float, voice: str) -> None:
+        """Ghi lịch sử bản dựng; lỗi lịch sử không được làm hỏng luồng xuất."""
+        try:
+            timeline = self._timeline
+            duration = 0.0
+            if timeline is not None and timeline.sentences:
+                duration = float(timeline.sentences[-1].end_sec)
+            text = self._synth_text or ""
+            self._history.add(
+                path,
+                voice=voice,
+                speed=speed,
+                duration=duration,
+                chars=len(text),
+                preview=text,
+            )
+        except Exception:
+            pass
 
     # ── Playback ──
 
@@ -580,9 +646,27 @@ class MainWindow(ctk.CTk):
             target = 0 if delta > 0 else len(self._timeline.sentences) - 1
         self._seek(self._timeline.sentences[target].start_sec)
 
+    def _insert_tag(self, tag: str) -> None:
+        """Chèn thẻ điều khiển vào khung soạn thảo tại con trỏ."""
+        self.textbox.insert_at_cursor(tag)
+        self.textbox.focus_set()
+
     def _on_text_changed(self) -> None:
         if self._synth_text is not None and self.textbox.get_text() != self._synth_text:
-            self._invalidate_audio("Văn bản đã thay đổi — hãy chuyển đổi lại.")
+            self._invalidate_audio("Văn bản đã thay đổi - hãy chuyển đổi lại.")
+        self._refresh_tag_hint()
+
+    def _refresh_tag_hint(self) -> None:
+        """Cảnh báo ngay trên thanh chèn nhanh nếu có thẻ chưa hỗ trợ."""
+        unknown = find_unknown_tags(self.textbox.get_text())
+        if not unknown:
+            self.tag_bar.set_hint(None)
+            return
+        preview = ", ".join(unknown[:3])
+        if len(unknown) > 3:
+            preview += f" (+{len(unknown) - 3})"
+        self.tag_bar.set_hint(f"Thẻ chưa hỗ trợ (sẽ đọc thành chữ): {preview}",
+                              error=True)
 
     def _invalidate_audio(self, status: str) -> None:
         self._player.stop()

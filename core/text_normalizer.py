@@ -30,6 +30,8 @@ _THOUSANDS_DOT = re.compile(r"\b\d{1,3}(?:\.\d{3})+\b")
 _THOUSANDS_COMMA = re.compile(r"\b\d{1,3}(?:,\d{3})+\b")
 _DECIMAL = re.compile(r"\b\d+(?:[.,]\d+)\b")
 _INTEGER = re.compile(r"\b\d+\b")
+# Nội dung trong ngoặc vuông là thẻ điều khiển — không chuẩn hoá số bên trong.
+_TAG_SPAN = re.compile(r"\[[^\]\n]{1,60}\]")
 
 _UNIT_WORDS = {
     "k": "nghìn",
@@ -80,7 +82,26 @@ def _number_to_words(raw: str) -> str:
 
 
 def normalize_numbers_vi(text: str) -> str:
-    """Chuyển mọi số trong văn bản thành chữ tiếng Việt chuẩn."""
+    """Chuyển mọi số trong văn bản thành chữ tiếng Việt chuẩn.
+
+    Nội dung trong ngoặc vuông ([nghỉ 3s], [cười 2 lần], [P1]…) được giữ
+    NGUYÊN VĂN: đó là cú pháp điều khiển của app/model, đổi số thành chữ
+    sẽ làm thẻ mất tác dụng.
+    """
+    if "[" not in text:
+        return _normalize_plain(text)
+    out: list[str] = []
+    last = 0
+    for match in _TAG_SPAN.finditer(text):
+        out.append(_normalize_plain(text[last:match.start()]))
+        out.append(match.group(0))
+        last = match.end()
+    out.append(_normalize_plain(text[last:]))
+    return "".join(out)
+
+
+def _normalize_plain(text: str) -> str:
+    """Ruột của normalizer: chỉ áp dụng cho phần chữ (không có thẻ)."""
 
     def _date_iso(match: re.Match) -> str:
         orig_prefix = match.group(1)

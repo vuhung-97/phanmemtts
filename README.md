@@ -19,6 +19,55 @@ Phiên bản hiện tại: **v3.2.0**
 - **Ghép nhạc**: nhạc nền lặp + intro/outro + crossfade, có preview
 - **Tạo giọng mới từ file mẫu** (wav/mp3) và chia sẻ giọng qua file `.json` sang máy khác
 - **Chế độ lưu âm thanh linh hoạt**: RAM (bài ngắn) hoặc file tạm trên đĩa (bài dài — không tốn RAM)
+- **Thẻ cảm xúc + thẻ nghỉ trong văn bản**: `[cười]`, `[thở dài]`, `[hắng giọng]`, `[nghỉ 3s]` — có thanh chèn nhanh ngay trên khung soạn thảo
+- **Lịch sử bản dựng**: mỗi lần xuất file được lưu bản sao; nghe lại / mở thư mục / xoá ngay trong app
+- **Menu bar kiểu Windows**: `Tệp` / `Công cụ` / `Trợ giúp` với phím tắt (Ctrl+O, Ctrl+H, Alt+F/C/T); hai nút hành động chính `⚡ Chuyển đổi` + `💾 Xuất file` nằm cố định ở panel phải
+
+## Menu
+
+| Menu | Mục | Phím tắt |
+|---|---|---|
+| **Tệp** | Mở văn bản… | `Ctrl+O` |
+| | Thoát | `Alt+F4` |
+| **Công cụ** | Ghép nhạc | |
+| | Lịch sử bản dựng | `Ctrl+H` |
+| | Cài đặt | |
+| **Trợ giúp** | Hướng dẫn sử dụng | |
+| | Giới thiệu | |
+
+`Alt+F` / `Alt+C` / `Alt+T` mở nhanh menu tương ứng. Khi đang chuyển đổi, mục
+**Ghép nhạc** và **Cài đặt** bị khoá (đổi cấu hình giữa lúc đọc sẽ nạp lại model);
+**Lịch sử** vẫn mở được.
+
+## Thẻ trong văn bản
+
+Gõ thẻ ngay trong câu (có thanh **Chèn nhanh** phía trên khung soạn thảo):
+
+| Thẻ | Tác dụng |
+|---|---|
+| `[cười]` | Model tự đọc thành tiếng cười (bản tiếng Anh: `[chuckle]`) |
+| `[thở dài]` | Tiếng thở dài (`[sigh]`) |
+| `[hắng giọng]` | Tiếng hắng giọng (`[clear throat]`) |
+| `[nghỉ 3s]` | Chèn **đúng 3 giây** khoảng lặng (app tự cắt câu, không phụ thuộc model) |
+| `[nghỉ]` | Nghỉ mặc định 2 giây |
+
+Thẻ nghỉ nhận `s` / `giây` / `ms`, số thập phân bằng dấu phẩy hoặc dấu chấm
+(`[nghỉ 1,5s]`, `[nghỉ 500ms]`), tự kẹp trong 0.1–30 giây.
+
+> Đặt thẻ **trong câu**, đừng để thẻ đứng riêng một dòng — câu chỉ có thẻ cảm xúc
+> dễ ra tiếng lạ. Thẻ không nhận diện được (ví dụ `[abc]`) sẽ bị đọc thành chữ;
+> thanh chèn nhanh cảnh báo ngay khi bạn gõ.
+
+## Lịch sử bản dựng
+
+Mỗi lần **💾 Xuất file** thành công, app sao chép file vào
+`%LOCALAPPDATA%\PhanMemTTS\history\<id>\audio.mp3` và ghi `index.json`.
+
+Bấm **Công cụ → Lịch sử bản dựng** (`Ctrl+H`) để xem, **▶ Nghe** (mở bằng trình
+phát mặc định), **📂** mở thư mục, **🗑** xoá bản ghi.
+
+- Xoá trong lịch sử chỉ xoá **bản sao** — file bạn đã xuất ra ngoài vẫn còn.
+- Cảnh báo khi vượt **500 MB**; tự xoá bản cũ nhất khi vượt **1 GB** (tối đa 200 bản).
 
 ## Cài đặt
 
@@ -38,7 +87,7 @@ python main.py
 ├── main.py                 # Entry point
 ├── download_model.py       # Tải model VieNeu
 ├── requirements.txt
-├── core/                   # Text processing, models, đường dẫn
+├── core/                   # Text processing, thẻ, lịch sử, models, đường dẫn
 ├── engine/                 # TTS engine (VieNeu) + công cụ cài đặt
 ├── audio/                  # Buffer, player, exporter, mixer, time-stretch
 └── ui/                     # CustomTkinter UI
@@ -80,6 +129,8 @@ trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút t�
 .venv\Scripts\python.exe -m pytest              # unit test
 .venv\Scripts\python.exe packaging\probe_p0.py   # probe lõi TTS + store RAM/đĩa
 .venv\Scripts\python.exe packaging\probe_ui_flow.py  # probe luồng chuyển đổi trong UI
+.venv\Scripts\python.exe packaging\probe_tags_history.py  # probe thẻ cảm xúc/nghỉ + lịch sử
+.venv\Scripts\python.exe packaging\probe_menu_toolbar.py  # probe menu bar + panel hành động
 ```
 
 ## Đóng gói (OneDir)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from tkinter import Menu
 from typing import Callable
 
 import customtkinter as ctk
@@ -11,17 +12,19 @@ from ui.config import load_test_text, save_test_text
 
 _LOGO_PATH = resource_path("logo/logo.jpg")
 
-# Mở lại chức năng ghép nhạc.
+# Mở lại chức năng ghép nhạc (nay nằm trong menu Công cụ).
 SHOW_MERGE = True
 
 _NO_FILE_TEXT = "(chưa mở văn bản)"
 
 
 class TopBar(ctk.CTkFrame):
-    """Header 3 hàng, các nhóm nút nằm trong panel có viền:
-    Hàng 1: logo | nguồn văn bản (+ Chuyển đổi, Xuất file) | Ghép nhạc.
-    Hàng 2: giọng đọc + tốc độ | nghe thử | Cài đặt.
-    Hàng 3: dòng thông báo riêng full-width.
+    """Header 4 hàng kiểu ứng dụng Windows:
+
+    Hàng 0: menu bar (Tệp / Công cụ / Trợ giúp).
+    Hàng 1: logo | nguồn văn bản (Mở file + tên file) | Chuyển đổi / Xuất file.
+    Hàng 2: giọng đọc + tốc độ | nghe thử.
+    Hàng 3: dòng thông báo full-width.
     """
 
     def __init__(
@@ -35,8 +38,12 @@ class TopBar(ctk.CTkFrame):
         on_export: Callable[[], None],
         on_manage_voices: Callable[[], None],
         on_test_voice: Callable[[], None],
-        on_merge: Callable[[], None] | None = None,  # giữ để tương thích, hiện không dùng
+        on_merge: Callable[[], None] | None = None,  # mở từ menu Công cụ
         on_settings: Callable[[], None] | None = None,
+        on_history: Callable[[], None] | None = None,
+        on_help: Callable[[], None] | None = None,
+        on_about: Callable[[], None] | None = None,
+        on_close: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(master, corner_radius=0, fg_color=theme.SIDEBAR_BG)
         self._on_open_file = on_open_file
@@ -49,13 +56,33 @@ class TopBar(ctk.CTkFrame):
         self._on_test_voice = on_test_voice
         self._on_merge = on_merge
         self._on_settings = on_settings
+        self._on_history = on_history
+        self._on_help = on_help
+        self._on_about = on_about
+        self._on_close = on_close
+
+        # Chỉ số mục menu cần khoá khi đang chuyển đổi (None = không có mục đó).
+        self._merge_index: int | None = None
+        self._settings_index: int | None = None
+        self._history_index: int | None = None
+
+        # Dải menu trên cùng + vùng panel bên dưới. Tách 2 packer để thanh menu
+        # không kéo giãn cột của lưới bên dưới (giữ nguyên chiều ngang ô test).
+        self._menubar = ctk.CTkFrame(self, fg_color=theme.SIDEBAR_BG, height=30)
+        self._menubar.pack(side="top", fill="x")
+        self._menubar.pack_propagate(False)
+        self._body = ctk.CTkFrame(self, fg_color="transparent")
+        self._body.pack(side="top", fill="both", expand=True)
 
         # Cột 3 (panel nghe thử) giãn nở theo chiều ngang
-        self.grid_columnconfigure(3, weight=1)
+        self._body.grid_columnconfigure(3, weight=1)
+
+        # ── Menu bar kiểu Windows ──
+        self._build_menubar()
 
         # ── Panel thương hiệu: logo full chiều cao 3 hàng ──
         self._brand_outer = ctk.CTkFrame(
-            self, fg_color=theme.SURFACE,
+            self._body, fg_color=theme.SURFACE,
             border_width=1, border_color=theme.SIDEBAR_DIVIDER, corner_radius=10,
         )
         self._brand_outer.grid(row=0, column=0, rowspan=3, padx=5, pady=(8, 4), sticky="nsew")
@@ -76,7 +103,7 @@ class TopBar(ctk.CTkFrame):
             except Exception:
                 self._logo_pil = None
 
-        # ── Panel nguồn văn bản: nút + tên file chung 1 dòng ──
+        # ── Hàng 0: nguồn văn bản (Mở file + tên file) ──
         src = self._panel(row=0, column=1, columnspan=3, sticky="ew")
         src.grid_columnconfigure(1, weight=1)
         ctk.CTkButton(
@@ -92,25 +119,6 @@ class TopBar(ctk.CTkFrame):
         )
         self.source_label.grid(row=0, column=1, padx=(8, 8), sticky="ew")
 
-        # Hai nút hành động chính nằm cuối hàng nguồn (hàng đã cao 56px nên
-        # không làm header cao thêm, đồng thời trả chiều ngang cho ô test).
-        # Chiều cao ≤ 32px để hàng nguồn không tăng thêm.
-        self.convert_btn = ctk.CTkButton(
-            src, text="⚡  Chuyển đổi", height=32, width=118, fg_color=theme.SUCCESS,
-            hover_color=theme.SUCCESS_HOVER, corner_radius=6,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
-            command=self._on_convert,
-        )
-        self.convert_btn.grid(row=0, column=2, sticky="e")
-        self.export_btn = ctk.CTkButton(
-            src, text="💾  Xuất file", height=32, width=106,
-            fg_color="transparent", border_width=1, border_color=theme.ACCENT,
-            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=6,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
-            command=self._on_export,
-        )
-        self.export_btn.grid(row=0, column=3, padx=(6, 0), sticky="e")
-
         # ── Panel giọng đọc: combo + thêm + tốc độ ──
         voice = self._panel(row=1, column=1, columnspan=2, sticky="w")
         ctk.CTkLabel(
@@ -118,7 +126,7 @@ class TopBar(ctk.CTkFrame):
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1, "bold"),
         ).pack(side="left", padx=(0, 4))
         self.voice_combo = ctk.CTkComboBox(
-            voice, height=32, width=180, state="readonly", values=["(chưa có model)"],
+            voice, height=32, width=200, state="readonly", values=["(chưa có model)"],
             command=self._voice_changed, corner_radius=6,
             fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
             border_color=theme.SIDEBAR_DIVIDER, border_width=1,
@@ -141,7 +149,7 @@ class TopBar(ctk.CTkFrame):
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1, "bold"),
         ).pack(side="left", padx=(10, 4))
         self.speed_combo = ctk.CTkComboBox(
-            voice, height=32, width=96, state="readonly",
+            voice, height=32, width=80, state="readonly",
             values=["0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x"],
             command=self._speed_changed, corner_radius=6,
             fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
@@ -180,47 +188,132 @@ class TopBar(ctk.CTkFrame):
         self.test_entry.grid(row=0, column=1, padx=(6, 0), sticky="ew")
         self.test_entry.bind("<Return>", lambda _: self._save_test_text())
 
-        # KHÔNG render nút Ghép nhạc (SHOW_MERGE = False)
-
-        # ── Panel phải: 2 nút công cụ, chia đều chiều cao 2 hàng đầu ──
-        # Chiều cao khả dụng ≈ 112px -> chia 3:2 (nút ghép nhạc cao hơn), header giữ 3 hàng.
+        # ── Panel phải (hàng 1-2): 2 nút hành động chính ──
+        # Chiều cao khả dụng ≈ 112px -> chia 3:2 (Chuyển đổi là nút chính).
         actions = self._panel(row=0, column=4, rowspan=2)
         actions.grid_columnconfigure(0, weight=1)
-        has_merge = SHOW_MERGE and self._on_merge is not None
-        if has_merge:
-            actions.grid_rowconfigure(0, weight=3)
-            actions.grid_rowconfigure(1, weight=2)
+        actions.grid_rowconfigure(0, weight=3)
+        actions.grid_rowconfigure(1, weight=2)
 
-        if has_merge:
-            self.merge_btn = ctk.CTkButton(
-                actions, text="🎵  Ghép nhạc", height=40, width=150,
-                fg_color="transparent", border_width=1, border_color=theme.ACCENT,
-                text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=8,
-                font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
-                command=self._on_merge,
-            )
-            self.merge_btn.grid(row=0, column=0, pady=(0, 6), sticky="nsew")
+        self.convert_btn = ctk.CTkButton(
+            actions, text="⚡  Chuyển đổi", height=40, width=150,
+            fg_color=theme.SUCCESS, hover_color=theme.SUCCESS_HOVER,
+            corner_radius=8,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE + 1, "bold"),
+            command=self._on_convert,
+        )
+        self.convert_btn.grid(row=0, column=0, pady=(0, 6), sticky="nsew")
 
-        # Nút cài đặt (precision / threads / lưu trữ)
-        if self._on_settings is not None:
-            self.settings_btn = ctk.CTkButton(
-                actions, text="⚙  Cài đặt", height=32, width=150,
-                fg_color="transparent", border_width=1, border_color=theme.SIDEBAR_DIVIDER,
-                text_color=theme.TEXT, hover_color=theme.SURFACE, corner_radius=8,
-                font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
-                command=self._on_settings,
-            )
-            self.settings_btn.grid(row=1 if has_merge else 0, column=0,
-                                   rowspan=1 if has_merge else 2, sticky="nsew")
+        self.export_btn = ctk.CTkButton(
+            actions, text="💾  Xuất file", height=36, width=150,
+            fg_color="transparent", border_width=1, border_color=theme.ACCENT,
+            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=8,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
+            command=self._on_export,
+        )
+        self.export_btn.grid(row=1, column=0, sticky="nsew")
         # Không dùng nút Dừng riêng: khi bận, convert_btn biến thành nút Dừng.
 
-        # ── Hàng 3: dòng thông báo riêng full-width ──
+        # ── Hàng 2: dòng thông báo riêng full-width ──
         self.status_label = ctk.CTkLabel(
-            self, text="", text_color=theme.TEXT_DIM, anchor="w",
+            self._body, text="", text_color=theme.TEXT_DIM, anchor="w",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
         )
         self.status_label.grid(row=2, column=1, columnspan=4,
                                padx=6, pady=(0, 6), sticky="ew")
+
+    # ── Menu bar kiểu Windows ──
+
+    def _make_menu(self) -> Menu:
+        """Menu popup gốc của Tk (có phím tắt, dấu phân cách, trạng thái mờ)."""
+        return Menu(
+            self, tearoff=0, bd=0, relief="flat",
+            bg=theme.SURFACE, fg=theme.TEXT,
+            activebackground=theme.ACCENT, activeforeground="#ffffff",
+            disabledforeground=theme.TIMELINE_DIM,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
+        )
+
+    def _build_menubar(self) -> None:
+        """Dải trên cùng: Tệp / Công cụ / Trợ giúp + phím tắt."""
+        bar = ctk.CTkFrame(self._menubar, fg_color="transparent")
+        bar.pack(side="left", fill="y", padx=(10, 0))
+        self.menubar = self._menubar
+        self._menubar_buttons: dict[str, ctk.CTkButton] = {}
+        self.menus: dict[str, Menu] = {}
+
+        for key, label in (("file", "Tệp"), ("tools", "Công cụ"), ("help", "Trợ giúp")):
+            button = ctk.CTkButton(
+                bar, text=label, width=0, height=24, corner_radius=4,
+                fg_color="transparent", hover_color=theme.HOVER_BG,
+                text_color=theme.TEXT,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE),
+                command=lambda k=key: self._popup_menu(k),
+            )
+            button.pack(side="left", padx=(0, 2), pady=3)
+            self._menubar_buttons[key] = button
+
+        # ── Tệp ──
+        file_menu = self._make_menu()
+        file_menu.add_command(label="Mở văn bản…", accelerator="Ctrl+O",
+                              command=self._on_open_file)
+        file_menu.add_separator()
+        close = self._on_close or self.winfo_toplevel().destroy
+        file_menu.add_command(label="Thoát", accelerator="Alt+F4", command=close)
+        self.menus["file"] = file_menu
+
+        # ── Công cụ: Ghép nhạc / Lịch sử / Cài đặt ──
+        tools_menu = self._make_menu()
+        if SHOW_MERGE and self._on_merge is not None:
+            tools_menu.add_command(label="Ghép nhạc", command=self._on_merge)
+            self._merge_index = tools_menu.index("end")
+        if self._on_history is not None:
+            tools_menu.add_command(label="Lịch sử bản dựng", accelerator="Ctrl+H",
+                                   command=self._on_history)
+            self._history_index = tools_menu.index("end")
+        if self._on_settings is not None:
+            if tools_menu.index("end") is not None:
+                tools_menu.add_separator()
+            tools_menu.add_command(label="Cài đặt", command=self._on_settings)
+            self._settings_index = tools_menu.index("end")
+        self.menus["tools"] = tools_menu
+        if tools_menu.index("end") is None:
+            self._menubar_buttons["tools"].pack_forget()
+
+        # ── Trợ giúp ──
+        help_menu = self._make_menu()
+        if self._on_help is not None:
+            help_menu.add_command(label="Hướng dẫn sử dụng", command=self._on_help)
+        if self._on_about is not None:
+            help_menu.add_command(label="Giới thiệu", command=self._on_about)
+        self.menus["help"] = help_menu
+        if help_menu.index("end") is None:
+            self._menubar_buttons["help"].pack_forget()
+
+        # ── Phím tắt (chuẩn Windows) ──
+        top = self.winfo_toplevel()
+        top.bind("<Control-o>", lambda _e: self._on_open_file())
+        if self._on_history is not None:
+            top.bind("<Control-h>", lambda _e: self._on_history())
+        top.bind("<Alt-f>", lambda _e: self._open_menu_by_key("file"))
+        top.bind("<Alt-c>", lambda _e: self._open_menu_by_key("tools"))
+        top.bind("<Alt-t>", lambda _e: self._open_menu_by_key("help"))
+
+    def _popup_menu(self, key: str) -> None:
+        """Mở menu ngay dưới nút tương ứng."""
+        menu = self.menus.get(key)
+        button = self._menubar_buttons.get(key)
+        if menu is None or button is None:
+            return
+        try:
+            menu.tk_popup(button.winfo_rootx(),
+                          button.winfo_rooty() + button.winfo_height())
+        finally:
+            menu.grab_release()
+
+    def _open_menu_by_key(self, key: str) -> None:
+        if key in self._menubar_buttons:
+            self.after(1, lambda: self._popup_menu(key))
 
     # ── helpers ──
 
@@ -254,7 +347,7 @@ class TopBar(ctk.CTkFrame):
                columnspan: int = 1, sticky: str = "nsew") -> ctk.CTkFrame:
         """Panel trắng có viền bo góc cho 1 nhóm chức năng."""
         outer = ctk.CTkFrame(
-            self, fg_color=theme.SURFACE,
+            self._body, fg_color=theme.SURFACE,
             border_width=1, border_color=theme.SIDEBAR_DIVIDER, corner_radius=10,
         )
         outer.grid(row=row, column=column, rowspan=rowspan, columnspan=columnspan,
@@ -288,11 +381,13 @@ class TopBar(ctk.CTkFrame):
         state = "disabled" if busy else "normal"
         self.export_btn.configure(state=state)
         self.test_btn.configure(state=state)
-        if hasattr(self, "merge_btn"):
-            self.merge_btn.configure(state=state)
-        if hasattr(self, "settings_btn"):
-            # Đổi precision giữa lúc chuyển đổi sẽ nạp lại model -> khoá luôn.
-            self.settings_btn.configure(state=state)
+        # Khoá Ghép nhạc + Cài đặt trong menu (đổi precision giữa lúc chuyển đổi
+        # sẽ nạp lại model); Lịch sử vẫn mở được vì chỉ đọc.
+        tools = self.menus.get("tools")
+        if tools is not None:
+            for index in (self._merge_index, self._settings_index):
+                if index is not None:
+                    tools.entryconfigure(index, state=state)
         if busy:
             self.convert_btn.configure(
                 text="⏹  Dừng", fg_color=theme.ERROR, hover_color="#b91c1c",

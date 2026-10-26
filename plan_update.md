@@ -1,7 +1,7 @@
 # KẾ HOẠCH CẬP NHẬT — v3.1 → v3.3
 
-> **Trạng thái:** P0 + bản offline-only (`v3.2.0`) **đã xong** — xem mục 10. P1/P2 còn lại: xem mục 11.
-> **Cập nhật 26/10/2026:** Đợt 1 (P0) xong; đợt 1c (bỏ hẳn online + GPU) xong; header 3 hàng tinh lại.
+> **Trạng thái:** P0 + bản offline-only (`v3.2.0`) + P1 (2.2 lịch sử, 2.4 thẻ) **đã xong** — xem mục 10. P1/P2 còn lại: xem mục 11.
+> **Cập nhật 26/10/2026:** Đợt 1 (P0) xong; đợt 1c (bỏ hẳn online + GPU) xong; header 3 hàng tinh lại; đợt 2a (bug #7, thẻ cảm xúc/nghỉ, lịch sử) xong.
 > **Người lập:** phiên làm việc nghiên cứu repo `Cuongyd196/cit-voice-studio` + đối chiếu app hiện tại.
 > **Mốc code hiện tại:** commit `47873cb` (v3.0.0) — đã push lên `origin/main`.
 > **Ngày lập:** 21/10/2026
@@ -448,6 +448,44 @@ UI đã cảnh báo; khuyến nghị vẫn dùng FP32.
 
 **Kiểm chứng:** `pytest` 40/40 · `probe_ui_flow.py` **OK** (3 ca: RAM / đĩa / bài dài) · header 146px @980/1100/1200/1440.
 
+### 10.5 Đợt 2a — Bug thẻ + thẻ cảm xúc/nghỉ + lịch sử
+
+| Hạng mục | Chi tiết |
+|---|---|
+| Bug #7 (normalizer) | `core/text_normalizer.py`: tách văn bản theo `\[[^\]\n]{1,60}\]`, chỉ chuẩn hoá số ở phần **ngoài** ngoặc → `[nghỉ 3s]`, `[P1]`, `[cười 2 lần]` giữ nguyên văn |
+| `core/tags.py` | `Piece`, `split_pieces()`, `clean_for_model()`, `has_speech()`, `parse_pause_tag()`, `format_pause()`, `find_unknown_tags()`; mặc định 2s, kẹp 0.1–30s, nhận `s`/`giây`/`ms`/`1,5` |
+| `engine/tts_engine.py` | Cắt câu tại thẻ nghỉ → gọi model cho từng mảnh chữ (thẻ cảm xúc giữ nguyên) + chèn `zeros(pause_sec × sr)`; mảnh chỉ còn dấu câu bị bỏ qua |
+| UI chèn nhanh | `ui/components/tag_bar.py`: `[cười] [thở dài] [hắng giọng]` + `⏸ Nghỉ` kèm ô chọn 1/2/3/5s, chèn tại con trỏ; dòng gợi ý đổi đỏ khi có thẻ lạ |
+| `SyncTextbox` | Thêm `insert_at_cursor()` (tự thêm dấu cách, không dính chữ) |
+| Lịch sử | `core/history.py` + `ui/components/history_dialog.py` + nút `🕘 Lịch sử` (cuối hàng nguồn) + hook sau khi xuất file. Bản sao trong `data_dir()/history/<id>/`, `index.json`, cảnh báo 500 MB, tự xoá cũ nhất >1 GB, tối đa 200 bản |
+
+**Kiểm chứng:** `pytest` **82/82** · `probe_tags_history.py` **OK** (header 146px, lặng `[nghỉ 2s]`=2.28s do cộng pad, `[nghỉ 3s]`=**3.03s**, xuất MP3 49 KB, lịch sử ghi/xoá được) · `probe_ui_flow.py` **OK** (3 ca, không hồi quy).
+
+### 10.6 Đợt 2b — Menu bar kiểu Windows + chuyển nút hành động sang panel phải
+
+| Thay đổi | Chi tiết |
+|---|---|
+| Menu bar | Dải riêng 30px trên cùng (pack, không nằm trong lưới nên **không co ô câu test**): `Tệp` / `Công cụ` / `Trợ giúp`, dùng `tkinter.Menu` gốc (phím tắt, dấu phân cách, trạng thái mờ) |
+| Mục menu | Tệp: Mở văn bản… (`Ctrl+O`), Thoát · Công cụ: Ghép nhạc, Lịch sử bản dựng (`Ctrl+H`), Cài đặt · Trợ giúp: Hướng dẫn sử dụng, Giới thiệu |
+| Phím tắt | `Ctrl+O`, `Ctrl+H`, `Alt+F` / `Alt+C` / `Alt+T` |
+| Panel phải | Thay Ghép nhạc/Cài đặt bằng **⚡ Chuyển đổi** (43px, xanh) + **💾 Xuất file** (39px, viền) — chia 3:2 |
+| Hàng nguồn | Chỉ còn `📁 Mở file` + tên file (rộng 490px @980, 710px @1200) |
+| Khoá khi bận | Menu Ghép nhạc + Cài đặt `disabled`; Lịch sử vẫn mở; `⚡ Chuyển đổi` → `⏹ Dừng` |
+| Chiều cao | Header **146 → 176px** (thêm dải menu 30px); khung soạn thảo 364 → 334px @980×740. Ô câu test 283px @1200 |
+
+**Kiểm chứng:** `probe_menu_toolbar.py` **OK** (header 176px ở 980/1100/1200/1440, menu đúng 2/3/2 mục + phím tắt, busy/idle khoá-mở đúng, menu Lịch sử mở dialog) · `pytest` **83/83** · `probe_tags_history.py` **OK** · `probe_ui_flow.py` **OK** (3 ca, 93.09s bài dài, RAM 1.7 GB).
+
+### 10.7 Bỏ hậu tố tên giọng trong ô chọn giọng
+
+| Thay đổi | Chi tiết |
+|---|---|
+| Tên hiển thị | Bỏ `(VieNeu)` ở 25 giọng preset và `(Tùy chỉnh)` ở giọng tự tạo — đây chính là phần làm tên bị cắt trong combo |
+| Phân biệt giọng tự tạo | Đã có sẵn trong dialog quản lý giọng (nút ⬇ xuất / 🗑 xoá riêng), không cần hậu tố trong tên |
+| Chiều rộng combo | 180 → **200px** để tên dài nhất `Thiền Tâm Đức (Nam, Bắc)` hiện đủ; bù lại thu ô tốc độ 96 → 80px (`1.25x` vẫn vừa) nên ô câu test gần như không đổi: 287 → **283** @1200, 67 → **63** @980 |
+| An toàn dữ liệu | `voice_config.json` lưu `model_id` chứ không lưu tên hiển thị → đổi tên không mất giọng đã bật / đã chọn |
+
+**Kiểm chứng:** ảnh chụp combo @1200: 8 giọng đang bật hiện đủ tên, `Thiền Tâm Đức (Nam, Bắc)` (dài nhất trong 25 preset) không bị cắt · `pytest` **83/83** · `probe_menu_toolbar.py` **OK** · `probe_tags_history.py` **OK** (lịch sử ghi `Adam bựa (Nam, Bắc)` — không còn hậu tố).
+
 ---
 
 ## 11. TIẾN ĐỘ P1 / P2
@@ -455,9 +493,16 @@ UI đã cảnh báo; khuyến nghị vẫn dùng FP32.
 | # | Hạng mục | Trạng thái |
 |---|---|---|
 | 2.1 | Xuất phụ đề `.srt` | ❌ **bỏ khỏi scope** (chốt 26/10/2026) |
-| 2.2 | Lịch sử bền vững | 🔜 đang làm |
+| 2.2 | Lịch sử bền vững | ✅ xong (`core/history.py`, dialog 🕘, sao chép file, tự dọn) |
 | 2.3 | Từ điển phát âm | ❌ chưa |
-| 2.4 | Thẻ cảm xúc + thẻ nghỉ | 🔜 đang làm (`[cười]/[thở dài]/[hắng giọng]` engine đã chạy; `[nghỉ Xs]` + UI chèn nhanh đang triển khai) |
+| 2.4 | Thẻ cảm xúc + thẻ nghỉ | ✅ xong (`[cười]/[thở dài]/[hắng giọng]`; `[nghỉ Xs]` chèn lặng thật; thanh chèn nhanh) |
+| 2.5 | Nút "Làm sạch" | ❌ chưa (ngoài đợt này) |
+| 2.6 | Đọc .srt/.vtt + lồng tiếng | ❌ chưa (ngoài đợt này) |
+| 2.7 | Batch `[P1][P2]` + zip | ❌ chưa (ngoài đợt này) |
+| 2.8 | Model Manager UI | ⚠️ chỉ còn precision FP32/INT8 trong Cài đặt (Nano/GPU đã loại) |
+| 4.1 | Hội thoại nhiều giọng | ❌ chưa |
+| 4.2 | Đa nền tảng | ⚠️ `data_dir()` đã có; thiếu build script + CI |
+| 4.3 | Điều khoản + Privacy | ❌ chưa |
 | 2.5 | Nút "Làm sạch" | ❌ chưa (ngoài đợt này) |
 | 2.6 | Đọc .srt/.vtt + lồng tiếng | ❌ chưa (ngoài đợt này) |
 | 2.7 | Batch `[P1][P2]` + zip | ❌ chưa (ngoài đợt này) |

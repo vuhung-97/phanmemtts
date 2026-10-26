@@ -129,3 +129,41 @@ def test_pause_estimate_uses_existing_tail_silence():
     ])
     pad = _pause_pad_estimate(raw, SR, GAP_SEC, TARGET_PAUSE_SEC, LEAD_EST_SEC)
     assert pad / SR == pytest.approx(GAP_SEC, abs=0.01)
+
+
+# ── Thẻ trong văn bản ──
+
+def test_pause_tag_inserts_exact_silence():
+    """[nghỉ 3s] -> 1s chữ + 3s lặng + 1s chữ (câu cuối, không pad)."""
+    engine = TtsEngine(FakeTTS(dur_sec=1.0))
+    out = list(engine.synthesize_stream("Chờ chút [nghỉ 3s] rồi đọc.", speed=1.0))
+    assert len(out) == 1
+    timed, piece, _, _ = out[0]
+    assert len(piece) / SR == pytest.approx(5.0, abs=0.02)
+    assert timed.end_sec == pytest.approx(5.0, abs=0.02)
+    middle = piece[SR + 200: 4 * SR - 200]
+    assert np.max(np.abs(middle)) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_pause_tag_splits_model_calls():
+    tts = FakeTTS(dur_sec=1.0)
+    list(TtsEngine(tts).synthesize_stream("Chờ [nghỉ 2s] đọc.", speed=1.0))
+    assert len(tts.calls) == 2
+    assert all("[nghỉ" not in call for call in tts.calls)
+
+
+def test_emotion_tag_is_passed_to_model():
+    tts = FakeTTS(dur_sec=1.0)
+    list(TtsEngine(tts).synthesize_stream("Xin chào [cười] bạn.", speed=1.0))
+    assert any("[cười]" in call for call in tts.calls)
+
+
+def test_pause_only_sentence_becomes_silence():
+    """Câu chỉ có thẻ nghỉ -> 2s im lặng, không gọi model."""
+    tts = FakeTTS(dur_sec=1.0)
+    out = list(TtsEngine(tts).synthesize_stream("Một. [nghỉ 2s]. Hai.", speed=1.0))
+    assert len(out) == 3
+    _, middle_piece, _, _ = out[1]
+    assert len(middle_piece) == 2 * SR
+    assert np.max(np.abs(middle_piece)) == 0.0
+    assert len(tts.calls) == 2
