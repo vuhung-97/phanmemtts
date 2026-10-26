@@ -1,7 +1,7 @@
 # KẾ HOẠCH BẢO MẬT & BẢN QUYỀN — v3.3.0
 
-> **Trạng thái:** Kế hoạch đã chốt (bản 2) — **chưa code**.
-> **Phạm vi:** bản quyền offline (mã máy + mã kích hoạt 15 ký tự), dùng thử 7 ngày, build modular + obfuscate bằng PyArmor free.
+> **Trạng thái:** **Đã triển khai xong (P0–P5)** — bản phát hành `3.3.0`.
+> **Phạm vi:** bản quyền offline (mã máy + mã kích hoạt 15 ký tự), dùng thử 7 ngày, freemium, build modular + obfuscate bằng PyArmor free.
 > **Bản hiện tại:** `3.2.0` (commit `a4efe46`) · **Bản đích:** `3.3.0`
 > **Cập nhật:** 26/10/2026
 > **Tài liệu liên quan:** `plan_update.md` (mục 11), `README.md`, `docs/HUONG_DAN_CAP_KEY.md` (tạo ở P3).

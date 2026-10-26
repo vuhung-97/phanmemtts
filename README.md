@@ -2,7 +2,7 @@
 
 Ứng dụng đọc văn bản thành giọng nói tiếng Việt, chạy hoàn toàn offline trên CPU.
 
-Phiên bản hiện tại: **v3.2.0**
+Phiên bản hiện tại: **v3.3.0**
 
 ## Tính năng
 
@@ -22,6 +22,7 @@ Phiên bản hiện tại: **v3.2.0**
 - **Thẻ cảm xúc + thẻ nghỉ trong văn bản**: `[cười]`, `[thở dài]`, `[hắng giọng]`, `[nghỉ 3s]` — có thanh chèn nhanh ngay trên khung soạn thảo
 - **Lịch sử bản dựng**: mỗi lần xuất file được lưu bản sao; nghe lại / mở thư mục / xoá ngay trong app
 - **Menu bar kiểu Windows**: `Tệp` / `Công cụ` / `Trợ giúp` với phím tắt (Ctrl+O, Ctrl+H, Alt+F/C/T); hai nút hành động chính `⚡ Chuyển đổi` + `💾 Xuất file` nằm cố định ở panel phải
+- **Bản quyền offline (freemium)**: chưa kích hoạt vẫn **chuyển đổi + nghe thử** được, chỉ khoá **Xuất file** và **Ghép nhạc**; kích hoạt bằng mã 15 ký tự theo từng máy, có dùng thử 7 ngày
 
 ## Menu
 
@@ -32,7 +33,8 @@ Phiên bản hiện tại: **v3.2.0**
 | **Công cụ** | Ghép nhạc | |
 | | Lịch sử bản dựng | `Ctrl+H` |
 | | Cài đặt | |
-| **Trợ giúp** | Hướng dẫn sử dụng | |
+| **Trợ giúp** | Thông tin bản quyền | `Ctrl+Shift+L` |
+| | Hướng dẫn sử dụng | |
 | | Giới thiệu | |
 
 `Alt+F` / `Alt+C` / `Alt+T` mở nhanh menu tương ứng. Khi đang chuyển đổi, mục
@@ -69,6 +71,25 @@ phát mặc định), **📂** mở thư mục, **🗑** xoá bản ghi.
 - Xoá trong lịch sử chỉ xoá **bản sao** — file bạn đã xuất ra ngoài vẫn còn.
 - Cảnh báo khi vượt **500 MB**; tự xoá bản cũ nhất khi vượt **1 GB** (tối đa 200 bản).
 
+## Bản quyền & kích hoạt
+
+Bản phát hành dùng **khoá offline theo máy**:
+
+| Trạng thái | Chuyển đổi + nghe thử | Xuất file / Ghép nhạc |
+|---|---|---|
+| Chưa kích hoạt | ✅ | 🔒 |
+| Dùng thử 7 ngày | ✅ | ✅ |
+| Đã kích hoạt (7 ngày / 30 ngày / vĩnh viễn) | ✅ | ✅ |
+
+- Lần chạy đầu, app mời **Dùng thử 7 ngày** hoặc nhập mã (đóng được để dùng tiếp ở chế độ giới hạn).
+- Mã kích hoạt dài **15 ký tự**, gắn với máy qua `MachineGuid` + serial ổ đĩa; copy sang máy khác không dùng được.
+- Nhập mã: gõ trực tiếp, dán clipboard, hoặc chọn file `.lic`. Không cần mạng ở bất kỳ bước nào.
+- Xem hạn dùng: `Trợ giúp → Thông tin bản quyền` (`Ctrl+Shift+L`) hoặc bấm nhãn 🔑 trên thanh menu.
+- Thông tin bản quyền lưu tại `%LOCALAPPDATA%\PhanMemTTS\license.json` — giữ nguyên khi cập nhật.
+- Đổi/thay ổ cứng hoặc cài lại Windows → mã máy đổi, cần xin mã mới.
+
+> Cấp mã: xem `docs/HUONG_DAN_CAP_KEY.md` (tài liệu dành cho chủ phần mềm).
+
 ## Cài đặt
 
 ```bash
@@ -88,9 +109,12 @@ python main.py
 ├── download_model.py       # Tải model VieNeu
 ├── requirements.txt
 ├── core/                   # Text processing, thẻ, lịch sử, models, đường dẫn
+│   └── licensing/          # Mã máy, mã kích hoạt 15 ký tự, store, dùng thử, guard
 ├── engine/                 # TTS engine (VieNeu) + công cụ cài đặt
 ├── audio/                  # Buffer, player, exporter, mixer, time-stretch
-└── ui/                     # CustomTkinter UI
+├── ui/                     # CustomTkinter UI
+├── tools/                  # Build/update + keygen (dành cho chủ phần mềm)
+└── packaging/probe_*.py    # Probe kiểm thử UI + bản phát hành
 ```
 
 ## Cài đặt (trong app)
@@ -131,40 +155,60 @@ trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút t�
 .venv\Scripts\python.exe packaging\probe_ui_flow.py  # probe luồng chuyển đổi trong UI
 .venv\Scripts\python.exe packaging\probe_tags_history.py  # probe thẻ cảm xúc/nghỉ + lịch sử
 .venv\Scripts\python.exe packaging\probe_menu_toolbar.py  # probe menu bar + panel hành động
+.venv\Scripts\python.exe packaging\probe_license.py       # probe kích hoạt + freemium + chống clone
+.venv\Scripts\python.exe packaging\probe_obfuscated_build.py  # kiểm tra bản phát hành đã obfuscate
 ```
 
-## Đóng gói (OneDir)
+## Đóng gói (modular + PyArmor)
 
 Bản phát hành v3: **Phần mềm chuyển đổi văn bản thành giọng nói tự nhiên v3**
 
 ```bash
-build_v3.bat
+build_v3.bat          # build phát hành vào dist/<APP>
+build_v3.bat test     # build thử vào build/dist_p4 (models = junction, không copy 607 MB)
 ```
 
-Script sẽ:
+Pipeline (13 bước):
 
-1. Đóng gói bằng PyInstaller (`app_v3.spec`, OneDir) → `dist/PhanMemChuyenDoiVanBanThanhGiongNoiTuNhien_v3/`
-2. Copy `models/` (~607MB, model offline) cạnh EXE — `app_dir()` khi frozen trỏ về thư mục chứa EXE
-3. Bật toàn bộ giọng trong `models/voice_config.json` của bản phát hành
-4. Copy HDSD + tạo `HUONG_DAN_V3.txt`
-5. Nén thành file `.zip` (tùy chọn): `packaging\make_zip_v3.ps1`
+1. Kiểm tra `.venv`, PyArmor và `tools/license_tool/keys/license_secret.bin`.
+2. Copy source (`core/engine/audio/ui/version.py`) → `build/src`.
+3. Inject 4 mảnh secret thật vào `build/src` (chỉ tồn tại trong lúc build).
+4. `tools/check_code_size.py` — chặn BOM và code object > 32 KB (giới hạn PyArmor free).
+5. `pyarmor gen` — obfuscate toàn bộ code app.
+6. PyInstaller (`app_v3_modular.spec`) — exe chỉ chứa `main.py` + thư viện.
+7. Copy code đã obfuscate + `pyarmor_runtime_000000/` ra cạnh exe.
+8. Copy `models/` (bỏ qua nếu đã có) + bật toàn bộ giọng.
+9. Copy HDSD / điều khoản.
+10. `tools/make_manifest.py` — `manifest.json` (sha256 từng file) + lưu `build/manifests/<ver>.json`.
+11. `tools/check_release.py` — chặn secret / key / source chưa obfuscate.
+12. `tools/make_update_zip.py` — gói cập nhật nhỏ (nếu có manifest bản trước).
+13. Xoá `build/src` (không để secret dạng plaintext).
 
 Cấu trúc bản phát hành:
 
 ```
-PhanMemChuyenDoiVanBanThanhGiongNoiTuNhien_v3.exe
-_internal/                     # thư viện + logo
-models/vieneu/hf_cache/        # model offline ~600MB
-models/voice_config.json       # cấu hình giọng (ghi được khi chạy)
+<APP>.exe                     # launcher (~29 MB)
+_internal/                    # thư viện
+core/ engine/ audio/ ui/      # .py ĐÃ OBFUSCATE (cập nhật = copy đè)
+pyarmor_runtime_000000/       # runtime PyArmor
+models/vieneu/hf_cache/       # model offline ~600 MB
+models/voice_config.json      # cấu hình giọng (ghi được khi chạy)
+manifest.json                 # sha256 + version + python/pyarmor
 HUONG_DAN_V3.txt
 ```
 
-> Lưu ý: file `.spec` chỉ gói code + thư viện; `models/` phải nằm **cạnh EXE**
-> (không đặt trong `_internal/`) vì app ghi cấu hình/giọng tùy chỉnh tại đó.
+> `models/` phải nằm **cạnh EXE** (không trong `_internal/`) vì app ghi cấu hình/giọng tại đó.
 
-Kiểm tra đường TTS trong môi trường frozen (console, không mở GUI):
+### Cập nhật
+
+- Chỉ đổi code → `build/update_<ver>.zip` ~**0,25 MB**.
+- Có đổi `.exe` (mọi lần build lại) → ~**29 MB**; vẫn nhỏ hơn nhiều so với gửi cả bộ cài ~1 GB.
+- Khách giải nén gói rồi chạy `capnhat.bat`: tự backup → copy → kiểm sha256 → **rollback nếu lỗi** → mở lại app.
+- Chỉ khi nâng Python/PyArmor mới cần gửi bộ cài đầy đủ.
+
+Kiểm tra bản phát hành (manifest, obfuscate, secret, khởi động):
 
 ```bash
-.venv\Scripts\python.exe -m PyInstaller --clean --noconfirm app_v3_probe.spec
-dist\AppV3_Probe\AppV3_Probe.exe
+.venv\Scripts\python.exe packaging\probe_obfuscated_build.py
 ```
+

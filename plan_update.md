@@ -1,9 +1,9 @@
 # KẾ HOẠCH CẬP NHẬT — v3.1 → v3.3
 
-> **Trạng thái:** P0 + bản offline-only (`v3.2.0`) + P1 (2.2 lịch sử, 2.4 thẻ) **đã xong** — xem mục 10. P1/P2 còn lại: xem mục 11.
-> **Cập nhật 26/10/2026:** Đợt 1 (P0) xong; đợt 1c (bỏ hẳn online + GPU) xong; header 3 hàng tinh lại; đợt 2a (bug #7, thẻ cảm xúc/nghỉ, lịch sử) xong.
+> **Trạng thái:** P0 + bản offline-only (`v3.2.0`) + P1 (2.2 lịch sử, 2.4 thẻ) **đã xong** — xem mục 10. **Đợt 3.3.0 (bản quyền offline + build modular) đã xong — xem mục 12.**
+> **Cập nhật 26/10/2026:** Đợt 1 (P0) xong; đợt 1c (bỏ hẳn online + GPU) xong; header 3 hàng tinh lại; đợt 2a (bug #7, thẻ cảm xúc/nghỉ, lịch sử) xong; **đợt 3.3.0 (bản quyền, PyArmor, gói cập nhật) xong**.
 > **Người lập:** phiên làm việc nghiên cứu repo `Cuongyd196/cit-voice-studio` + đối chiếu app hiện tại.
-> **Mốc code hiện tại:** commit `47873cb` (v3.0.0) — đã push lên `origin/main`.
+> **Mốc code hiện tại:** `v3.3.0` (nhánh `feat/license-3.3.0`).
 > **Ngày lập:** 21/10/2026
 
 ---
@@ -510,3 +510,45 @@ UI đã cảnh báo; khuyến nghị vẫn dùng FP32.
 | 4.1 | Hội thoại nhiều giọng | ❌ chưa |
 | 4.2 | Đa nền tảng | ⚠️ `data_dir()` đã có; thiếu build script + CI |
 | 4.3 | Điều khoản + Privacy | ❌ chưa |
+
+---
+
+## 12. NHẬT KÝ 3.3.0 — BẢN QUYỀN OFFLINE + BUILD MODULAR
+
+### 12.1 Kết quả
+
+| Hạng mục | Kết quả |
+|---|---|
+| Mã kích hoạt | **15 ký tự** (HMAC-SHA256, 75 bit): 7 ngày / 30 ngày / vĩnh viễn / tuỳ chỉnh N ngày |
+| Mã máy | **10 ký tự** — `MachineGuid` + serial ổ C:; chống clone bằng fingerprint 4 thành phần |
+| Dùng thử | 7 ngày, không cần mạng, lưu 3 nơi (license.json / .state / registry) |
+| Chưa kích hoạt | **Freemium**: vẫn chuyển đổi + nghe thử; khoá **Xuất file** + **Ghép nhạc** |
+| Chống sửa | HMAC trên `license.json`, chặn lùi giờ > 3 ngày, rate limit 10 lần / 5 phút |
+| Bảo vệ code | PyArmor 9.2.8 free; code `.py` đã obfuscate nằm rời cạnh exe |
+| Cập nhật | `manifest.json` (sha256) + `capnhat.ps1` (backup → copy → verify → rollback); 0,25 MB khi đổi code, ~29 MB khi đổi exe |
+| Kiểm thử | **129 pytest**, 5 probe UI, `probe_obfuscated_build` OK |
+
+### 12.2 File chính
+
+- `core/licensing/`: `codec`, `fingerprint`, `shortcode`, `secret`, `store`, `trial`, `guard`, `_k1..4` (placeholder)
+- `ui/components/`: `activation_dialog.py`, `license_dialog.py`
+- `ui/window/`: `convert`, `export`, `tools`, `license_ui`, `messages` (mixin, mỗi file < 25 KB)
+- `tools/license_tool/`: `gen_secret.py`, `keygen.pyw` + `keygen.bat`, `license_cli.py`, `ledger.py`, `common.py`
+- `tools/`: `inject_secret.py`, `check_code_size.py`, `check_release.py`, `make_manifest.py`, `make_update_zip.py`
+- `tools/update_script/`: `capnhat.bat`, `capnhat.ps1`
+- `docs/HUONG_DAN_CAP_KEY.md`, `plan_baomat.md`
+
+### 12.3 Ghi chú kỹ thuật
+
+- PyArmor free giới hạn **32 768 byte / code object** (đo trên `co_code`). `ui/main_window.py`
+  từng sát trần (marshal 32.653 B) nên đã tách thêm `LicenseMixin` + `MessagesMixin`
+  → còn ~20 KB, an toàn.
+- PyArmor **sinh runtime package mới mỗi lần build** → gói cập nhật luôn kèm
+  `pyarmor_runtime_000000/`. Đã kiểm chứng code của bản cũ chạy được với runtime mới
+  (import chéo thành công) nên cập nhật từng phần an toàn.
+- PyInstaller không tái lập byte-for-byte → file `.exe` luôn đổi; gói cập nhật có exe ~29 MB.
+- Secret: `tools/license_tool/keys/license_secret.bin` (gitignored, **backup 2 nơi**).
+  Chạy từ source dùng secret thật; bản frozen chỉ dùng 4 mảnh đã inject lúc build.
+- Repo đã chuyển **private** trước khi phát hành; build chặn secret/`*.lic`/source chưa obfuscate.
+- Sự cố đã gặp & sửa: BOM trong `_k*.py` làm PyArmor lỗi; metric 32 KB đo sai (marshal vs bytecode);
+  updater bỏ qua verify do dấu `\` vs `/`; `$AppDir` tương đối làm rollback sai thư mục.
