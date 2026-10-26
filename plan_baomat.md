@@ -19,7 +19,8 @@
 
 Hai mục tiêu độc lập nhưng gắn nhau:
 
-1. **Bản quyền offline**: app chỉ chạy trên máy đã được cấp mã; copy sang máy khác không dùng được.
+1. **Bản quyền offline (freemium)**: chưa kích hoạt vẫn mở app và **chuyển đổi + nghe thử** được, nhưng
+   **không xuất được file** và không dùng được **Ghép nhạc**; copy sang máy khác thì mã không hợp lệ.
    Owner cấp mã thủ công bằng cách dán mã máy khách gửi (10 ký tự) và nhận lại mã kích hoạt (15 ký tự).
    Không cần mạng ở bất kỳ bước nào.
 2. **Bảo vệ & cập nhật code**: đóng gói **modular như v2** (code `.py` nằm cạnh exe) và **obfuscate bằng PyArmor free**,
@@ -52,7 +53,7 @@ thu hồi key đã cấp (offline không làm được).
 | 12 | Chống dò | 10 lần sai / 5 phút → khoá 60 giây |
 | 13 | Nơi lưu license | `%LOCALAPPDATA%\PhanMemTTS\license.json` (+ `.state` + `HKCU\Software\PhanMemTTS`) |
 | 14 | Dùng thử | 7 ngày, chỉ bắt đầu khi người dùng bấm chọn; lưu 3 nơi + dò dấu vết sử dụng |
-| 15 | Điểm chặn | `main.py` · `MainWindow.__init__` · `_start_convert` · `_export_worker` · `_tick` (60 s) |
+| 15 | Chế độ chưa kích hoạt | **Freemium**: vẫn chuyển đổi/nghe thử; khoá **Xuất file** + **Ghép nhạc**; hộp thoại kích hoạt mở 1 lần ở lần chạy đầu |
 | 16 | Bảo vệ code | PyArmor **free** (obfuscate `.py` → `.py` mã hoá), tách 2 file > 32 KB |
 | 17 | Đóng gói | PyInstaller one-dir modular như v2; code rời cạnh exe |
 | 18 | Cập nhật | Zip chỉ gồm file đổi + `pyarmor_runtime_000000` + `manifest.json` + `capnhat.bat` |
@@ -370,7 +371,7 @@ if now < max_seen_utc - 3*86400:  → clock_rollback (chặn)
 - Lần chạy đầu (chưa có license, chưa có trial): hộp thoại hiện 2 lựa chọn, **không tự tính giờ**:
   `🕐 Dùng thử 7 ngày` · `🔓 Tôi có mã kích hoạt`.
 - Chỉ khi bấm "Dùng thử" mới ghi `trial_start` vào 3 nơi.
-- Hết 7 ngày → chặn convert/export, badge đỏ, mở ActivationDialog.
+- Hết 7 ngày → khoá **Xuất file + Ghép nhạc** (vẫn chuyển đổi/nghe thử), badge đỏ, mở ActivationDialog.
 - **Chống reset**: nếu chưa có dấu vết trial nhưng đã có dấu vết sử dụng (`app_settings.json`, `history\`, `tmp\`)
   → coi như trial đã dùng hết.
 - **Migration**: khách nâng cấp từ 3.2.0 (đã có `app_settings.json`) sẽ không được trial → cần cấp mã trước khi phát hành 3.3.0.
@@ -379,15 +380,19 @@ if now < max_seen_utc - 3*86400:  → clock_rollback (chặn)
 
 ## 8. Điểm chặn & gia cố
 
-### 8.1 Năm điểm chặn
+### 8.1 Các điểm chặn (mô hình freemium)
+
+Chưa kích hoạt: app **vẫn mở**, chuyển đổi + phát + nghe thử + quản lý giọng + cài đặt vẫn dùng.
+Chỉ khoá phần tạo ra file: **Xuất file** và **Ghép nhạc**.
 
 | # | Vị trí | Hành vi |
 |---|---|---|
-| 1 | `main.py` trước `MainWindow` | `guard.check_startup()`; không hợp lệ → ActivationDialog, không nạp model |
-| 2 | `MainWindow.__init__` | Kiểm tra lại + cập nhật badge |
-| 3 | `_start_convert()` | `guard.assert_valid()` |
-| 4 | `_export_worker()` | `guard.assert_valid()` trước khi ghi file |
-| 5 | `_tick` (60 s) | Cập nhật `max_seen_utc`, kiểm tra lại, dừng worker nếu hết hạn |
+| 1 | `MainWindow._first_run_prompt` (sau 400 ms) | Lần chạy đầu: mở ActivationDialog (dùng thử / nhập mã); đóng được để dùng tiếp chế độ giới hạn |
+| 2 | `_refresh_license_badge()` | Cập nhật badge + đổi nhãn nút thành `🔒 Xuất file` khi chưa kích hoạt |
+| 3 | `_start_export()` | Chưa kích hoạt → mở hộp thoại kích hoạt, **không** mở hộp chọn file |
+| 4 | `_open_merge_dialog()` | Chưa kích hoạt → mở hộp thoại kích hoạt |
+| 5 | `_export_worker()` | Chặn lần 2 (phòng khi gọi trực tiếp) — không ghi file |
+| 6 | `_tick` (60 s) | Ghi `max_seen_utc`, cập nhật badge; **không** dừng chuyển đổi khi hết hạn |
 
 ### 8.2 Gia cố
 
@@ -644,7 +649,7 @@ Nếu exe hoặc `_internal/` thay đổi (nâng Python/thư viện) → `make_u
 2. Bấm "Dùng thử" → badge "Dùng thử: còn 7 ngày".
 3. Dán mã đúng → kích hoạt, badge đúng số ngày.
 4. Dán mã của máy khác → "Mã này được cấp cho máy khác".
-5. Sửa `license.json` → `tampered`, chặn convert.
+5. Sửa `license.json` → `tampered`, khoá xuất file (vẫn chuyển đổi được).
 6. Giả `fp4` (CPU + mainboard khác) → `clone_detected`.
 7. Lùi `max_seen` 5 ngày → `clock_rollback`.
 8. Nhập sai 11 lần → khoá 60 giây, đếm ngược hiển thị.
@@ -674,7 +679,7 @@ Nếu exe hoặc `_internal/` thay đổi (nâng Python/thư viện) → `make_u
 |---|---|---|---|---|
 | **P0** | Tách 2 file lớn; cài PyArmor free; tạo `_k1..4` placeholder + `inject_secret.py`; sinh `license_secret.bin`; dựng `app_v3_modular.spec` + rthook; build thử 1 bản | `ui/window/*`, `merge_widgets.py`, `app_v3_modular.spec`, `hooks/rthook_v3_syspath.py`, `tools/inject_secret.py`, `tools/license_tool/gen_secret.py` | pytest 83 + 3 probe pass; exe modular chạy với code obfuscate; secret đã backup | 1 ngày |
 | **P1** | `core/licensing/` + test | `fingerprint.py`, `shortcode.py`, `secret.py`, `store.py`, `trial.py`, `guard.py`, `tests/test_shortcode.py`, `tests/test_license.py` | ~38 test pass, không phụ thuộc GUI | 1 ngày |
-| **P2** | UI + 5 điểm chặn + badge + menu | `activation_dialog.py`, `license_dialog.py`, `topbar.py`, `main.py`, `main_window.py`, `ui/window/*` | `probe_license.py` pass 8 bước | 1 ngày |
+| **P2** | UI + freemium gate (Xuất file/Ghép nhạc) + badge + menu | `activation_dialog.py`, `license_dialog.py`, `topbar.py`, `main_window.py`, `ui/window/*` | `probe_license.py` pass 14 bước | 1 ngày |
 | **P3** | Tool cấp mã + sổ key + tài liệu owner | `keygen.pyw`, `license_cli.py`, `ledger.py`, `docs/HUONG_DAN_CAP_KEY.md` | Tạo mã từ mã máy thật, kích hoạt được | 0,5 ngày |
 | **P4** | Build pipeline + manifest + gói update | `build_v3.bat`, `tools/make_manifest.py`, `tools/make_update_zip.py`, `tools/update_script/*`, `.gitignore` | Sinh `update_*.zip` < 3 MB; cài thử trên bản copy chạy đúng | 1 ngày |
 | **P5** | Probe build obfuscate + hồi quy + docs + bump | `probe_obfuscated_build.py`, `version.py`, `README.md`, `plan_update.md` | Toàn bộ test/probe pass; 3.3.0; commit + push | 0,5–1 ngày |
@@ -706,8 +711,8 @@ plan_baomat.md                                  # tài liệu này
 **Sửa**
 
 ```
-main.py                  # cổng kiểm tra trước MainWindow
-ui/main_window.py        # tách mixin + gắn điểm chặn
+main.py                  # mở app trực tiếp (freemium); gate nằm trong MainWindow
+ui/main_window.py        # tách mixin + first-run prompt + badge + khoá xuất file
 ui/components/topbar.py  # badge trạng thái bản quyền
 build_v3.bat             # inject secret, PyArmor, manifest, update zip, quét bảo mật
 version.py               # 3.3.0
@@ -728,7 +733,7 @@ plan_update.md           # mục 11: nhật ký triển khai
 | Mất secret | Cao | Backup 2 nơi ngay sau P0; keygen từ chối ghi đè |
 | PyArmor free chặn file > 32 KB | Cao (đã xảy ra) | Tách 2 file ở P0; `check_code_size.py` dừng build |
 | Obfuscate làm vỡ import/tkinter | Trung bình | Thử trên 1 module ở P0; `probe_obfuscated_build.py` |
-| Người dùng patch bỏ kiểm tra | Trung bình | 5 điểm chặn + kiểm tra chéo module |
+| Người dùng patch bỏ kiểm tra | Trung bình | Các điểm chặn (xuất file / ghép nhạc) + kiểm tra chéo module |
 | Đổi ổ/cài lại Windows phải cấp lại | Trung bình | Chính sách cấp lại miễn phí + sổ key |
 | Clone ổ đĩa | Thấp | `fp4` 4 thành phần, chặn khi cả CPU + mainboard khác |
 | Đồng hồ bị chỉnh | Trung bình | `max_seen` 3 nơi + ngưỡng 3 ngày |
@@ -753,7 +758,7 @@ plan_update.md           # mục 11: nhật ký triển khai
 - [ ] Mã của máy khác bị chặn; sửa `license.json` bị chặn; lùi giờ 4 ngày bị chặn
 - [ ] Clone giả lập (đổi CPU + mainboard) bị `clone_detected`
 - [ ] Nhập sai 11 lần → khoá 60 giây
-- [ ] Trial 7 ngày chạy đúng, hết hạn chặn convert/export
+- [ ] Trial 7 ngày chạy đúng, hết hạn khoá Xuất file + Ghép nhạc (vẫn chuyển đổi được)
 - [ ] `version.py` = 3.3.0
 - [ ] `README.md`, `plan_update.md`, `docs/HUONG_DAN_CAP_KEY.md` cập nhật
 - [ ] Secret đã backup 2 nơi
@@ -772,7 +777,7 @@ plan_update.md           # mục 11: nhật ký triển khai
 | 5 | Kiểm tra repo vẫn private sau mỗi lần đổi quyền/tổ chức | Định kỳ |
 
 **Không còn điểm treo nào.** Toàn bộ quyết định (mã 15 ký tự, mã máy 10 ký tự, chống clone, dùng thử 7 ngày,
-chống lùi giờ 3 ngày, 5 điểm chặn, build modular + PyArmor, gói update nhỏ, repo private) đã chốt.
+chống lùi giờ 3 ngày, freemium (chỉ khoá Xuất file + Ghép nhạc), build modular + PyArmor, gói update nhỏ, repo private) đã chốt.
 Việc triển khai bắt đầu từ **P0** khi chuyển sang Build agent.
 
 
