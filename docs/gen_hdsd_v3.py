@@ -9,7 +9,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-OUT = "docs/Huong_dan_su_dung_V3_v3.0.0.docx"
+OUT = "docs/Huong_dan_su_dung_V3_v3.4.0.docx"
 FONT = "Times New Roman"
 
 doc = Document()
@@ -299,7 +299,8 @@ bullet("Bấm ＋ Thêm giọng mới → tab 📥 Nhập giọng có sẵn → 
        "kiểm tra tên hiện ở dưới → bấm ⬇ Nhập giọng. Giọng mới tự hiện ở hộp Giọng đọc, không cần bấm Lưu mới thấy. ",
        "Nhập giọng có sẵn: ")
 bullet("Trong hộp con Thêm giọng mới, chuyển sang tab 🎙 Tạo giọng mới: đặt tên giọng → Chọn mẫu… (file wav/mp3/flac "
-       "dài 5–30 giây, 1 người nói rõ, ít ồn) → tick Khử nhiễu nếu thu bằng điện thoại → bấm 🎙 Tạo giọng và chờ ~10 giây. "
+       "dài 5–30 giây, 1 người nói rõ, ít ồn) → tick Khử nhiễu nếu thu bằng điện thoại → "
+       "tick cam kết quyền sử dụng giọng nói → bấm 🎙 Tạo giọng và chờ ~10 giây. "
        "Giọng tạo xong được lưu vào models/vieneu/custom_voices.json nên dùng lại được ở máy khác. ",
        "Tạo giọng mới từ file mẫu: ")
 bullet("Mỗi giọng tùy chỉnh có 2 nút nhỏ bên phải: nút mũi tên xuống để xuất ra .json (gửi cho máy khác), "
@@ -345,8 +346,62 @@ add_placeholder(doc, "11", "hinh-11-output-timeline.png", "Timeline output + Ngh
                 "12cm")
 
 # ================= CH8 =================
-doc.add_heading("8. Lỗi thường gặp, mẹo phát thanh và FAQ", level=1)
-doc.add_heading("8.1. Bảng lỗi thường gặp", level=2)
+doc.add_heading("8. Công cụ soạn thảo & xuất hàng loạt", level=1)
+body("Ba công cụ dưới đây nằm trong menu Công cụ và trên thanh Chèn nhanh (phía trên khung soạn thảo). "
+     "Chúng không làm thay đổi giọng đọc đang chọn.")
+
+doc.add_heading("8.1. Từ điển phát âm", level=2)
+body("Dùng khi phần mềm đọc sai một từ viết tắt hoặc tên riêng. Ví dụ: KTX → “ký túc xá”, "
+     "TP.HCM → “thành phố Hồ Chí Minh”.")
+bullet("Mở Công cụ → Từ điển phát âm… (Ctrl+Shift+D) hoặc bấm nút 📖 Từ điển. ", "Mở hộp: ")
+bullet("Gõ cụm cần thay (ví dụ KTX) và cách đọc (ví dụ ký túc xá) → bấm ＋ Thêm. "
+       "Mục mới được lưu ngay, không cần bấm Lưu. ", "Thêm một mục: ")
+bullet("Tick Nguyên từ để KTX không khớp bên trong KTXL. Tick Phân biệt hoa/thường nếu chỉ muốn thay "
+       "đúng chữ hoa. ", "Hai tuỳ chọn: ")
+bullet("Bấm vào tên mục trong danh sách để sửa, bấm 🗑 để xoá; ô tìm lọc nhanh khi có nhiều mục. ",
+       "Sửa / xoá: ")
+bullet("Nút công tắc Bật từ điển ở góc phải để tạm tắt mà không mất dữ liệu. ",
+       "Bật / tắt: ")
+bullet("⬇ Xuất tệp… để sao lưu hoặc gửi cho máy khác; ⬆ Nhập tệp… để gộp hoặc thay danh sách. ",
+       "Chia sẻ: ")
+bullet("Từ điển không thay chữ bên trong thẻ [..] (ví dụ [nghỉ 2s], [cười]). Nếu đã chuyển đổi rồi mới sửa "
+       "từ điển, dòng trạng thái nhắc bấm Chuyển đổi lại. ", "Lưu ý: ")
+
+doc.add_heading("8.2. Làm sạch văn bản", level=2)
+body("Bấm Công cụ → Làm sạch văn bản (Ctrl+Shift+K) hoặc nút 🧹 Làm sạch.")
+bullet("Bỏ các dòng trống thừa (giữ tối đa 1 dòng trống giữa hai đoạn). ", "Tác dụng: ")
+bullet("Gộp dòng bị ngắt giữa câu thành một câu liền — giúp giọng đọc không ngắt hơi sai chỗ. ", "")
+bullet("Giữ nguyên danh sách gạch đầu dòng, số thứ tự, tiêu đề và công thức (ví dụ 1 + 1 = 2). ", "")
+bullet("Sau khi làm sạch, bấm Ctrl+Z để hoàn tác nếu kết quả chưa như ý. ", "Hoàn tác: ")
+
+doc.add_heading("8.3. Chuyển đổi hàng loạt theo marker [P1], [P2]", level=2)
+body("Dùng khi cần tách một văn bản dài thành nhiều tệp audio (mỗi bản tin, mỗi chương, mỗi phần).")
+bullet("Đặt marker [P1], [P2]… ở ĐẦU DÒNG, mỗi marker bắt đầu một phần. "
+       "Ví dụ: [P1] Bản tin sáng… (xuống dòng) [P2] Bản tin trưa… ", "Chuẩn bị văn bản: ")
+bullet("Mở Công cụ → Chuyển đổi hàng loạt… (Ctrl+B). Khung bên trái chứa văn bản đang soạn; "
+       "có thể bấm 📂 Mở .txt để nạp tệp khác. ", "Mở hộp: ")
+bullet("Khung bên phải liệt kê từng phần (P0 là phần trước marker đầu tiên, nếu có). "
+       "Bỏ tick phần nào thì phần đó không xuất. ", "Kiểm tra danh sách: ")
+bullet("Nhập Tên tệp (ví dụ bai_doc) và chọn Thư mục lưu. Tệp sẽ có dạng bai_doc_P1.mp3, bai_doc_P2.mp3… ",
+       "Tên tệp và thư mục: ")
+bullet("Chọn MP3 (nhẹ) hoặc WAV (gốc). Tick Đóng gói 1 tệp .zip nếu muốn gửi một lần. ",
+       "Định dạng: ")
+bullet("Bấm ⚡ Xuất các phần. Thanh tiến trình báo từng phần; muốn dừng thì bấm ⏹ Dừng. "
+       "Xuất hàng loạt cần đã kích hoạt bản quyền (giống Xuất file). ", "Chạy: ")
+
+doc.add_heading("8.4. Điều khoản sử dụng & quyền riêng tư", level=2)
+bullet("Lần chạy đầu, phần mềm hiện hộp Điều khoản sử dụng & Quyền riêng tư. "
+       "Tick “Tôi đã đọc và đồng ý” rồi bấm Đồng ý và tiếp tục. Nếu không đồng ý, phần mềm sẽ đóng. ",
+       "Lần đầu: ")
+bullet("Xem lại bất kỳ lúc nào tại Trợ giúp → Điều khoản sử dụng. ", "Xem lại: ")
+bullet("Phần mềm chạy offline, không gửi văn bản/giọng nói ra ngoài. Chi tiết trong tệp PRIVACY.md "
+       "cạnh file chạy. ", "Quyền riêng tư: ")
+bullet("Khi tạo giọng mới, bạn phải tick cam kết đây là giọng của mình hoặc có quyền sử dụng. ",
+       "Giọng nói: ")
+
+# ================= CH9 =================
+doc.add_heading("9. Lỗi thường gặp, mẹo phát thanh và FAQ", level=1)
+doc.add_heading("9.1. Bảng lỗi thường gặp", level=2)
 table(["Báo lỗi / Hiện tượng", "Nghĩa là gì", "Làm gì"],
       [["Chưa có nội dung để chuyển đổi", "Khung văn bản trống", "Mở file hoặc dán text vào trước"],
        ["Chưa có âm thanh – hãy chuyển đổi trước", "Bấm Phát/Xuất khi chưa Chuyển đổi", "Bấm Chuyển đổi, đợi Hoàn tất rồi mới Phát/Xuất"],
@@ -357,7 +412,7 @@ table(["Báo lỗi / Hiện tượng", "Nghĩa là gì", "Làm gì"],
        ["Không mở được file / Định dạng không hỗ trợ", "File không phải .docx/.txt hoặc lỗi font", "Chỉ dùng .docx/.txt UTF-8; mở thử bằng Word/Notepad"],
        ["Chưa chọn file gốc (ở Ghép nhạc)", "Quên chọn đoạn đọc", "Bấm Chọn file gốc hoặc chọn từ ô Gần đây"],
        ["Lỗi khi tạo giọng mới từ file mẫu", "Thiếu model tạo giọng hoặc mẫu âm thanh không hợp lệ", "Dùng mẫu wav/mp3 5–30 giây, 1 người nói rõ; nếu báo thiếu model thì cần mạng lần đầu"]])
-doc.add_heading("8.2. Mẹo phát thanh", level=2)
+doc.add_heading("9.2. Mẹo phát thanh", level=2)
 bullet("Đọc tin 1,0x, đọc nhanh 1,25x; đừng để 2,0x cho bản tin chính thức. ", "Tốc độ: ")
 bullet("Lưu sẵn câu test đúng tên đơn vị (nhấn Enter để lưu) để test giọng nào cũng giống nhau. ", "Câu test: ")
 bullet("Nhạc nền để 10–20%, crossfade 0,5–1 s; nghe thử trước khi xuất để tránh nhạc át giọng. ", "Nhạc nền: ")
@@ -365,7 +420,7 @@ bullet("Tách câu ngắn, mỗi câu 1 ý; bỏ ký tự lạ, emoji trước k
 bullet("Đặt tên file xuất theo mẫu Ngày_TiêuĐề_Giọng (ví dụ 2026-10-21_BanTinSang_GiongA.mp3). ", "Lưu trữ: ")
 bullet("Giọng tùy chỉnh tạo từ file mẫu nên để file mẫu gốc ở nơi an toàn, xuất giọng ra .json để dùng lại "
        "trên nhiều máy. ", "Giọng tùy chỉnh: ")
-doc.add_heading("8.3. FAQ", level=2)
+doc.add_heading("9.3. FAQ", level=2)
 bullet("Không. Bản v3 đã kèm model offline trong models/ nên rút mạng vẫn đọc/xuất/ghép bình thường. "
        "(Riêng chức năng tạo giọng mới có thể cần mạng lần đầu nếu máy chưa có model tạo giọng.) ",
        "Hỏi: Có cần mạng không? Đáp: ")
@@ -395,7 +450,7 @@ table(["Mã", "Tên file", "Chụp gì / Cỡ hiển thị"],
        ["10", "hinh-10-track-timeline.png", "1 track + Volume / 12cm"],
        ["11", "hinh-11-output-timeline.png", "Timeline output + Xuất / 12cm"]])
 
-body("Thông tin tài liệu: Phần mềm chuyển đổi văn bản thành giọng nói tự nhiên v3, phiên bản 3.0.0 "
+body("Thông tin tài liệu: Phần mềm chuyển đổi văn bản thành giọng nói tự nhiên v3, phiên bản 3.4.0 "
      "(bản phát hành OneDir: EXE + _internal/ + models/ cạnh nhau). "
      "Tài liệu này thay thế mọi hướng dẫn miệng trước đây; khi app lên phiên bản mới, "
      "chỉ cần chụp lại các ảnh có giao diện thay đổi.")

@@ -123,11 +123,15 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
             on_manage_voices=self._open_voice_manager,
             on_test_voice=self._test_voice,
             on_merge=self._open_merge_dialog,
+            on_batch=self._open_batch_dialog,
             on_settings=self._open_settings,
             on_history=self._open_history,
             on_help=self._open_help,
             on_about=self._show_about,
             on_license=self._open_license_dialog,
+            on_dictionary=self._open_dictionary,
+            on_clean=self._clean_text,
+            on_terms=self._open_terms,
             on_close=self._on_close,
         )
         self.topbar.grid(row=0, column=0, sticky="ew")
@@ -141,7 +145,12 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         main.grid_rowconfigure(3, weight=0)
         main.grid_columnconfigure(0, weight=1)
 
-        self.tag_bar = TagBar(main, on_insert=self._insert_tag)
+        self.tag_bar = TagBar(
+            main,
+            on_insert=self._insert_tag,
+            on_dictionary=self._open_dictionary,
+            on_clean=self._clean_text,
+        )
         self.tag_bar.grid(row=0, column=0, sticky="ew", pady=(0, 4))
 
         self.textbox = SyncTextbox(main, on_text_changed=self._on_text_changed)

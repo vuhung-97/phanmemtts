@@ -19,6 +19,8 @@ DEFAULT_SETTINGS: dict = {
     "precision": "fp32",   # "fp32" | "int8"
     "threads": 0,          # 0 = tu dong, nguon dinh cua ONNX Runtime
     "storage": "auto",     # "auto" | "memory" | "disk"
+    "terms_accepted_at": 0.0,   # thoi diem dong y dieu khoan (0 = chua)
+    "terms_version": 0,         # phien ban dieu khoan da chap nhan
 }
 
 

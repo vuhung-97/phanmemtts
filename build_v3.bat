@@ -27,6 +27,10 @@ if "%MODE%"=="test" (
     set "WORKPATH=build\pyi"
 )
 set "DIST=%DISTPATH%\%APPNAME%"
+rem Moc manifest de tao goi cap nhat nho: luu NGOAI build\ de xoa build khong mat.
+rem (build_v3.bat test chi ghi build\dist_p4, khong dung ban phat hanh trong dist\)
+set "ARCHIVE=dist\_release\manifests"
+if not exist "%ARCHIVE%" mkdir "%ARCHIVE%"
 
 echo.
 echo [1/13] Kiem tra moi truong...
@@ -111,10 +115,16 @@ if "%MODE%"=="test" (
 )
 
 echo [9/13] Copy HDSD / dieu khoan...
-if exist "docs\Huong_dan_su_dung_V3_v3.0.0.docx" (
-    copy /y "docs\Huong_dan_su_dung_V3_v3.0.0.docx" "%DIST%\HUONG_DAN_SU_DUNG.docx" >nul
+rem Tu chon HDSD V3 moi nhat trong docs\ (khong phai sua .bat moi lan len phien ban)
+set "HDSD="
+for /f "delims=" %%F in ('dir /b /o-d "docs\Huong_dan_su_dung_V3_*.docx" 2^>nul') do (
+    if not defined HDSD set "HDSD=%%F"
+)
+if defined HDSD (
+    copy /y "docs\!HDSD!" "%DIST%\HUONG_DAN_SU_DUNG.docx" >nul
+    echo        HDSD: !HDSD!
 ) else (
-    echo        [canh bao] Chua co HDSD v3 - chay docs\gen_hdsd_v3.py
+    echo        [canh bao] Chua co HDSD V3 - chay docs\gen_hdsd_v3.py
 )
 if exist "packaging\HUONG_DAN_V3.txt" copy /y "packaging\HUONG_DAN_V3.txt" "%DIST%\HUONG_DAN_V3.txt" >nul
 for %%F in (DIEU-KHOAN.md PRIVACY.md THIRD-PARTY-NOTICES.md) do (
@@ -122,7 +132,7 @@ for %%F in (DIEU-KHOAN.md PRIVACY.md THIRD-PARTY-NOTICES.md) do (
 )
 
 echo [10/13] Tao manifest.json...
-"%PY%" tools\make_manifest.py --dist "%DIST%" --archive build\manifests
+"%PY%" tools\make_manifest.py --dist "%DIST%" --archive "%ARCHIVE%"
 if errorlevel 1 exit /b 1
 
 echo [11/13] Kiem tra bao mat ban phat hanh...
@@ -130,7 +140,8 @@ echo [11/13] Kiem tra bao mat ban phat hanh...
 if errorlevel 1 exit /b 1
 
 echo [12/13] Tao goi cap nhat (neu co manifest ban truoc)...
-"%PY%" tools\make_update_zip.py --dist "%DIST%" --archive build\manifests
+"%PY%" tools\make_update_zip.py --dist "%DIST%" --archive "%ARCHIVE%"
+if errorlevel 1 echo        [canh bao] Khong tao duoc goi cap nhat - xem thong bao ben tren.
 
 echo [13/13] Don dep source tam (chua secret)...
 if exist "build\src" rmdir /s /q "build\src"

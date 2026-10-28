@@ -6,7 +6,7 @@ import numpy as np
 
 from core.models import SentenceItem, TimelineMap
 from core.tags import clean_for_model, has_speech, split_pieces
-from core.text_normalizer import normalize_numbers_vi
+from core.text_pipeline import prepare_for_tts
 from core.text_processor import build_sentences
 
 GAP_SEC = 0.25            # sàn tạm ngủ giữa 2 câu (giữ nhịp app hiện tại)
@@ -16,12 +16,6 @@ FADE_SEC = 0.03           # fade cosine 2 mép câu -> không cut thô (chống 
 EDGE_THRESH_DB = -45.0    # đồng chuẩn vieneu_utils.edge_silence
 EDGE_WIN_S = 0.01
 SILENCE_SAMPLE_RATE = 22050
-_TERMINAL_CHARS = ".?!…"
-_SPECIAL_QUOTES = {
-    "“": '"', "”": '"', "„": '"', "‟": '"',
-    "‘": "'", "’": "'", "‚": "'", "‛": "'",
-    "–": "-", "—": "-", "…": "...",
-}
 
 
 def _edge_silence(wav: np.ndarray, sr: int) -> tuple[int, int]:
@@ -73,18 +67,6 @@ def _fade_edges(samples: np.ndarray, sr: int) -> np.ndarray:
     out[:n] *= ramp
     out[-n:] *= ramp[::-1]
     return out
-
-
-def prepare_for_tts(text: str) -> str:
-    """Chuẩn hóa câu trước khi đưa vào mô hình (chống nhại, đọc số thành chữ)."""
-    for src, dst in _SPECIAL_QUOTES.items():
-        text = text.replace(src, dst)
-    text = normalize_numbers_vi(text.strip())
-    if not text:
-        return text
-    if text[-1] not in _TERMINAL_CHARS:
-        text += "."
-    return text
 
 
 class TtsEngine:

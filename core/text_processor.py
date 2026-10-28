@@ -81,6 +81,84 @@ def build_sentences(text: str) -> list[SentenceItem]:
 
 def clean_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = re.sub(r"[ \t ]+", " ", text)
+    text = re.sub(r"[ \t ]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+# ── Làm sạch để đọc (nút "Làm sạch văn bản") ──
+
+#: Ký tự kết thúc câu -> dòng sau là câu mới, không gộp.
+_TERMINAL_END = ".?!…:;\"')]}»"
+#: Dòng mở đầu bằng bullet / số thứ tự -> giữ nguyên dòng riêng.
+_BULLET_START = re.compile(r"^\s{0,3}(?:[-*+•–]|\d+[.)])\s+")
+#: Dòng chỉ gồm thẻ điều khiển (``[nghỉ 2s]``) -> không gộp.
+_ONLY_TAGS = re.compile(r"^\s*(?:\[[^\]\n]{1,60}\]\s*)+$")
+#: Ký tự cho phép gộp dòng sau dù chữ đầu viết hoa.
+_SOFT_END = ",([—-"
+_SPACES = re.compile(r"[ \t]{2,}")
+
+
+#: Thẻ điều khiển ở cuối dòng -> bỏ qua khi xét dấu kết câu.
+_TRAILING_TAGS = re.compile(r"(?:\s*\[[^\]\n]{1,60}\])+\s*$")
+
+
+def _should_join(prev: str, cur: str) -> bool:
+    """Dòng ``cur`` là phần tiếp theo của câu ở dòng ``prev``?"""
+    if not prev or not cur:
+        return False
+    if _ONLY_TAGS.match(prev) or _ONLY_TAGS.match(cur):
+        return False
+    if _BULLET_START.match(cur):
+        return False
+    # "Xin chào [cười]" -> xét dấu kết câu của phần chữ trước thẻ
+    probe = _TRAILING_TAGS.sub("", prev).rstrip() or prev
+    if probe[-1] in _TERMINAL_END:
+        return False
+    if probe[-1] in _SOFT_END:
+        return True
+    return cur[0].islower()
+
+
+
+def clean_for_reading(text: str) -> tuple[str, int]:
+    """Làm sạch văn bản để đọc tự nhiên hơn.
+
+    - Bỏ dòng trống thừa (giữ tối đa 1 dòng trống giữa các đoạn).
+    - Gộp dòng bị ngắt giữa câu (dòng trước không kết thúc câu và dòng sau
+      bắt đầu bằng chữ thường) -> model không ngắt hơi giữa câu.
+    - **Giữ nguyên**: bullet/số thứ tự, tiêu đề viết hoa, công thức kiểu
+      ``1 + 1``, nội dung trong ngoặc vuông (thẻ điều khiển).
+    - Gộp khoảng trắng thừa, bỏ khoảng trắng cuối dòng.
+
+    Trả ``(văn_bản_mới, số_thay_đổi)`` — số thay đổi = số dòng đã gộp/bỏ.
+    """
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    normalized = normalized.replace("\u00a0", " ")
+    lines = [line.rstrip() for line in normalized.split("\n")]
+
+    out: list[str] = []
+    changes = 0
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            if out and out[-1] == "":
+                changes += 1
+                continue
+            if out:
+                out.append("")
+            continue
+        if out and out[-1] and _should_join(out[-1], stripped):
+            out[-1] = f"{out[-1]} {stripped}"
+            changes += 1
+        else:
+            out.append(stripped)
+
+    while out and out[0] == "":
+        out.pop(0)
+    while out and out[-1] == "":
+        out.pop()
+
+    result = _SPACES.sub(" ", "\n".join(out)).strip()
+    return result, changes
+

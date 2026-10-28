@@ -22,9 +22,14 @@ _PAUSE_CHOICES: tuple[tuple[str, float], ...] = (
 
 
 class TagBar(ctk.CTkFrame):
-    """Hàng nút chèn nhanh: [cười] [thở dài] [hắng giọng] + [nghỉ Ns]."""
+    """Hàng nút chèn nhanh: [cười] [thở dài] [hắng giọng] + [nghỉ Ns].
 
-    def __init__(self, master, on_insert: Callable[[str], None]) -> None:
+    Bên phải có thêm 2 công cụ soạn thảo: ``📖 Từ điển`` và ``🧹 Làm sạch``.
+    """
+
+    def __init__(self, master, on_insert: Callable[[str], None],
+                 on_dictionary: Callable[[], None] | None = None,
+                 on_clean: Callable[[], None] | None = None) -> None:
         super().__init__(master, fg_color="transparent")
         self._on_insert = on_insert
 
@@ -68,6 +73,31 @@ class TagBar(ctk.CTkFrame):
         )
         self.pause_menu.set("2s")
         self.pause_menu.pack(side="left", padx=(0, 10))
+
+        # ── Công cụ soạn thảo (bên phải, không đẩy các nút thẻ sang trái) ──
+        self.clean_btn = None
+        if on_clean is not None:
+            self.clean_btn = ctk.CTkButton(
+                self, text="🧹 Làm sạch", height=28, width=0,
+                fg_color="transparent", border_width=1,
+                border_color=theme.SIDEBAR_DIVIDER, text_color=theme.TEXT,
+                hover_color=theme.HOVER_BG, corner_radius=6,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
+                command=on_clean,
+            )
+            self.clean_btn.pack(side="right", padx=(6, 2))
+
+        self.dict_btn = None
+        if on_dictionary is not None:
+            self.dict_btn = ctk.CTkButton(
+                self, text="📖 Từ điển", height=28, width=0,
+                fg_color="transparent", border_width=1,
+                border_color=theme.ACCENT, text_color=theme.ACCENT,
+                hover_color=theme.HOVER_BG, corner_radius=6,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
+                command=on_dictionary,
+            )
+            self.dict_btn.pack(side="right", padx=(6, 2))
 
         self._hint_label = ctk.CTkLabel(
             self, text=self.DEFAULT_HINT,

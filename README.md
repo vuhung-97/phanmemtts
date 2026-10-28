@@ -2,7 +2,7 @@
 
 Ứng dụng đọc văn bản thành giọng nói tiếng Việt, chạy hoàn toàn offline trên CPU.
 
-Phiên bản hiện tại: **v3.3.0**
+Phiên bản hiện tại: **v3.4.0**
 
 ## Tính năng
 
@@ -20,6 +20,10 @@ Phiên bản hiện tại: **v3.3.0**
 - **Tạo giọng mới từ file mẫu** (wav/mp3) và chia sẻ giọng qua file `.json` sang máy khác
 - **Chế độ lưu âm thanh linh hoạt**: RAM (bài ngắn) hoặc file tạm trên đĩa (bài dài — không tốn RAM)
 - **Thẻ cảm xúc + thẻ nghỉ trong văn bản**: `[cười]`, `[thở dài]`, `[hắng giọng]`, `[nghỉ 3s]` — có thanh chèn nhanh ngay trên khung soạn thảo
+- **Từ điển phát âm**: thay cách đọc từ viết tắt/tên riêng (`KTX` → `ký túc xá`), có bật/tắt, nhập/xuất tệp
+- **Làm sạch văn bản**: bỏ dòng trống thừa + gộp dòng ngắt giữa câu, giữ nguyên công thức/danh sách, hoàn tác bằng `Ctrl+Z`
+- **Chuyển đổi hàng loạt**: marker `[P1]`, `[P2]`… → mỗi phần một tệp MP3/WAV, tuỳ chọn đóng gói `.zip`
+- **Điều khoản & quyền riêng tư**: đồng ý lần đầu, cam kết quyền sử dụng giọng khi tạo giọng mới
 - **Lịch sử bản dựng**: mỗi lần xuất file được lưu bản sao; nghe lại / mở thư mục / xoá ngay trong app
 - **Menu bar kiểu Windows**: `Tệp` / `Công cụ` / `Trợ giúp` với phím tắt (Ctrl+O, Ctrl+H, Alt+F/C/T); hai nút hành động chính `⚡ Chuyển đổi` + `💾 Xuất file` nằm cố định ở panel phải
 - **Bản quyền offline (freemium)**: chưa kích hoạt vẫn **chuyển đổi + nghe thử** được, chỉ khoá **Xuất file** và **Ghép nhạc**; kích hoạt bằng mã 15 ký tự theo từng máy, có dùng thử 7 ngày
@@ -31,15 +35,22 @@ Phiên bản hiện tại: **v3.3.0**
 | **Tệp** | Mở văn bản… | `Ctrl+O` |
 | | Thoát | `Alt+F4` |
 | **Công cụ** | Ghép nhạc | |
+| | Chuyển đổi hàng loạt… | `Ctrl+B` |
 | | Lịch sử bản dựng | `Ctrl+H` |
+| | Từ điển phát âm… | `Ctrl+Shift+D` |
+| | Làm sạch văn bản | `Ctrl+Shift+K` |
 | | Cài đặt | |
 | **Trợ giúp** | Thông tin bản quyền | `Ctrl+Shift+L` |
 | | Hướng dẫn sử dụng | |
+| | Điều khoản sử dụng | |
 | | Giới thiệu | |
 
-`Alt+F` / `Alt+C` / `Alt+T` mở nhanh menu tương ứng. Khi đang chuyển đổi, mục
-**Ghép nhạc** và **Cài đặt** bị khoá (đổi cấu hình giữa lúc đọc sẽ nạp lại model);
-**Lịch sử** vẫn mở được.
+`Alt+F` / `Alt+C` / `Alt+T` mở nhanh menu tương ứng. Khi đang chuyển đổi, các mục
+**Ghép nhạc**, **Chuyển đổi hàng loạt** và **Cài đặt** bị khoá (đổi cấu hình giữa lúc
+đọc sẽ nạp lại model); **Lịch sử**, **Từ điển**, **Làm sạch** vẫn mở được.
+
+Thanh **Chèn nhanh** phía trên khung soạn thảo có thêm 2 nút: **📖 Từ điển** và
+**🧹 Làm sạch**.
 
 ## Thẻ trong văn bản
 
@@ -60,8 +71,47 @@ Thẻ nghỉ nhận `s` / `giây` / `ms`, số thập phân bằng dấu phẩy 
 > dễ ra tiếng lạ. Thẻ không nhận diện được (ví dụ `[abc]`) sẽ bị đọc thành chữ;
 > thanh chèn nhanh cảnh báo ngay khi bạn gõ.
 
-## Lịch sử bản dựng
+## Từ điển phát âm
 
+`Công cụ → Từ điển phát âm…` (`Ctrl+Shift+D`) hoặc nút **📖 Từ điển**.
+
+- Thay cụm viết tắt/tên riêng trước khi đọc: `KTX` → `ký túc xá`, `TP.HCM` → `thành phố Hồ Chí Minh`.
+- Mặc định thay **nguyên từ** (`KTX` không khớp trong `KTXL`); có tuỳ chọn phân biệt hoa/thường.
+- Không thay bên trong thẻ `[...]`. Cụm dài được thay trước cụm ngắn.
+- Lưu tại `%LOCALAPPDATA%\PhanMemTTS\pronunciation-dict.json`; có bật/tắt, nhập/xuất tệp, tìm kiếm.
+- Đổi từ điển sau khi đã chuyển đổi → app nhắc bấm **Chuyển đổi** lại.
+
+## Làm sạch văn bản
+
+`Công cụ → Làm sạch văn bản` (`Ctrl+Shift+K`) hoặc nút **🧹 Làm sạch**.
+
+- Bỏ dòng trống thừa (giữ tối đa 1 dòng trống giữa hai đoạn).
+- Gộp dòng bị ngắt giữa câu → model không ngắt hơi sai chỗ.
+- **Giữ nguyên** danh sách gạch đầu dòng, số thứ tự, tiêu đề và công thức (`1 + 1 = 2`).
+- Hoàn tác bằng `Ctrl+Z`.
+
+## Chuyển đổi hàng loạt
+
+`Công cụ → Chuyển đổi hàng loạt…` (`Ctrl+B`). Đặt marker ở **đầu dòng**:
+
+```
+[P1] Bản tin sáng...
+[P2] Bản tin trưa...
+```
+
+- Mỗi marker → một tệp (`bai_doc_P1.mp3`, `bai_doc_P2.mp3`…).
+- Phần trước marker đầu tiên (nếu có) thành `P0`.
+- Bỏ tick phần không muốn xuất; chọn MP3/WAV; tuỳ chọn đóng gói **.zip**.
+- Cần đã kích hoạt bản quyền (giống **Xuất file**).
+
+## Điều khoản & quyền riêng tư
+
+- Lần chạy đầu hiện hộp **Điều khoản sử dụng & Quyền riêng tư**; phải tick đồng ý để dùng app.
+- Xem lại: `Trợ giúp → Điều khoản sử dụng`.
+- Tạo giọng mới: bắt buộc tick cam kết đây là giọng của mình hoặc có quyền sử dụng.
+- Nội dung đầy đủ: `DIEU-KHOAN.md`, `PRIVACY.md`, `THIRD-PARTY-NOTICES.md` (cạnh file chạy).
+
+## Lịch sử bản dựng
 Mỗi lần **💾 Xuất file** thành công, app sao chép file vào
 `%LOCALAPPDATA%\PhanMemTTS\history\<id>\audio.mp3` và ghi `index.json`.
 
@@ -163,6 +213,9 @@ trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút t�
 .venv\Scripts\python.exe packaging\probe_tags_history.py  # probe thẻ cảm xúc/nghỉ + lịch sử
 .venv\Scripts\python.exe packaging\probe_menu_toolbar.py  # probe menu bar + panel hành động
 .venv\Scripts\python.exe packaging\probe_license.py       # probe kích hoạt + freemium + chống clone
+.venv\Scripts\python.exe packaging\probe_editor_tools.py  # probe làm sạch + từ điển phát âm
+.venv\Scripts\python.exe packaging\probe_batch.py         # probe xuất hàng loạt [P1]/[P2] + zip
+.venv\Scripts\python.exe packaging\probe_terms.py         # probe điều khoản + cam kết tạo giọng
 .venv\Scripts\python.exe packaging\probe_obfuscated_build.py  # kiểm tra bản phát hành đã obfuscate
 ```
 

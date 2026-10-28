@@ -20,6 +20,9 @@ class SyncTextbox(ctk.CTkTextbox):
         kwargs.setdefault("insertwidth", 2)
         kwargs.setdefault("border_width", 1)
         kwargs.setdefault("border_color", theme.SURFACE)   # khung #283b5b
+        kwargs.setdefault("undo", True)
+        kwargs.setdefault("autoseparators", True)
+        kwargs.setdefault("maxundo", -1)
         super().__init__(master, **kwargs)
         self._on_text_changed = on_text_changed
 
@@ -32,6 +35,38 @@ class SyncTextbox(ctk.CTkTextbox):
         self.delete("1.0", "end")
         self.insert("1.0", text)
         self._textbox.edit_modified(False)
+        try:
+            self._textbox.edit_reset()   # mở file mới -> không hoàn tác về rỗng
+        except Exception:
+            pass
+
+    def replace_all(self, text: str) -> None:
+        """Thay toàn bộ nội dung, có thể hoàn tác 1 bước (nút Làm sạch)."""
+        inner = self._textbox
+        try:
+            inner.configure(autoseparators=False)
+            inner.edit_separator()
+        except Exception:
+            pass
+        self.delete("1.0", "end")
+        self.insert("1.0", text)
+        try:
+            inner.edit_separator()
+            inner.configure(autoseparators=True)
+        except Exception:
+            pass
+        self.clear_highlight()
+        self.after(50, self._on_text_changed)
+
+    def undo(self) -> bool:
+        """Hoàn tác thao tác gần nhất; trả False nếu không còn gì để hoàn tác."""
+        try:
+            self._textbox.edit_undo()
+        except Exception:
+            return False
+        self.clear_highlight()
+        self.after(50, self._on_text_changed)
+        return True
 
     def get_text(self) -> str:
         return self.get("1.0", "end-1c")

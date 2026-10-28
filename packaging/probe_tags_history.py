@@ -50,6 +50,8 @@ def silence_runs(samples: np.ndarray, sr: int, min_sec: float = 1.0):
 def main() -> int:
     ok = True
     app = MainWindow()
+    if getattr(app, "_prompt_job", None):
+        app.after_cancel(app._prompt_job)
     app.geometry("1200x740")
     app.update_idletasks()
     app.update()

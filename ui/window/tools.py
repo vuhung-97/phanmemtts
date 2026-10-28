@@ -6,6 +6,7 @@ from tkinter import filedialog, messagebox
 
 import version
 from core.document_reader import read_document
+from core.text_processor import clean_for_reading
 from engine.tts_engine import TtsEngine
 from ui import theme
 from ui.components.history_dialog import HistoryDialog, open_in_system
@@ -89,6 +90,38 @@ class ToolsMixin:
             on_voice_changed=on_voice_changed,
         )
 
+    # ── Từ điển phát âm & làm sạch văn bản ──
+
+    def _open_dictionary(self) -> None:
+        from ui.components.dictionary_dialog import DictionaryDialog
+
+        DictionaryDialog(self, on_changed=self._on_dictionary_changed)
+
+    def _on_dictionary_changed(self) -> None:
+        """Từ điển đổi -> âm thanh đã tổng hợp không còn đúng."""
+        if self._synth_text is not None:
+            self._invalidate_audio(
+                "Đã đổi từ điển phát âm — bấm Chuyển đổi để áp dụng.")
+        else:
+            self.topbar.set_status("Đã cập nhật từ điển phát âm.", theme.SUCCESS)
+
+    def _clean_text(self) -> None:
+        """Bỏ dòng trống thừa + gộp dòng ngắt giữa câu (hoàn tác được)."""
+        text = self.textbox.get_text()
+        if not text.strip():
+            self.topbar.set_status("Không có nội dung để làm sạch.", theme.ERROR)
+            return
+        cleaned, changes = clean_for_reading(text)
+        if changes == 0 or cleaned == text:
+            self.topbar.set_status(
+                "Văn bản đã sạch, không cần thay đổi.", theme.TEXT_DIM)
+            return
+        self.textbox.replace_all(cleaned)
+        self._refresh_tag_hint()
+        self.topbar.set_status(
+            f"Đã làm sạch {changes} chỗ. Bấm Ctrl+Z nếu muốn hoàn tác.",
+            theme.SUCCESS)
+
     # ── Cài đặt ──
 
     def _open_settings(self) -> None:
@@ -118,6 +151,12 @@ class ToolsMixin:
         HistoryDialog(self, self._history)
 
     # ── Trợ giúp ──
+
+    def _open_terms(self) -> None:
+        """Xem lại điều khoản (chỉ đọc)."""
+        from ui.components.terms_dialog import TermsDialog
+
+        TermsDialog(self, require_accept=False)
 
     def _open_help(self) -> None:
         """Mở file hướng dẫn đi kèm (bản cài: HUONG_DAN_V3.txt, dev: docs/*.docx)."""
@@ -154,6 +193,32 @@ class ToolsMixin:
             export_history=self._export_history,
             on_merged=lambda path: self.topbar.set_status(
                 f"Đã ghép: {path}", theme.SUCCESS),
+        )
+
+    # ── Chuyển đổi hàng loạt ──
+
+    def _open_batch_dialog(self) -> None:
+        if self._busy:
+            self.topbar.set_status(
+                "Đang chuyển đổi — dừng lại trước khi xuất hàng loạt.",
+                theme.ERROR)
+            return
+        if not self._ensure_license("xuất nhiều tệp"):
+            return
+        model = self._selected_model()
+        if model is None:
+            self.topbar.set_status("Không có giọng đọc để xuất.", theme.ERROR)
+            return
+        from ui.components.batch_dialog import BatchDialog
+
+        BatchDialog(
+            self,
+            text=self.textbox.get_text(),
+            model=model,
+            model_manager=self._model_manager,
+            voice_name=self.topbar.get_selected_voice() or "",
+            speed=self.topbar.get_speed(),
+            on_done=lambda message: self.topbar.set_status(message, theme.SUCCESS),
         )
 
     # ── Test giọng ──

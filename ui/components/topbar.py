@@ -39,11 +39,15 @@ class TopBar(ctk.CTkFrame):
         on_manage_voices: Callable[[], None],
         on_test_voice: Callable[[], None],
         on_merge: Callable[[], None] | None = None,  # mở từ menu Công cụ
+        on_batch: Callable[[], None] | None = None,
         on_settings: Callable[[], None] | None = None,
         on_history: Callable[[], None] | None = None,
         on_help: Callable[[], None] | None = None,
         on_about: Callable[[], None] | None = None,
         on_license: Callable[[], None] | None = None,
+        on_dictionary: Callable[[], None] | None = None,
+        on_clean: Callable[[], None] | None = None,
+        on_terms: Callable[[], None] | None = None,
         on_close: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(master, corner_radius=0, fg_color=theme.SIDEBAR_BG)
@@ -56,15 +60,20 @@ class TopBar(ctk.CTkFrame):
         self._on_manage_voices = on_manage_voices
         self._on_test_voice = on_test_voice
         self._on_merge = on_merge
+        self._on_batch = on_batch
         self._on_settings = on_settings
         self._on_history = on_history
         self._on_help = on_help
         self._on_about = on_about
         self._on_license = on_license
+        self._on_dictionary = on_dictionary
+        self._on_clean = on_clean
+        self._on_terms = on_terms
         self._on_close = on_close
 
         # Chỉ số mục menu cần khoá khi đang chuyển đổi (None = không có mục đó).
         self._merge_index: int | None = None
+        self._batch_index: int | None = None
         self._settings_index: int | None = None
         self._history_index: int | None = None
 
@@ -81,6 +90,181 @@ class TopBar(ctk.CTkFrame):
 
         # ── Menu bar kiểu Windows ──
         self._build_menubar()
+
+        self._build_body()
+
+    # ── Menu bar kiểu Windows ──
+
+    def _make_menu(self) -> Menu:
+        """Menu popup gốc của Tk (có phím tắt, dấu phân cách, trạng thái mờ)."""
+        return Menu(
+            self, tearoff=0, bd=0, relief="flat",
+            bg=theme.SURFACE, fg=theme.TEXT,
+            activebackground=theme.ACCENT, activeforeground="#ffffff",
+            disabledforeground=theme.TIMELINE_DIM,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
+        )
+
+    def _build_menubar(self) -> None:
+        """Dải trên cùng: Tệp / Công cụ / Trợ giúp + phím tắt."""
+        bar = ctk.CTkFrame(self._menubar, fg_color="transparent")
+        bar.pack(side="left", fill="y", padx=(10, 0))
+        self.menubar = self._menubar
+        self._menubar_buttons: dict[str, ctk.CTkButton] = {}
+        self.menus: dict[str, Menu] = {}
+
+        for key, label in (("file", "Tệp"), ("tools", "Công cụ"), ("help", "Trợ giúp")):
+            button = ctk.CTkButton(
+                bar, text=label, width=0, height=24, corner_radius=4,
+                fg_color="transparent", hover_color=theme.HOVER_BG,
+                text_color=theme.TEXT,
+                font=(theme.FONT_FAMILY, theme.FONT_SIZE),
+                command=lambda k=key: self._popup_menu(k),
+            )
+            button.pack(side="left", padx=(0, 2), pady=3)
+            self._menubar_buttons[key] = button
+
+        # ── Tệp ──
+        file_menu = self._make_menu()
+        file_menu.add_command(label="Mở văn bản…", accelerator="Ctrl+O",
+                              command=self._on_open_file)
+        file_menu.add_separator()
+        close = self._on_close or self.winfo_toplevel().destroy
+        file_menu.add_command(label="Thoát", accelerator="Alt+F4", command=close)
+        self.menus["file"] = file_menu
+
+        # ── Công cụ: Ghép nhạc / Hàng loạt / Lịch sử / Từ điển / Làm sạch / Cài đặt ──
+        tools_menu = self._make_menu()
+        if SHOW_MERGE and self._on_merge is not None:
+            tools_menu.add_command(label="Ghép nhạc", command=self._on_merge)
+            self._merge_index = tools_menu.index("end")
+        if self._on_batch is not None:
+            tools_menu.add_command(label="Chuyển đổi hàng loạt…",
+                                   accelerator="Ctrl+B",
+                                   command=self._on_batch)
+            self._batch_index = tools_menu.index("end")
+        if self._on_history is not None:
+            tools_menu.add_command(label="Lịch sử bản dựng", accelerator="Ctrl+H",
+                                   command=self._on_history)
+            self._history_index = tools_menu.index("end")
+        if self._on_dictionary is not None or self._on_clean is not None:
+            if tools_menu.index("end") is not None:
+                tools_menu.add_separator()
+            if self._on_dictionary is not None:
+                tools_menu.add_command(
+                    label="Từ điển phát âm…", accelerator="Ctrl+Shift+D",
+                    command=self._on_dictionary)
+            if self._on_clean is not None:
+                tools_menu.add_command(
+                    label="Làm sạch văn bản", accelerator="Ctrl+Shift+K",
+                    command=self._on_clean)
+        if self._on_settings is not None:
+            if tools_menu.index("end") is not None:
+                tools_menu.add_separator()
+            tools_menu.add_command(label="Cài đặt", command=self._on_settings)
+            self._settings_index = tools_menu.index("end")
+        self.menus["tools"] = tools_menu
+        if tools_menu.index("end") is None:
+            self._menubar_buttons["tools"].pack_forget()
+
+        # ── Trợ giúp ──
+        help_menu = self._make_menu()
+        if self._on_license is not None:
+            help_menu.add_command(label="Thông tin bản quyền",
+                                  accelerator="Ctrl+Shift+L",
+                                  command=self._on_license)
+            help_menu.add_separator()
+        if self._on_help is not None:
+            help_menu.add_command(label="Hướng dẫn sử dụng", command=self._on_help)
+        if self._on_terms is not None:
+            help_menu.add_command(label="Điều khoản sử dụng",
+                                  command=self._on_terms)
+        if self._on_about is not None:
+            help_menu.add_command(label="Giới thiệu", command=self._on_about)
+        self.menus["help"] = help_menu
+        if help_menu.index("end") is None:
+            self._menubar_buttons["help"].pack_forget()
+
+        # ── Nhãn trạng thái bản quyền (bên phải thanh menu) ──
+        self.license_label = ctk.CTkLabel(
+            self._menubar, text="", text_color=theme.TEXT_DIM,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1), cursor="hand2",
+        )
+        self.license_label.pack(side="right", padx=(0, 12))
+        if self._on_license is not None:
+            self.license_label.bind("<Button-1>",
+                                    lambda _e: self._on_license())
+
+        # ── Phím tắt (chuẩn Windows) ──
+        top = self.winfo_toplevel()
+        top.bind("<Control-o>", lambda _e: self._on_open_file())
+        if self._on_history is not None:
+            top.bind("<Control-h>", lambda _e: self._on_history())
+        if self._on_license is not None:
+            top.bind("<Control-Shift-L>", lambda _e: self._on_license())
+            top.bind("<Control-Shift-l>", lambda _e: self._on_license())
+        if self._on_dictionary is not None:
+            top.bind("<Control-Shift-D>", lambda _e: self._on_dictionary())
+            top.bind("<Control-Shift-d>", lambda _e: self._on_dictionary())
+        if self._on_clean is not None:
+            top.bind("<Control-Shift-K>", lambda _e: self._on_clean())
+            top.bind("<Control-Shift-k>", lambda _e: self._on_clean())
+        if self._on_batch is not None:
+            top.bind("<Control-b>", lambda _e: self._on_batch())
+        top.bind("<Alt-f>", lambda _e: self._open_menu_by_key("file"))
+        top.bind("<Alt-c>", lambda _e: self._open_menu_by_key("tools"))
+        top.bind("<Alt-t>", lambda _e: self._open_menu_by_key("help"))
+
+    def _popup_menu(self, key: str) -> None:
+        """Mở menu ngay dưới nút tương ứng."""
+        menu = self.menus.get(key)
+        button = self._menubar_buttons.get(key)
+        if menu is None or button is None:
+            return
+        try:
+            menu.tk_popup(button.winfo_rootx(),
+                          button.winfo_rooty() + button.winfo_height())
+        finally:
+            menu.grab_release()
+
+    def _open_menu_by_key(self, key: str) -> None:
+        if key in self._menubar_buttons:
+            self.after(1, lambda: self._popup_menu(key))
+
+    # ── helpers ──
+
+    def _set_logo(self, h: int) -> None:
+        """Gán ảnh logo theo chiều cao cho trước (giữ tỉ lệ, giới hạn rộng)."""
+        if self._logo_pil is None or h < 16:
+            return
+        w = max(1, int(self._logo_pil.width * h / self._logo_pil.height))
+        w = min(w, 260)
+        self._logo_h = h
+        self._logo_img = ctk.CTkImage(self._logo_pil, size=(w, h))
+        self._logo_label.configure(image=self._logo_img)
+
+    def _fit_logo(self, event=None) -> None:
+        """Co logo vừa full chiều cao panel (giữ tỉ lệ, giới hạn rộng)."""
+        if self._logo_pil is None:
+            return
+        try:
+            if event is not None and getattr(event, "height", 0) > 1:
+                base = event.height
+            else:
+                base = self._brand_outer.winfo_height()
+        except Exception:
+            return
+        h = base - 28  # trừ padding panel + viền
+        if h < 16 or abs(h - self._logo_h) < 3:
+            return
+        self._set_logo(h)
+
+    def _build_body(self) -> None:
+        """Dựng logo + 3 hàng nội dung + dòng trạng thái.
+
+        Tách khỏi __init__ để code object của __init__ không vượt
+        giới hạn 32 KB của PyArmor bản miễn phí.
+        """
 
         # ── Panel thương hiệu: logo full chiều cao 3 hàng ──
         self._brand_outer = ctk.CTkFrame(
@@ -224,144 +408,6 @@ class TopBar(ctk.CTkFrame):
         self.status_label.grid(row=2, column=1, columnspan=4,
                                padx=6, pady=(0, 6), sticky="ew")
 
-    # ── Menu bar kiểu Windows ──
-
-    def _make_menu(self) -> Menu:
-        """Menu popup gốc của Tk (có phím tắt, dấu phân cách, trạng thái mờ)."""
-        return Menu(
-            self, tearoff=0, bd=0, relief="flat",
-            bg=theme.SURFACE, fg=theme.TEXT,
-            activebackground=theme.ACCENT, activeforeground="#ffffff",
-            disabledforeground=theme.TIMELINE_DIM,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
-        )
-
-    def _build_menubar(self) -> None:
-        """Dải trên cùng: Tệp / Công cụ / Trợ giúp + phím tắt."""
-        bar = ctk.CTkFrame(self._menubar, fg_color="transparent")
-        bar.pack(side="left", fill="y", padx=(10, 0))
-        self.menubar = self._menubar
-        self._menubar_buttons: dict[str, ctk.CTkButton] = {}
-        self.menus: dict[str, Menu] = {}
-
-        for key, label in (("file", "Tệp"), ("tools", "Công cụ"), ("help", "Trợ giúp")):
-            button = ctk.CTkButton(
-                bar, text=label, width=0, height=24, corner_radius=4,
-                fg_color="transparent", hover_color=theme.HOVER_BG,
-                text_color=theme.TEXT,
-                font=(theme.FONT_FAMILY, theme.FONT_SIZE),
-                command=lambda k=key: self._popup_menu(k),
-            )
-            button.pack(side="left", padx=(0, 2), pady=3)
-            self._menubar_buttons[key] = button
-
-        # ── Tệp ──
-        file_menu = self._make_menu()
-        file_menu.add_command(label="Mở văn bản…", accelerator="Ctrl+O",
-                              command=self._on_open_file)
-        file_menu.add_separator()
-        close = self._on_close or self.winfo_toplevel().destroy
-        file_menu.add_command(label="Thoát", accelerator="Alt+F4", command=close)
-        self.menus["file"] = file_menu
-
-        # ── Công cụ: Ghép nhạc / Lịch sử / Cài đặt ──
-        tools_menu = self._make_menu()
-        if SHOW_MERGE and self._on_merge is not None:
-            tools_menu.add_command(label="Ghép nhạc", command=self._on_merge)
-            self._merge_index = tools_menu.index("end")
-        if self._on_history is not None:
-            tools_menu.add_command(label="Lịch sử bản dựng", accelerator="Ctrl+H",
-                                   command=self._on_history)
-            self._history_index = tools_menu.index("end")
-        if self._on_settings is not None:
-            if tools_menu.index("end") is not None:
-                tools_menu.add_separator()
-            tools_menu.add_command(label="Cài đặt", command=self._on_settings)
-            self._settings_index = tools_menu.index("end")
-        self.menus["tools"] = tools_menu
-        if tools_menu.index("end") is None:
-            self._menubar_buttons["tools"].pack_forget()
-
-        # ── Trợ giúp ──
-        help_menu = self._make_menu()
-        if self._on_license is not None:
-            help_menu.add_command(label="Thông tin bản quyền",
-                                  accelerator="Ctrl+Shift+L",
-                                  command=self._on_license)
-            help_menu.add_separator()
-        if self._on_help is not None:
-            help_menu.add_command(label="Hướng dẫn sử dụng", command=self._on_help)
-        if self._on_about is not None:
-            help_menu.add_command(label="Giới thiệu", command=self._on_about)
-        self.menus["help"] = help_menu
-        if help_menu.index("end") is None:
-            self._menubar_buttons["help"].pack_forget()
-
-        # ── Nhãn trạng thái bản quyền (bên phải thanh menu) ──
-        self.license_label = ctk.CTkLabel(
-            self._menubar, text="", text_color=theme.TEXT_DIM,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1), cursor="hand2",
-        )
-        self.license_label.pack(side="right", padx=(0, 12))
-        if self._on_license is not None:
-            self.license_label.bind("<Button-1>",
-                                    lambda _e: self._on_license())
-
-        # ── Phím tắt (chuẩn Windows) ──
-        top = self.winfo_toplevel()
-        top.bind("<Control-o>", lambda _e: self._on_open_file())
-        if self._on_history is not None:
-            top.bind("<Control-h>", lambda _e: self._on_history())
-        if self._on_license is not None:
-            top.bind("<Control-Shift-L>", lambda _e: self._on_license())
-            top.bind("<Control-Shift-l>", lambda _e: self._on_license())
-        top.bind("<Alt-f>", lambda _e: self._open_menu_by_key("file"))
-        top.bind("<Alt-c>", lambda _e: self._open_menu_by_key("tools"))
-        top.bind("<Alt-t>", lambda _e: self._open_menu_by_key("help"))
-
-    def _popup_menu(self, key: str) -> None:
-        """Mở menu ngay dưới nút tương ứng."""
-        menu = self.menus.get(key)
-        button = self._menubar_buttons.get(key)
-        if menu is None or button is None:
-            return
-        try:
-            menu.tk_popup(button.winfo_rootx(),
-                          button.winfo_rooty() + button.winfo_height())
-        finally:
-            menu.grab_release()
-
-    def _open_menu_by_key(self, key: str) -> None:
-        if key in self._menubar_buttons:
-            self.after(1, lambda: self._popup_menu(key))
-
-    # ── helpers ──
-
-    def _set_logo(self, h: int) -> None:
-        """Gán ảnh logo theo chiều cao cho trước (giữ tỉ lệ, giới hạn rộng)."""
-        if self._logo_pil is None or h < 16:
-            return
-        w = max(1, int(self._logo_pil.width * h / self._logo_pil.height))
-        w = min(w, 260)
-        self._logo_h = h
-        self._logo_img = ctk.CTkImage(self._logo_pil, size=(w, h))
-        self._logo_label.configure(image=self._logo_img)
-
-    def _fit_logo(self, event=None) -> None:
-        """Co logo vừa full chiều cao panel (giữ tỉ lệ, giới hạn rộng)."""
-        if self._logo_pil is None:
-            return
-        try:
-            if event is not None and getattr(event, "height", 0) > 1:
-                base = event.height
-            else:
-                base = self._brand_outer.winfo_height()
-        except Exception:
-            return
-        h = base - 28  # trừ padding panel + viền
-        if h < 16 or abs(h - self._logo_h) < 3:
-            return
-        self._set_logo(h)
 
     def _panel(self, row: int, column: int, rowspan: int = 1,
                columnspan: int = 1, sticky: str = "nsew") -> ctk.CTkFrame:
@@ -405,7 +451,8 @@ class TopBar(ctk.CTkFrame):
         # sẽ nạp lại model); Lịch sử vẫn mở được vì chỉ đọc.
         tools = self.menus.get("tools")
         if tools is not None:
-            for index in (self._merge_index, self._settings_index):
+            for index in (self._merge_index, self._batch_index,
+                          self._settings_index):
                 if index is not None:
                     tools.entryconfigure(index, state=state)
         if busy:

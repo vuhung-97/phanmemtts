@@ -1,9 +1,9 @@
 # KẾ HOẠCH CẬP NHẬT — v3.1 → v3.3
 
-> **Trạng thái:** P0 + bản offline-only (`v3.2.0`) + P1 (2.2 lịch sử, 2.4 thẻ) **đã xong** — xem mục 10. **Đợt 3.3.0 (bản quyền offline + build modular) đã xong — xem mục 12.**
-> **Cập nhật 26/10/2026:** Đợt 1 (P0) xong; đợt 1c (bỏ hẳn online + GPU) xong; header 3 hàng tinh lại; đợt 2a (bug #7, thẻ cảm xúc/nghỉ, lịch sử) xong; **đợt 3.3.0 (bản quyền, PyArmor, gói cập nhật) xong**.
+> **Trạng thái:** P0 + bản offline-only (`v3.2.0`) + P1 (2.2 lịch sử, 2.4 thẻ) **đã xong** — xem mục 10. **Đợt 3.3.0 (bản quyền offline + build modular) đã xong — xem mục 12.** **Đợt 3.4.0 (từ điển, làm sạch, hàng loạt, điều khoản) đã xong — xem mục 13.**
+> **Cập nhật 28/10/2026:** Chốt bỏ **2.6 (phụ đề/lồng tiếng)**, **4.2 (đa nền tảng)**; đóng **2.2**, **2.8**. Còn lại duy nhất **4.1 hội thoại nhiều giọng** cho `v3.5.0`.
 > **Người lập:** phiên làm việc nghiên cứu repo `Cuongyd196/cit-voice-studio` + đối chiếu app hiện tại.
-> **Mốc code hiện tại:** `v3.3.0` (nhánh `feat/license-3.3.0`).
+> **Mốc code hiện tại:** `v3.4.0` (nhánh `main`).
 > **Ngày lập:** 21/10/2026
 
 ---
@@ -488,28 +488,21 @@ UI đã cảnh báo; khuyến nghị vẫn dùng FP32.
 
 ---
 
-## 11. TIẾN ĐỘ P1 / P2
+## 11. TIẾN ĐỘ P1 / P2 (chốt 28/10/2026)
 
 | # | Hạng mục | Trạng thái |
 |---|---|---|
 | 2.1 | Xuất phụ đề `.srt` | ❌ **bỏ khỏi scope** (chốt 26/10/2026) |
-| 2.2 | Lịch sử bền vững | ✅ xong (`core/history.py`, dialog 🕘, sao chép file, tự dọn) |
-| 2.3 | Từ điển phát âm | ❌ chưa |
-| 2.4 | Thẻ cảm xúc + thẻ nghỉ | ✅ xong (`[cười]/[thở dài]/[hắng giọng]`; `[nghỉ Xs]` chèn lặng thật; thanh chèn nhanh) |
-| 2.5 | Nút "Làm sạch" | ❌ chưa (ngoài đợt này) |
-| 2.6 | Đọc .srt/.vtt + lồng tiếng | ❌ chưa (ngoài đợt này) |
-| 2.7 | Batch `[P1][P2]` + zip | ❌ chưa (ngoài đợt này) |
-| 2.8 | Model Manager UI | ⚠️ chỉ còn precision FP32/INT8 trong Cài đặt (Nano/GPU đã loại) |
-| 4.1 | Hội thoại nhiều giọng | ❌ chưa |
-| 4.2 | Đa nền tảng | ⚠️ `data_dir()` đã có; thiếu build script + CI |
-| 4.3 | Điều khoản + Privacy | ❌ chưa |
-| 2.5 | Nút "Làm sạch" | ❌ chưa (ngoài đợt này) |
-| 2.6 | Đọc .srt/.vtt + lồng tiếng | ❌ chưa (ngoài đợt này) |
-| 2.7 | Batch `[P1][P2]` + zip | ❌ chưa (ngoài đợt này) |
-| 2.8 | Model Manager UI | ⚠️ chỉ còn precision FP32/INT8 trong Cài đặt (Nano/GPU đã loại) |
-| 4.1 | Hội thoại nhiều giọng | ❌ chưa |
-| 4.2 | Đa nền tảng | ⚠️ `data_dir()` đã có; thiếu build script + CI |
-| 4.3 | Điều khoản + Privacy | ❌ chưa |
+| 2.2 | Lịch sử bền vững | ✅ xong 3.2.0 — **đóng** |
+| 2.3 | Từ điển phát âm | ✅ xong 3.4.0 (`core/dictionary.py`, dialog 📖, `Ctrl+Shift+D`) |
+| 2.4 | Thẻ cảm xúc + thẻ nghỉ | ✅ xong 3.2.0 |
+| 2.5 | Nút "Làm sạch" | ✅ xong 3.4.0 (`clean_for_reading`, nút 🧹, `Ctrl+Shift+K`, hoàn tác) |
+| 2.6 | Đọc .srt/.vtt + lồng tiếng | ❌ **bỏ khỏi scope** (chốt 28/10/2026) |
+| 2.7 | Batch `[P1][P2]` + zip | ✅ xong 3.4.0 (`core/batch.py`, dialog, `Ctrl+B`) |
+| 2.8 | Model Manager UI | ❌ **bỏ** — chốt chỉ FP32/INT8 trong ⚙ Cài đặt |
+| 4.1 | Hội thoại nhiều giọng | ⏭ **đợt tiếp theo** (`v3.5.0`) |
+| 4.2 | Đa nền tảng | ❌ **bỏ khỏi scope** (chốt 28/10/2026) — Windows-only |
+| 4.3 | Điều khoản + Privacy | ✅ xong 3.4.0 (`DIEU-KHOAN.md`, `PRIVACY.md`, `THIRD-PARTY-NOTICES.md`, dialog đồng ý, cam kết tạo giọng) |
 
 ---
 
@@ -552,3 +545,88 @@ UI đã cảnh báo; khuyến nghị vẫn dùng FP32.
 - Repo đã chuyển **private** trước khi phát hành; build chặn secret/`*.lic`/source chưa obfuscate.
 - Sự cố đã gặp & sửa: BOM trong `_k*.py` làm PyArmor lỗi; metric 32 KB đo sai (marshal vs bytecode);
   updater bỏ qua verify do dấu `\` vs `/`; `$AppDir` tương đối làm rollback sai thư mục.
+
+---
+
+## 13. NHẬT KÝ 3.4.0 — TỪ ĐIỂN, LÀM SẠCH, HÀNG LOẠT, ĐIỀU KHOẢN
+
+### 13.1 Phạm vi đã chốt (28/10/2026)
+
+**Bỏ khỏi kế hoạch:** 2.6 (đọc .srt/.vtt + lồng tiếng), 4.2 (đa nền tảng Linux/macOS).
+**Đóng mục:** 2.2 (lịch sử — đã xong từ 3.2.0), 2.8 (Model Manager — chỉ giữ FP32/INT8 trong Cài đặt).
+**Còn lại cho 3.5.0:** 4.1 hội thoại nhiều giọng.
+
+### 13.2 Kết quả
+
+| Hạng mục | Kết quả |
+|---|---|
+| Pipeline văn bản | core/text_pipeline.py: quote -> **từ điển** -> normalizer số -> dấu câu; 	ts_engine gọi chung |
+| Từ điển (2.3) | core/dictionary.py + ui/components/dictionary_dialog.py; JSON trong data_dir(), nguyên từ Unicode, dài trước ngắn, không đụng thẻ, cache theo mtime |
+| Làm sạch (2.5) | core/text_processor.clean_for_reading(); bỏ dòng trống, gộp dòng giữa câu, giữ bullet/số/công thức/thẻ; hoàn tác Ctrl+Z |
+| Hàng loạt (2.7) | core/batch.py + ui/components/batch_dialog.py; marker [P1].., P0 cho phần đầu, tên tệp an toàn + chống trùng, xuất .zip |
+| Điều khoản (4.3) | DIEU-KHOAN.md, PRIVACY.md, THIRD-PARTY-NOTICES.md; 	erms_dialog.py bắt buộc đồng ý lần đầu; cam kết khi tạo giọng |
+| Trần PyArmor | Tách oice_import_dialog.py (17,2 KB) khỏi oice_manager.py (12,3 KB); tách TopBar._build_body(); check_code_size đạt (code object lớn nhất 5.676 B) |
+| Menu & phím tắt | Công cụ: Hàng loạt (Ctrl+B), Từ điển (Ctrl+Shift+D), Làm sạch (Ctrl+Shift+K); Trợ giúp: Điều khoản; TagBar thêm 📖/🧹 |
+
+### 13.3 File mới
+
+`
+core/text_pipeline.py              core/dictionary.py            core/batch.py
+ui/components/dictionary_dialog.py ui/components/batch_dialog.py  ui/components/terms_dialog.py
+ui/components/voice_import_dialog.py
+DIEU-KHOAN.md  PRIVACY.md  THIRD-PARTY-NOTICES.md
+tests/test_dictionary.py  tests/test_clean_text.py  tests/test_batch.py  tests/test_settings.py
+packaging/probe_editor_tools.py  packaging/probe_batch.py  packaging/probe_terms.py
+docs/Huong_dan_su_dung_V3_v3.4.0.docx
+`
+
+### 13.4 File sửa
+
+| File | Thay đổi |
+|---|---|
+| engine/tts_engine.py | dùng core.text_pipeline.prepare_for_tts |
+| core/text_processor.py | thêm clean_for_reading() |
+| ui/components/sync_textbox.py | bật undo, 
+eplace_all(), undo(), reset stack khi mở file |
+| ui/components/tag_bar.py | 2 nút 📖 Từ điển / 🧹 Làm sạch |
+| ui/components/topbar.py | menu + phím tắt mới, _build_body() (giảm code object) |
+| ui/window/tools.py | _open_dictionary, _clean_text, _open_batch_dialog, _open_terms |
+| ui/window/license_ui.py | chặn lần chạy đầu bằng điều khoản, _terms_accepted, _ask_terms |
+| ui/config.py | 	erms_accepted_at, 	erms_version |
+| ui/main_window.py | đấu dây callback mới |
+| uild_v3.bat | copy HDSD 3.4.0 (điều khoản đã có sẵn bước 9) |
+| docs/gen_hdsd_v3.py | chương 8 mới + đổi tên/phiên bản |
+| README.md, ersion.py | 3.4.0 |
+
+### 13.5 Kiểm thử
+
+| Bộ | Kết quả |
+|---|---|
+| pytest | **210/210 pass** (148 cũ + 62 mới) |
+| probe_menu_toolbar | OK (header 176px @980/1100/1200/1440, menu 6 mục Công cụ) |
+| probe_tags_history | OK |
+| probe_license | OK |
+| probe_editor_tools (mới) | OK — làm sạch đúng, undo đúng, từ điển áp dụng/tắt đúng, vô hiệu audio cũ |
+| probe_batch (mới) | OK — 3 phần -> 3 MP3 + ai.zip (model thật) |
+| probe_terms (mới) | OK — nút đồng ý khoá trước khi tick, ghi pp_settings.json, chặn tạo giọng khi chưa cam kết |
+| probe_ui_flow | OK (3 ca; bài dài 36 câu / 138,4 s, RAM 1.003 MB) |
+| check_code_size | OK — 67 file, code object lớn nhất 5.676 B (< 32.768) |
+
+### 13.6 Lỗi UI đã phát hiện & sửa sau build đầu
+
+**Triệu chứng:** header hiện **lặp đôi toàn bộ nút** (menu, Mở file, giọng đọc, Tốc độ, Test, Chuyển đổi, Xuất file).
+
+**Nguyên nhân:** khi tách TopBar._build_body(), đoạn cắt chuỗi khớp nhầm dòng comment 8 khoảng trắng
+nên thân method bị **rỗng**, còn khối dựng panel vẫn nằm trong __init__ → mỗi widget được tạo 2 lần
+(_build_menubar() cũng gọi 2 lần). Comment 4 khoảng trắng không kết thúc block Python nên file vẫn biên dịch được,
+không test nào bắt được.
+
+**Đã sửa:** khôi phục đúng thân _build_body từ git show HEAD:ui/components/topbar.py;
+thêm kiểm tra chống trùng vào probe_menu_toolbar (6 widget thân header, 3 nút menu, đủ widget bắt buộc).
+Xác nhận: header **176px** @980/1100/1200/1440, ảnh chụp header không còn lặp.
+
+### 13.7 Còn lại
+
+- Build phát hành 3.4.0 + gói cập nhật nhỏ (uild_v3.bat -> probe_obfuscated_build.py).
+- Nội dung điều khoản/privacy cần **chủ phần mềm duyệt lại** trước khi phát hành.
+- 3.5.0: 4.1 hội thoại nhiều giọng (core/dialogue.py + dialog + dialogue_cast.json).

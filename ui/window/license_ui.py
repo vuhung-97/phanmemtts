@@ -5,6 +5,8 @@ Tách khỏi main_window.py để giữ mỗi file dưới giới hạn 32 KB c�
 
 from __future__ import annotations
 
+import time
+
 from core.licensing import guard, trial
 from ui import theme
 
@@ -54,7 +56,14 @@ class LicenseMixin:
         return self._open_activation()
 
     def _first_run_prompt(self) -> None:
-        """Lần chạy đầu: mời dùng thử / nhập mã (vẫn đóng được để dùng tiếp)."""
+        """Lần chạy đầu: đồng ý điều khoản -> mời dùng thử / nhập mã."""
+        if not self._terms_accepted():
+            if not self._ask_terms():
+                self.topbar.set_status(
+                    "Bạn cần đồng ý điều khoản sử dụng để tiếp tục.",
+                    theme.ERROR)
+                self.after(1500, self._on_close)
+                return
         status = guard.check_startup(use_cache=False)
         if status.active:
             return
@@ -73,4 +82,30 @@ class LicenseMixin:
             self.topbar.set_status(
                 "Chưa kích hoạt — vẫn nghe thử được, cần mã để xuất file.",
                 theme.TEXT_DIM)
+
+    # ── Điều khoản sử dụng ──
+
+    def _terms_accepted(self) -> bool:
+        from ui.components.terms_dialog import TERMS_VERSION
+
+        settings = getattr(self, "_settings", None) or {}
+        return (float(settings.get("terms_accepted_at") or 0) > 0
+                and int(settings.get("terms_version") or 0) >= TERMS_VERSION)
+
+    def _ask_terms(self) -> bool:
+        """Hiện điều khoản lần đầu; trả True nếu người dùng đồng ý."""
+        from ui.components.terms_dialog import TERMS_VERSION, TermsDialog
+
+        dialog = TermsDialog(self, require_accept=True)
+        self.wait_window(dialog)
+        if not dialog.result:
+            return False
+        self._settings["terms_accepted_at"] = time.time()
+        self._settings["terms_version"] = TERMS_VERSION
+        from ui.config import save_settings
+
+        save_settings(self._settings)
+        self.topbar.set_status("Đã ghi nhận đồng ý điều khoản sử dụng.",
+                               theme.SUCCESS)
+        return True
 

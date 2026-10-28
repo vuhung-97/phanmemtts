@@ -48,11 +48,35 @@ def pump(app, seconds: float) -> None:
 def main() -> int:
     ok = True
     app = MainWindow()
+    if getattr(app, "_prompt_job", None):
+        app.after_cancel(app._prompt_job)
     app.geometry("1200x740")
     app.update_idletasks()
     app.update()
     pump(app, 1.7)                      # logo co giãn theo layout xong
     tb = app.topbar
+
+    # ── 1b. Không được dựng trùng widget (lỗi từng gặp: toolbar 2 lần) ──
+    body_widgets = tb._body.winfo_children()
+    bar = tb.menubar.winfo_children()[0]
+    menu_buttons = [w for w in bar.winfo_children()
+                    if w.winfo_class() in ("Frame", "Canvas")]
+    print("[dup] body widgets =", len(body_widgets),
+          "| menu buttons =", len(menu_buttons), flush=True)
+    if len(body_widgets) != 6:
+        print(f"[dup] LOI: than header co {len(body_widgets)} widget (mong doi 6)",
+              flush=True)
+        ok = False
+    if len(menu_buttons) != 3:
+        print(f"[dup] LOI: menu bar co {len(menu_buttons)} nut (mong doi 3)",
+              flush=True)
+        ok = False
+    for name in ("convert_btn", "export_btn", "voice_combo", "speed_combo",
+                 "test_btn", "status_label"):
+        widget = getattr(tb, name, None)
+        if widget is None or not widget.winfo_exists():
+            print(f"[dup] LOI: thieu widget {name}", flush=True)
+            ok = False
 
     # ── 1. Kích thước ở nhiều bề rộng ──
     print("[size] width | header | menu | body | textbox | o cau test", flush=True)
@@ -100,8 +124,10 @@ def main() -> int:
     # ── 3. Nội dung menu + phím tắt ──
     expected = {
         "file": ["Mở văn bản…", "Thoát"],
-        "tools": ["Ghép nhạc", "Lịch sử bản dựng", "Cài đặt"],
-        "help": ["Thông tin bản quyền", "Hướng dẫn sử dụng", "Giới thiệu"],
+        "tools": ["Ghép nhạc", "Chuyển đổi hàng loạt…", "Lịch sử bản dựng",
+                  "Từ điển phát âm…", "Làm sạch văn bản", "Cài đặt"],
+        "help": ["Thông tin bản quyền", "Hướng dẫn sử dụng",
+                 "Điều khoản sử dụng", "Giới thiệu"],
     }
     for key, labels in expected.items():
         items = menu_commands(tb.menus[key])

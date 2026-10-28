@@ -149,6 +149,8 @@ def run_case(app: MainWindow, storage: str, text: str, label: str) -> bool:
 
 def main() -> int:
     app = MainWindow()
+    if getattr(app, "_prompt_job", None):
+        app.after_cancel(app._prompt_job)
     pump(app, 0.5)
 
     ok1 = run_case(app, "memory", TEXT, "Bai ngan (RAM)")
