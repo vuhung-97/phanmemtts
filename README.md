@@ -102,7 +102,8 @@ Thẻ nghỉ nhận `s` / `giây` / `ms`, số thập phân bằng dấu phẩy 
 
 ## Chuyển đổi hàng loạt
 
-`Công cụ → Chuyển đổi hàng loạt…` (`Ctrl+B`). Đặt marker ở **đầu dòng**:
+`Công cụ → Chuyển đổi hàng loạt…` (`Ctrl+B`). Dán trực tiếp hoặc **mở tệp `.docx` / `.txt`**;
+đặt marker ở **đầu dòng**:
 
 ```
 [P1] Bản tin sáng...

@@ -9,6 +9,7 @@ import customtkinter as ctk
 from audio import exporter
 from audio.speed import apply_speed
 from core.batch import BatchPart, parse_batch, part_filename, write_zip
+from core.document_reader import read_document
 from core.licensing import guard
 from engine.tts_engine import TtsEngine
 from ui import theme
@@ -21,7 +22,7 @@ class BatchPage(Page):
 
     def __init__(self, master, ctx, **kwargs) -> None:
         super().__init__(master, ctx, page_id="batch", title="Chuyển đổi hàng loạt",
-                         subtitle="Mỗi marker [P1], [P2]… ở đầu dòng là một tệp",
+                         subtitle="Mỗi marker [P1], [P2]… ở đầu dòng là một tệp · nhận .docx / .txt",
                          **kwargs)
         self._parts: list[BatchPart] = []
         self._includes: list[ctk.BooleanVar] = []
@@ -31,7 +32,7 @@ class BatchPage(Page):
                                 "error": "", "files": [], "zip": ""}
         self._parse_job = None
 
-        Button(self.header.actions, text="Mở .txt", variant="secondary",
+        Button(self.header.actions, text="Mở tệp", variant="secondary",
                command=self._open_file).pack(side="left", padx=(0, theme.SPACE_SM))
         self.start_btn = Button(self.header.actions, text="Xuất các phần",
                                 variant="primary", command=self._start)
@@ -227,19 +228,26 @@ class BatchPage(Page):
 
     def _open_file(self) -> None:
         path = filedialog.askopenfilename(
-            title="Mở văn bản", filetypes=[("Văn bản", "*.txt"), ("Tất cả", "*.*")],
+            title="Mở văn bản",
+            filetypes=[
+                ("Văn bản", "*.docx;*.txt"),
+                ("Word Document", "*.docx"),
+                ("Text Document", "*.txt"),
+                ("Tất cả", "*.*"),
+            ],
             parent=self,
         )
         if not path:
             return
         try:
-            content = Path(path).read_text(encoding="utf-8-sig")
-        except (OSError, UnicodeDecodeError) as exc:
+            content = read_document(path)
+        except Exception as exc:
             messagebox.showerror("Không đọc được tệp", str(exc), parent=self)
             return
         self.editor.delete("1.0", "end")
         self.editor.insert("1.0", content)
         self._parse()
+        self.ctx.shell.status(f"Đã mở: {path}", theme.SUCCESS)
 
     def _choose_folder(self) -> None:
         path = filedialog.askdirectory(title="Chọn thư mục lưu", parent=self)

@@ -11,7 +11,10 @@ def read_document(file_path: str | Path) -> str:
     if suffix == ".docx":
         return _read_docx(path)
     if suffix == ".txt":
-        return path.read_text(encoding="utf-8")
+        try:
+            return path.read_text(encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            return path.read_text(encoding="utf-8", errors="replace")
     raise ValueError(f"Định dạng không được hỗ trợ: {suffix}")
 
 

@@ -107,3 +107,31 @@ def test_write_zip(tmp_path):
     assert archive.exists()
     with zipfile.ZipFile(archive) as zf:
         assert sorted(zf.namelist()) == ["a.mp3", "b.mp3"]
+
+
+# ── Đọc kịch bản từ .docx / .txt ──
+
+def test_batch_from_docx(tmp_path):
+    from docx import Document
+
+    from core.document_reader import read_document
+
+    document = Document()
+    document.add_paragraph("[P1] Phần một.")
+    document.add_paragraph("Nội dung phần một.")
+    document.add_paragraph("[P2] Phần hai.")
+    path = tmp_path / "kich_ban.docx"
+    document.save(path)
+
+    parts = parse_batch(read_document(path))
+    assert [p.marker for p in parts] == ["P1", "P2"]
+    assert parts[0].text == "Phần một.\nNội dung phần một."
+
+
+def test_batch_from_txt_with_bom(tmp_path):
+    from core.document_reader import read_document
+
+    path = tmp_path / "kich_ban.txt"
+    path.write_text("[P1] A.\n[P2] B.", encoding="utf-8-sig")
+    assert [p.marker for p in parse_batch(read_document(path))] == ["P1", "P2"]
+
