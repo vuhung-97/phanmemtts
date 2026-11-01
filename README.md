@@ -25,31 +25,40 @@ Phiên bản hiện tại: **v3.4.0**
 - **Chuyển đổi hàng loạt**: marker `[P1]`, `[P2]`… → mỗi phần một tệp MP3/WAV, tuỳ chọn đóng gói `.zip`
 - **Điều khoản & quyền riêng tư**: đồng ý lần đầu, cam kết quyền sử dụng giọng khi tạo giọng mới
 - **Lịch sử bản dựng**: mỗi lần xuất file được lưu bản sao; nghe lại / mở thư mục / xoá ngay trong app
-- **Menu bar kiểu Windows**: `Tệp` / `Công cụ` / `Trợ giúp` với phím tắt (Ctrl+O, Ctrl+H, Alt+F/C/T); hai nút hành động chính `⚡ Chuyển đổi` + `💾 Xuất file` nằm cố định ở panel phải
+- **Giao diện SaaS**: header (logo + tên + version) + toolbar `Tệp` / `Trợ giúp` + sidebar chức năng (thu gọn được) + thanh phát dùng chung có waveform; mỗi chức năng là một trang riêng, chuyển qua lại không mất trạng thái
 - **Bản quyền offline (freemium)**: chưa kích hoạt vẫn **chuyển đổi + nghe thử** được, chỉ khoá **Xuất file** và **Ghép nhạc**; kích hoạt bằng mã 15 ký tự theo từng máy, có dùng thử 7 ngày
 
-## Menu
+## Giao diện
 
-| Menu | Mục | Phím tắt |
+```
+Header   : logo + tên phần mềm + version
+Toolbar  : Tệp · Trợ giúp        (bên phải: trạng thái + số giọng)
+Sidebar  : 5 chức năng chính + 4 công cụ + trạng thái bản quyền
+Nội dung : trang của chức năng đang chọn (cuộn được)
+Player   : waveform + ⏮ ▶ ⏭ + −5/+5 + thời lượng + tốc độ (hiện khi có audio)
+```
+
+| Sidebar | Nội dung | Phím tắt |
 |---|---|---|
-| **Tệp** | Mở văn bản… | `Ctrl+O` |
-| | Thoát | `Alt+F4` |
-| **Công cụ** | Ghép nhạc | |
-| | Chuyển đổi hàng loạt… | `Ctrl+B` |
-| | Lịch sử bản dựng | `Ctrl+H` |
-| | Từ điển phát âm… | `Ctrl+Shift+D` |
-| | Làm sạch văn bản | `Ctrl+Shift+K` |
-| | Cài đặt | |
-| **Trợ giúp** | Thông tin bản quyền | `Ctrl+Shift+L` |
-| | Hướng dẫn sử dụng | |
-| | Điều khoản sử dụng | |
-| | Giới thiệu | |
+| 📖 Đọc văn bản | Soạn văn bản, chọn giọng, chuyển đổi, xuất file | `Ctrl+1` |
+| 🎭 Hội thoại | Hội thoại nhiều giọng (bản 3.5.0) | `Ctrl+2` |
+| 🎵 Ghép nhạc | Intro / nhạc nền / outro, crossfade | `Ctrl+3` |
+| 📦 Hàng loạt | Marker `[P1]`, `[P2]`… → nhiều tệp / zip | `Ctrl+4` |
+| 🕘 Lịch sử | Bản dựng đã xuất, nghe lại / mở thư mục / xoá | `Ctrl+5` |
+| 🔤 Từ điển | Từ điển phát âm | `Ctrl+6` |
+| 🎙 Giọng đọc | Bật/tắt, nhập/xuất, tạo giọng | `Ctrl+7` |
+| ⚙ Cài đặt | Precision, threads, chế độ lưu | `Ctrl+8` |
+| 🔑 Bản quyền | Trạng thái, hạn dùng, nhập mã | `Ctrl+9` |
 
-`Alt+F` / `Alt+C` / `Alt+T` mở nhanh menu tương ứng. Khi đang chuyển đổi, các mục
-**Ghép nhạc**, **Chuyển đổi hàng loạt** và **Cài đặt** bị khoá (đổi cấu hình giữa lúc
-đọc sẽ nạp lại model); **Lịch sử**, **Từ điển**, **Làm sạch** vẫn mở được.
+| Toolbar | Mục | Phím tắt |
+|---|---|---|
+| **Tệp** | Mở văn bản… · Mở thư mục dữ liệu… · Thoát | `Ctrl+O` / `Alt+F4` |
+| **Trợ giúp** | Hướng dẫn sử dụng · Điều khoản sử dụng · Thông tin bản quyền · Giới thiệu | `Ctrl+Shift+L` |
 
-Thanh **Chèn nhanh** phía trên khung soạn thảo có thêm 2 nút: **📖 Từ điển** và
+`Alt+F` / `Alt+T` mở nhanh menu Tệp / Trợ giúp. Khi đang chuyển đổi, sidebar và menu bị
+khoá (trừ **Lịch sử**); nút chính trong trang đổi thành `⏹ Dừng`.
+
+Thanh **Chèn nhanh** trong trang Đọc văn bản có: thẻ cảm xúc, thẻ nghỉ, **📖 Từ điển**,
 **🧹 Làm sạch**.
 
 ## Thẻ trong văn bản
@@ -202,6 +211,7 @@ trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút t�
 
 - Python 3.10+
 - Windows 10/11
+- Màn hình tối thiểu **1024×700**
 - ~1GB RAM (bài dài dùng chế độ đĩa nên RAM gần như không đổi)
 
 ## Chạy thử
@@ -211,7 +221,7 @@ trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút t�
 .venv\Scripts\python.exe packaging\probe_p0.py   # probe lõi TTS + store RAM/đĩa
 .venv\Scripts\python.exe packaging\probe_ui_flow.py  # probe luồng chuyển đổi trong UI
 .venv\Scripts\python.exe packaging\probe_tags_history.py  # probe thẻ cảm xúc/nghỉ + lịch sử
-.venv\Scripts\python.exe packaging\probe_menu_toolbar.py  # probe menu bar + panel hành động
+.venv\Scripts\python.exe packaging\probe_shell.py          # probe shell SaaS (header/toolbar/sidebar/player)
 .venv\Scripts\python.exe packaging\probe_license.py       # probe kích hoạt + freemium + chống clone
 .venv\Scripts\python.exe packaging\probe_editor_tools.py  # probe làm sạch + từ điển phát âm
 .venv\Scripts\python.exe packaging\probe_batch.py         # probe xuất hàng loạt [P1]/[P2] + zip

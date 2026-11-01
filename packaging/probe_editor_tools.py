@@ -58,18 +58,8 @@ def main() -> int:
     app.geometry("1200x740")
     pump(app, 1.2)
 
-    # ── 1. Nút + menu ──
+    # ── 1. Sidebar + TagBar + phím tắt ──
     tb = app.topbar
-    labels = [
-        tb.menus["tools"].entrycget(i, "label")
-        for i in range(tb.menus["tools"].index("end") + 1)
-        if tb.menus["tools"].type(i) == "command"
-    ]
-    print("[menu] Cong cu:", labels, flush=True)
-    for want in ("Từ điển phát âm…", "Làm sạch văn bản"):
-        if want not in labels:
-            print(f"[menu] LOI: thieu {want}", flush=True)
-            ok = False
     buttons = {
         "dict": bool(app.tag_bar.dict_btn and app.tag_bar.dict_btn.winfo_exists()),
         "clean": bool(app.tag_bar.clean_btn and app.tag_bar.clean_btn.winfo_exists()),
@@ -82,6 +72,7 @@ def main() -> int:
             ("<Control-Shift-D>", "<Control-Shift-K>")}
     print("[key]", keys, flush=True)
     if not all(keys.values()):
+        print("[key] LOI: thieu phim tat Tu dien / Lam sach", flush=True)
         ok = False
 
     # ── 2. Làm sạch ──

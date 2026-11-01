@@ -1,47 +1,88 @@
+"""Bảng màu & token giao diện — palette SaaS (v3.5.0).
+
+Giữ NGUYÊN tên token cũ (BG, SURFACE, ACCENT, TEXT_DIM…) để các module đang
+dùng không phải sửa, chỉ đổi giá trị sang palette mới.
+"""
+
 from __future__ import annotations
 
-# ── Light modern pastel theme (ban cho truyen thong ban hang) ──
-# Theme cu (dark navy) duoc luu tai: theme_darknavy_backup.py
-BG = "#f7f8fa"
-SURFACE = "#ffffff"
-SIDEBAR_BG = "#eef1f6"
-SIDEBAR_DIVIDER = "#dfe3ec"
-DIALOG_BG = "#f7f8fa"
-HOVER_BG = "#e8ecfb"
-ACCENT = "#7c8cf8"
-ACCENT_HOVER = "#5f70ea"
-TEXT = "#1b1d28"
-TEXT_DIM = "#6f7590"
-HIGHLIGHT_BG = "#e4dbff"
-HIGHLIGHT_FG = "#1b1d28"
-ERROR = "#e5484d"
-SUCCESS = "#2fbf71"
-SUCCESS_HOVER = "#259c5c"
-WAVE_DIM = "#5b6480"
+# ── Nền & bề mặt ──
+BG = "#F6F7F9"
+SURFACE = "#FFFFFF"
+SURFACE_2 = "#F9FAFB"
+SIDEBAR_BG = "#FFFFFF"
+SIDEBAR_DIVIDER = "#E5E7EB"
+BORDER = "#E5E7EB"
+DIALOG_BG = "#F6F7F9"
+HOVER_BG = "#F3F4F6"
 
-# Nen audio timeline (trang main + dialog ghep nhac)
-TIMELINE_BG = "#dce6f7"
-TIMELINE_TEXT = "#1b1d28"
-TIMELINE_BORDER = "#c3cde4"
-TIMELINE_DIM = "#9aa9c7"
-TIMELINE_HANDLE = "#f0656e"
+# ── Màu nhấn ──
+ACCENT = "#2563EB"
+ACCENT_HOVER = "#1D4ED8"
+PRIMARY = ACCENT
+PRIMARY_HOVER = ACCENT_HOVER
+PRIMARY_SOFT = "#EFF6FF"
 
-# Nut dac
-BUTTON_BG = "#ffffff"
-BUTTON_HOVER = "#e8ecfb"
+# ── Chữ ──
+TEXT = "#111827"
+TEXT_DIM = "#6B7280"
+TEXT_MUTED = TEXT_DIM
+HIGHLIGHT_BG = "#DBEAFE"
+HIGHLIGHT_FG = "#111827"
 
-# Nut dac (nen toi, chu sang) — dung cho nut chinh trong dialog
-DARK_BUTTON_BG = "#1b1d28"
-DARK_BUTTON_HOVER = "#34374d"
-DARK_BUTTON_TEXT = "#ffffff"
+# ── Trạng thái ──
+ERROR = "#DC2626"
+DANGER = ERROR
+DANGER_HOVER = "#B91C1C"
+DANGER_SOFT = "#FEE2E2"
+SUCCESS = "#16A34A"
+SUCCESS_HOVER = "#15803D"
+SUCCESS_SOFT = "#DCFCE7"
+WARNING = "#D97706"
+WARNING_SOFT = "#FEF3C7"
 
-# O nhap / combobox: nen trang, chu dam
-INPUT_BG = "#ffffff"
-INPUT_TEXT = "#1b1d28"
-INPUT_PLACEHOLDER = "#9aa0b4"
+# ── Waveform / timeline ──
+WAVE_DIM = "#BFDBFE"
+WAVE_PLAYED = "#2563EB"
+TIMELINE_BG = "#EEF2F7"
+TIMELINE_TEXT = "#111827"
+TIMELINE_BORDER = "#E5E7EB"
+TIMELINE_DIM = "#94A3B8"
+TIMELINE_HANDLE = "#2563EB"
 
+# ── Nút ──
+BUTTON_BG = "#FFFFFF"
+BUTTON_HOVER = "#F3F4F6"
+DARK_BUTTON_BG = "#111827"
+DARK_BUTTON_HOVER = "#374151"
+DARK_BUTTON_TEXT = "#FFFFFF"
+
+# ── Ô nhập ──
+INPUT_BG = "#FFFFFF"
+INPUT_TEXT = "#111827"
+INPUT_PLACEHOLDER = "#9CA3AF"
+
+# ── Chữ ──
 FONT_FAMILY = "Segoe UI"
 FONT_SIZE = 13
 TITLE_SIZE = 15
+
+# ── Kích thước shell ──
+HEADER_HEIGHT = 56
+TOOLBAR_HEIGHT = 40
+SIDEBAR_WIDTH = 232
+SIDEBAR_COLLAPSED = 64
+PLAYER_HEIGHT = 108
+
+# ── Bo góc / khoảng cách ──
+RADIUS_SM = 8
+RADIUS_MD = 10
+RADIUS_LG = 14
+SPACE_XS = 4
+SPACE_SM = 8
+SPACE_MD = 12
+SPACE_LG = 16
+SPACE_XL = 24
+SPACE_2XL = 32
 
 SYNTH_STATUS_PREFIX = "Đang chuyển đổi"

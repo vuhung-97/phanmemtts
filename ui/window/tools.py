@@ -45,6 +45,8 @@ class ToolsMixin:
         names = [m.display_name for m in visible]
         selected = prev if prev in names else names[0]
         self.topbar.set_voices(names, selected)
+        if hasattr(self, "shell"):
+            self.shell.set_voices(len(self._all_models), len(self._all_models))
         self.topbar.set_status(
             f"{len(names)}/{len(self._all_models)} giọng sẵn sàng.", theme.TEXT_DIM)
         return self._all_models

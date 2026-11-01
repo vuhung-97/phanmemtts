@@ -19,7 +19,8 @@ class SyncTextbox(ctk.CTkTextbox):
         kwargs.setdefault("text_color", theme.INPUT_TEXT)
         kwargs.setdefault("insertwidth", 2)
         kwargs.setdefault("border_width", 1)
-        kwargs.setdefault("border_color", theme.SURFACE)   # khung #283b5b
+        kwargs.setdefault("border_color", theme.BORDER)
+        kwargs.setdefault("corner_radius", theme.RADIUS_SM)
         kwargs.setdefault("undo", True)
         kwargs.setdefault("autoseparators", True)
         kwargs.setdefault("maxundo", -1)

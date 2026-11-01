@@ -554,79 +554,93 @@ UI đã cảnh báo; khuyến nghị vẫn dùng FP32.
 
 **Bỏ khỏi kế hoạch:** 2.6 (đọc .srt/.vtt + lồng tiếng), 4.2 (đa nền tảng Linux/macOS).
 **Đóng mục:** 2.2 (lịch sử — đã xong từ 3.2.0), 2.8 (Model Manager — chỉ giữ FP32/INT8 trong Cài đặt).
-**Còn lại cho 3.5.0:** 4.1 hội thoại nhiều giọng.
+**Còn lại:** 4.1 hội thoại nhiều giọng — chuyển vào `v3.5.0` (xem mục 14).
 
 ### 13.2 Kết quả
 
 | Hạng mục | Kết quả |
 |---|---|
-| Pipeline văn bản | core/text_pipeline.py: quote -> **từ điển** -> normalizer số -> dấu câu; 	ts_engine gọi chung |
-| Từ điển (2.3) | core/dictionary.py + ui/components/dictionary_dialog.py; JSON trong data_dir(), nguyên từ Unicode, dài trước ngắn, không đụng thẻ, cache theo mtime |
-| Làm sạch (2.5) | core/text_processor.clean_for_reading(); bỏ dòng trống, gộp dòng giữa câu, giữ bullet/số/công thức/thẻ; hoàn tác Ctrl+Z |
-| Hàng loạt (2.7) | core/batch.py + ui/components/batch_dialog.py; marker [P1].., P0 cho phần đầu, tên tệp an toàn + chống trùng, xuất .zip |
-| Điều khoản (4.3) | DIEU-KHOAN.md, PRIVACY.md, THIRD-PARTY-NOTICES.md; 	erms_dialog.py bắt buộc đồng ý lần đầu; cam kết khi tạo giọng |
-| Trần PyArmor | Tách oice_import_dialog.py (17,2 KB) khỏi oice_manager.py (12,3 KB); tách TopBar._build_body(); check_code_size đạt (code object lớn nhất 5.676 B) |
-| Menu & phím tắt | Công cụ: Hàng loạt (Ctrl+B), Từ điển (Ctrl+Shift+D), Làm sạch (Ctrl+Shift+K); Trợ giúp: Điều khoản; TagBar thêm 📖/🧹 |
+| Pipeline văn bản | `core/text_pipeline.py`: quote -> **từ điển** -> normalizer số -> dấu câu; `tts_engine` gọi chung |
+| Từ điển (2.3) | `core/dictionary.py` + `ui/components/dictionary_dialog.py`; JSON trong `data_dir()`, nguyên từ Unicode, dài trước ngắn, không đụng thẻ, cache theo mtime |
+| Làm sạch (2.5) | `core/text_processor.clean_for_reading()`; bỏ dòng trống, gộp dòng giữa câu, giữ bullet/số/công thức/thẻ; hoàn tác `Ctrl+Z` |
+| Hàng loạt (2.7) | `core/batch.py` + `ui/components/batch_dialog.py`; marker `[P1]..`, P0 cho phần đầu, tên tệp an toàn + chống trùng, xuất `.zip` |
+| Điều khoản (4.3) | `DIEU-KHOAN.md`, `PRIVACY.md`, `THIRD-PARTY-NOTICES.md`; `terms_dialog.py` bắt buộc đồng ý lần đầu; cam kết khi tạo giọng |
+| Trần PyArmor | Tách `voice_import_dialog.py` (17,2 KB) khỏi `voice_manager.py` (12,3 KB); tách `TopBar._build_body()`; `check_code_size` đạt (code object lớn nhất 5.676 B) |
+| Menu & phím tắt | Công cụ: Hàng loạt (`Ctrl+B`), Từ điển (`Ctrl+Shift+D`), Làm sạch (`Ctrl+Shift+K`); Trợ giúp: Điều khoản; TagBar thêm 📖/🧹 |
 
 ### 13.3 File mới
 
-`
-core/text_pipeline.py              core/dictionary.py            core/batch.py
-ui/components/dictionary_dialog.py ui/components/batch_dialog.py  ui/components/terms_dialog.py
+```
+core/text_pipeline.py              core/dictionary.py             core/batch.py
+ui/components/dictionary_dialog.py ui/components/batch_dialog.py   ui/components/terms_dialog.py
 ui/components/voice_import_dialog.py
 DIEU-KHOAN.md  PRIVACY.md  THIRD-PARTY-NOTICES.md
 tests/test_dictionary.py  tests/test_clean_text.py  tests/test_batch.py  tests/test_settings.py
 packaging/probe_editor_tools.py  packaging/probe_batch.py  packaging/probe_terms.py
 docs/Huong_dan_su_dung_V3_v3.4.0.docx
-`
+```
 
 ### 13.4 File sửa
 
 | File | Thay đổi |
 |---|---|
-| engine/tts_engine.py | dùng core.text_pipeline.prepare_for_tts |
-| core/text_processor.py | thêm clean_for_reading() |
-| ui/components/sync_textbox.py | bật undo, 
-eplace_all(), undo(), reset stack khi mở file |
-| ui/components/tag_bar.py | 2 nút 📖 Từ điển / 🧹 Làm sạch |
-| ui/components/topbar.py | menu + phím tắt mới, _build_body() (giảm code object) |
-| ui/window/tools.py | _open_dictionary, _clean_text, _open_batch_dialog, _open_terms |
-| ui/window/license_ui.py | chặn lần chạy đầu bằng điều khoản, _terms_accepted, _ask_terms |
-| ui/config.py | 	erms_accepted_at, 	erms_version |
-| ui/main_window.py | đấu dây callback mới |
-| uild_v3.bat | copy HDSD 3.4.0 (điều khoản đã có sẵn bước 9) |
-| docs/gen_hdsd_v3.py | chương 8 mới + đổi tên/phiên bản |
-| README.md, ersion.py | 3.4.0 |
+| `engine/tts_engine.py` | dùng `core.text_pipeline.prepare_for_tts` |
+| `core/text_processor.py` | thêm `clean_for_reading()` |
+| `ui/components/sync_textbox.py` | bật undo, `replace_all()`, `undo()`, reset stack khi mở file |
+| `ui/components/tag_bar.py` | 2 nút 📖 Từ điển / 🧹 Làm sạch |
+| `ui/components/topbar.py` | menu + phím tắt mới, `_build_body()` (giảm code object) |
+| `ui/window/tools.py` | `_open_dictionary`, `_clean_text`, `_open_batch_dialog`, `_open_terms` |
+| `ui/window/license_ui.py` | chặn lần chạy đầu bằng điều khoản, `_terms_accepted`, `_ask_terms` |
+| `ui/config.py` | `terms_accepted_at`, `terms_version` |
+| `ui/main_window.py` | đấu dây callback mới |
+| `build_v3.bat` | copy HDSD 3.4.0 (điều khoản đã có sẵn bước 9) |
+| `docs/gen_hdsd_v3.py` | chương 8 mới + đổi tên/phiên bản |
+| `README.md`, `version.py` | 3.4.0 |
 
 ### 13.5 Kiểm thử
 
 | Bộ | Kết quả |
 |---|---|
-| pytest | **210/210 pass** (148 cũ + 62 mới) |
-| probe_menu_toolbar | OK (header 176px @980/1100/1200/1440, menu 6 mục Công cụ) |
-| probe_tags_history | OK |
-| probe_license | OK |
-| probe_editor_tools (mới) | OK — làm sạch đúng, undo đúng, từ điển áp dụng/tắt đúng, vô hiệu audio cũ |
-| probe_batch (mới) | OK — 3 phần -> 3 MP3 + ai.zip (model thật) |
-| probe_terms (mới) | OK — nút đồng ý khoá trước khi tick, ghi pp_settings.json, chặn tạo giọng khi chưa cam kết |
-| probe_ui_flow | OK (3 ca; bài dài 36 câu / 138,4 s, RAM 1.003 MB) |
-| check_code_size | OK — 67 file, code object lớn nhất 5.676 B (< 32.768) |
+| `pytest` | **210/210 pass** (148 cũ + 62 mới) |
+| `probe_menu_toolbar` | OK (header 176px @980/1100/1200/1440, menu 6 mục Công cụ) |
+| `probe_tags_history` | OK |
+| `probe_license` | OK |
+| `probe_editor_tools` (mới) | OK — làm sạch đúng, undo đúng, từ điển áp dụng/tắt đúng, vô hiệu audio cũ |
+| `probe_batch` (mới) | OK — 3 phần -> 3 MP3 + `bai.zip` (model thật) |
+| `probe_terms` (mới) | OK — nút đồng ý khoá trước khi tick, ghi `app_settings.json`, chặn tạo giọng khi chưa cam kết |
+| `probe_ui_flow` | OK (3 ca; bài dài 36 câu / 138,4 s, RAM 1.003 MB) |
+| `check_code_size` | OK — 67 file, code object lớn nhất 5.676 B (< 32.768) |
 
 ### 13.6 Lỗi UI đã phát hiện & sửa sau build đầu
 
 **Triệu chứng:** header hiện **lặp đôi toàn bộ nút** (menu, Mở file, giọng đọc, Tốc độ, Test, Chuyển đổi, Xuất file).
 
-**Nguyên nhân:** khi tách TopBar._build_body(), đoạn cắt chuỗi khớp nhầm dòng comment 8 khoảng trắng
-nên thân method bị **rỗng**, còn khối dựng panel vẫn nằm trong __init__ → mỗi widget được tạo 2 lần
-(_build_menubar() cũng gọi 2 lần). Comment 4 khoảng trắng không kết thúc block Python nên file vẫn biên dịch được,
+**Nguyên nhân:** khi tách `TopBar._build_body()`, đoạn cắt chuỗi khớp nhầm dòng comment 8 khoảng trắng
+nên thân method bị **rỗng**, còn khối dựng panel vẫn nằm trong `__init__` -> mỗi widget được tạo 2 lần
+(`_build_menubar()` cũng gọi 2 lần). Comment 4 khoảng trắng không kết thúc block Python nên file vẫn biên dịch được,
 không test nào bắt được.
 
-**Đã sửa:** khôi phục đúng thân _build_body từ git show HEAD:ui/components/topbar.py;
-thêm kiểm tra chống trùng vào probe_menu_toolbar (6 widget thân header, 3 nút menu, đủ widget bắt buộc).
+**Đã sửa:** khôi phục đúng thân `_build_body` từ `git show HEAD:ui/components/topbar.py`;
+thêm kiểm tra chống trùng vào `probe_menu_toolbar` (6 widget thân header, 3 nút menu, đủ widget bắt buộc).
 Xác nhận: header **176px** @980/1100/1200/1440, ảnh chụp header không còn lặp.
 
 ### 13.7 Còn lại
 
-- Build phát hành 3.4.0 + gói cập nhật nhỏ (uild_v3.bat -> probe_obfuscated_build.py).
+- Build phát hành `v3.4.0` + gói cập nhật nhỏ (`build_v3.bat` -> `probe_obfuscated_build.py`).
 - Nội dung điều khoản/privacy cần **chủ phần mềm duyệt lại** trước khi phát hành.
-- 3.5.0: 4.1 hội thoại nhiều giọng (core/dialogue.py + dialog + dialogue_cast.json).
+- Chuyển sang đợt tiếp theo: xem mục 14.
+
+---
+
+## 14. KẾ HOẠCH `v3.5.0` (đã chốt, chưa triển khai)
+
+Chi tiết trong 2 tài liệu riêng:
+
+| Tài liệu | Nội dung |
+|---|---|
+| `plan_ui_saas.md` | Đổi toàn bộ UI sang mô hình SaaS: header 56 + toolbar 40 + sidebar 232/64 + router page + player chung có waveform; palette mới; 9 dialog cũ thành page; **gộp toàn bộ vào 3.5.0** |
+| `plan_dialogue.md` | Hội thoại nhiều giọng thành `DialoguePage` (parse `Tên: nội dung`, lỗi dòng thiếu tên, tự nhớ giọng, `set_voice`, timeline, xuất file) |
+
+- **Không phát hành `3.6.0`**; `4.0.0` để dành cho đợt sau khi có nhu cầu.
+- Tổng ước lượng `3.5.0`: ~23 ngày (UI) + phần hội thoại nằm trong P4 (~4 ngày).
+- Mục 4.1 ở bảng 11 chuyển từ "đợt tiếp theo" sang **"nằm trong 3.5.0 theo `plan_dialogue.md`"**.

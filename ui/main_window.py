@@ -23,11 +23,9 @@ from core.tags import find_unknown_tags
 from engine.model_manager import ModelManager
 from ui import theme
 from ui.config import load_settings
-from ui.components.playback_bar import PlaybackBar
-from ui.components.sync_textbox import SyncTextbox
-from ui.components.tag_bar import TagBar
-from ui.components.topbar import TopBar
-from ui.components.waveform_timeline import WaveformTimeline
+from ui.pages.placeholder_page import PlaceholderPage
+from ui.pages.text_page import TextPage
+from ui.shell.app_shell import AppShell
 from ui.window import (ConvertMixin, ExportMixin, LicenseMixin,
                        MessagesMixin, ToolsMixin)
 
@@ -48,8 +46,8 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
     def __init__(self) -> None:
         super().__init__()
         self.title(f"{version.__app_name__} - v{version.__version__}")
-        self.geometry("1200x740")
-        self.minsize(980, 600)
+        self.geometry("1280x800")
+        self.minsize(1024, 700)
         ctk.set_appearance_mode("light")
         self.configure(fg_color=theme.BG)
 
@@ -108,65 +106,71 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
 
     def _build_ui(self) -> None:
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=0)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
-        # ── TopBar (header ngang) ──
-        self.topbar = TopBar(
+        self.shell = AppShell(
             self,
-            on_open_file=self._open_file,
-            on_voice_change=self._on_voice_change,
-            on_speed_change=self._on_speed_change,
-            on_convert=self._start_convert,
-            on_stop=self._stop_convert,
-            on_export=self._start_export,
-            on_manage_voices=self._open_voice_manager,
-            on_test_voice=self._test_voice,
-            on_merge=self._open_merge_dialog,
-            on_batch=self._open_batch_dialog,
-            on_settings=self._open_settings,
-            on_history=self._open_history,
-            on_help=self._open_help,
-            on_about=self._show_about,
-            on_license=self._open_license_dialog,
-            on_dictionary=self._open_dictionary,
-            on_clean=self._clean_text,
-            on_terms=self._open_terms,
-            on_close=self._on_close,
+            app_name=version.__app_name__,
+            version=version.__version__,
+            toolbar_callbacks={
+                "open_file": self._open_file,
+                "help": self._open_help,
+                "terms": self._open_terms,
+                "license": self._open_license_dialog,
+                "about": self._show_about,
+                "close": self._on_close,
+            },
+            on_navigate=self._navigate,
+            player_callbacks={
+                "toggle": self._toggle_play,
+                "seek": self._seek,
+                "prev": self._prev_sentence,
+                "next": self._next_sentence,
+                "speed": self._on_speed_change,
+            },
         )
-        self.topbar.grid(row=0, column=0, sticky="ew")
+        self.shell.grid(row=0, column=0, sticky="nsew")
 
-        # ── Main area (full-width) ──
-        main = ctk.CTkFrame(self, fg_color="transparent")
-        main.grid(row=1, column=0, sticky="nsew", padx=14, pady=(0, 14))
-        main.grid_rowconfigure(0, weight=0)
-        main.grid_rowconfigure(1, weight=1)
-        main.grid_rowconfigure(2, weight=0)
-        main.grid_rowconfigure(3, weight=0)
-        main.grid_columnconfigure(0, weight=1)
+        self.text_page = TextPage(self.shell.content, self)
+        self.shell.register(self.text_page)
+        self.shell.register(PlaceholderPage(
+            self.shell.content, self, page_id="dialogue", title="Hội thoại",
+            note="Hội thoại nhiều giọng sẽ có ở bước P4 của kế hoạch 3.5.0."))
 
-        self.tag_bar = TagBar(
-            main,
-            on_insert=self._insert_tag,
-            on_dictionary=self._open_dictionary,
-            on_clean=self._clean_text,
-        )
-        self.tag_bar.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+        # ── Alias tương thích mixin/probe cũ ──
+        self.topbar = self.text_page
+        self.textbox = self.text_page.editor
+        self.tag_bar = self.text_page.tag_bar
+        self.playback_bar = self.shell.player_bar
+        self.waveform_timeline = self.shell.player_bar.waveform
 
-        self.textbox = SyncTextbox(main, on_text_changed=self._on_text_changed)
-        self.textbox.grid(row=1, column=0, sticky="nsew")
+        self.shell.show("text")
+        self.shell.player_bar.set_visible(False)
 
-        self.waveform_timeline = WaveformTimeline(main)
-        self.waveform_timeline.grid(row=2, column=0, sticky="ew", pady=(6, 0))
+        self.bind("<Control-h>", lambda _e: self._navigate("history"))
+        self.bind("<Control-b>", lambda _e: self._navigate("batch"))
 
-        self.playback_bar = PlaybackBar(
-            main,
-            on_toggle=self._toggle_play,
-            on_seek=self._seek,
-            on_prev_sentence=self._prev_sentence,
-            on_next_sentence=self._next_sentence,
-        )
-        self.playback_bar.grid(row=3, column=0, sticky="ew", pady=(6, 0))
+    # ── Điều hướng sidebar ──
+
+    def _navigate(self, page_id: str) -> None:
+        """Mở page mới; chức năng chưa port thì mở dialog cũ (P0)."""
+        if self.shell.show(page_id):
+            return
+        legacy = {
+            "merge": self._open_merge_dialog,
+            "batch": self._open_batch_dialog,
+            "history": self._open_history,
+            "dictionary": self._open_dictionary,
+            "voices": self._open_voice_manager,
+            "settings": self._open_settings,
+            "license": self._open_license_dialog,
+        }
+        handler = legacy.get(page_id)
+        if handler is not None:
+            handler()
+        current = self.shell.current_page
+        if current is not None:
+            self.shell.sidebar.set_active(current.page_id)
 
     # ── Callbacks từ topbar ──
 
@@ -266,6 +270,9 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         self.playback_bar.set_duration(0.0)
         self.playback_bar.set_playing(False)
         self.waveform_timeline.clear()
+        if hasattr(self, "shell"):
+            self.shell.player_bar.clear()
+            self.shell.player_bar.set_visible(False)
         self.topbar.set_status(status, theme.TEXT_DIM)
 
     def _release_stores(self) -> None:
@@ -301,6 +308,8 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
+        if hasattr(self, "shell"):
+            self.shell.set_busy(busy)
         self.topbar.set_busy(busy)
 
     def _tick(self) -> None:

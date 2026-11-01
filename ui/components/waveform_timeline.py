@@ -39,6 +39,8 @@ class WaveformTimeline(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
 
         self._canvas.bind("<Configure>", lambda _: self._redraw())
+        self._on_seek_click = None
+        self._canvas.bind("<Button-1>", self._clicked)
 
     # ── Vẽ nền bo góc + viền (arc chuẩn, 4 góc đối xứng cùng bán kính) ──
 
@@ -122,6 +124,17 @@ class WaveformTimeline(ctk.CTkFrame):
         """Di chuyển playhead (gọi từ tick mỗi ~40ms)."""
         self._position = max(0.0, seconds)
         self._redraw()
+
+    def bind_seek(self, callback) -> None:
+        """Gắn callback khi người dùng bấm lên waveform (giây)."""
+        self._on_seek_click = callback
+
+    def _clicked(self, event) -> None:
+        if self._on_seek_click is None or self._duration <= 0:
+            return
+        width = max(1, self._canvas.winfo_width())
+        fraction = min(max(event.x / width, 0.0), 1.0)
+        self._on_seek_click(fraction * self._duration)
 
     def clear(self) -> None:
         self._peaks = None
