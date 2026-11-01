@@ -530,6 +530,20 @@ Tổng `pytest` lên **236 test**.
 
 **Chưa làm trong P5:** DialogShell dùng chung cho 3 modal (Kích hoạt / Điều khoản / Tạo giọng) — giữ nguyên giao diện hiện tại, dời sang 4.0.0 cùng dark mode.
 
+### P5.1 — sửa lỗi sau kiểm thử (01/11/2026)
+
+| Lỗi | Nguyên nhân | Sửa |
+|---|---|---|
+| Waveform Hội thoại/Ghép nhạc trắng xoá, đứng im | `PlayerBar.set_position()` không cập nhật waveform; cột chưa phát hardcode `#e6eefb` gần trùng nền mới | `set_position` gọi `waveform.update_position`; cột dùng `WAVE_DIM`/`WAVE_PLAYED`; playhead vẽ cả ở 0 s; bỏ cập nhật trùng trong `_tick`/`messages` |
+| Hội thoại không nhập được `.docx` | Page chỉ có “Dán mẫu” | Thêm nút **Mở tệp** (`.docx/.txt`), tách `load_script_file()` để test |
+| Lịch sử chỉ có tab Đọc văn bản | Hàng loạt/Ghép nhạc không gọi `history.add` | Hàng loạt ghi từng file audio; Ghép nhạc ghi 1 mục; cả hai cập nhật `_export_history` (“Gần đây”) |
+| Hội thoại (đã có lịch sử) | — | Bổ sung cập nhật `_export_history`; probe xác nhận |
+
+- `probe_dialogue`, `probe_merge_page`, `probe_batch` thêm kiểm tra waveform + lịch sử, tất cả **OK**.
+- `pytest` **236/236**; `probe_shell/pages/tags_history/license/ui_flow` **OK**.
+- Rebuild `3.5.0`: 84 file, `update_3.5.0.zip` **29,96 MB**, `probe_obfuscated_build` **OK**.
+- HDSD bổ sung mục “Mở tệp .docx/.txt” và “Lịch sử mọi tab”.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

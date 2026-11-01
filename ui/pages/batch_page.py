@@ -326,6 +326,16 @@ class BatchPage(Page):
                 name = part_filename(part, base, f".{ext}", used)
                 out = exporter.export(waveform, sr, out_dir / name)
                 files.append(str(out))
+                try:
+                    self.ctx._history.add(
+                        out, voice=model.display_name, speed=speed,
+                        duration=(len(waveform) / sr if sr else 0.0),
+                        chars=part.char_count, preview=part.text)
+                    history_list = self.ctx._export_history
+                    history_list.append(str(out))
+                    del history_list[:-10]
+                except Exception:
+                    pass
                 self._progress.update(index=i, files=list(files))
             if not files:
                 self._progress.update(text="Không tạo được tệp nào (văn bản rỗng?).",

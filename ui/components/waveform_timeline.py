@@ -174,7 +174,8 @@ class WaveformTimeline(ctk.CTkFrame):
         for i, peak in enumerate(self._peaks):
             x = i * W / n
             h = max(1, peak * (wave_h - 8))
-            color = theme.TIMELINE_TEXT if x <= playhead_px else "#e6eefb"
+            color = (theme.WAVE_PLAYED if x <= playhead_px
+                     else theme.WAVE_DIM)
             c.create_rectangle(x, mid_y - h / 2, x + bar_w, mid_y + h / 2,
                                fill=color, outline="")
 
@@ -185,13 +186,11 @@ class WaveformTimeline(ctk.CTkFrame):
                 c.create_line(sx, 0, sx, wave_h + 4, fill=theme.TIMELINE_DIM,
                               width=1)
 
-        # Playhead
-        if playhead_px > 0:
-            c.create_line(playhead_px, 0, playhead_px, wave_h + 6,
-                          fill="#0d1728", width=2)
-            # Triangle nhỏ trên đầu
-            c.create_polygon(playhead_px - 4, 0, playhead_px + 4, 0,
-                             playhead_px, 7, fill="#0d1728", outline="")
+        # Playhead (vẽ cả khi ở 0s để biết bản nhạc bắt đầu từ đâu)
+        c.create_line(playhead_px, 0, playhead_px, wave_h + 6,
+                      fill=theme.TIMELINE_HANDLE, width=2)
+        c.create_polygon(playhead_px - 4, 0, playhead_px + 4, 0,
+                         playhead_px, 7, fill=theme.TIMELINE_HANDLE, outline="")
 
         # Time ruler
         self._draw_ruler(c, W, H)

@@ -97,6 +97,17 @@ def main() -> int:
         print("[preview] LOI: toc do phai bi khoa o trang ghep nhac")
         ok = False
 
+    # ── Waveform chạy theo thời gian ──
+    page._preview_player.stop()
+    bar.set_position(0.3)
+    app.update()
+    print("[wave] peaks:", None if bar.waveform._peaks is None
+          else len(bar.waveform._peaks), "| position:",
+          bar.waveform._position)
+    if bar.waveform._peaks is None or abs(bar.waveform._position - 0.3) > 0.05:
+        print("[wave] LOI: waveform khong cap nhat vi tri")
+        ok = False
+
     # ── Xuất file ──
     out = _TMP / "merged.mp3"
     config = page._build_config()
@@ -110,6 +121,14 @@ def main() -> int:
     print("[export] file:", out.name, size, "bytes")
     if size <= 0:
         print("[export] LOI: khong tao duoc file")
+        ok = False
+
+    # ── Lịch sử sau khi ghép ──
+    print("[history] so ban:", len(app._history.entries),
+          "| moi nhat:", app._history.entries[0].voice
+          if app._history.entries else "-")
+    if not app._history.entries or app._history.entries[0].voice != "Ghép nhạc":
+        print("[history] LOI: khong ghi lich su ghep nhac")
         ok = False
 
     # ── Chuyển trang qua lại ──

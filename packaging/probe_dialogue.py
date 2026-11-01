@@ -85,6 +85,22 @@ def main() -> int:
         print("[parse] LOI: chua gan du giong")
         ok = False
 
+    # ── Mở từ .docx ──
+    from docx import Document
+
+    doc = Document()
+    for line in SCRIPT.splitlines():
+        doc.add_paragraph(line)
+    docx_path = _TMP / "kich_ban.docx"
+    doc.save(docx_path)
+    page.load_script_file(str(docx_path))
+    pump(app, 0.2)
+    print("[docx] speakers:", page._script.speakers,
+          "| ok:", page._script.ok)
+    if page._script.speakers != ["An", "Bình"] or not page._script.ok:
+        print("[docx] LOI: khong doc duoc kich ban .docx")
+        ok = False
+
     # ── Nháp tự lưu ──
     page._on_text_changed()
     pump(app, 0.9)
@@ -130,6 +146,32 @@ def main() -> int:
         if size <= 0:
             print("[export] LOI: file rong")
             ok = False
+
+    # ── Waveform chạy theo thời gian ──
+    bar = app.shell.player_bar
+    page._player.stop()
+    bar.set_position(0.5)
+    app.update()
+    print("[wave] peaks:", None if bar.waveform._peaks is None
+          else len(bar.waveform._peaks), "| position:",
+          bar.waveform._position)
+    if bar.waveform._peaks is None or abs(bar.waveform._position - 0.5) > 0.05:
+        print("[wave] LOI: waveform khong cap nhat vi tri")
+        ok = False
+
+    # ── Lịch sử sau khi xuất ──
+    import ui.pages.dialogue_page as dp
+
+    out2 = _TMP / "export_test.mp3"
+    dp.filedialog.asksaveasfilename = lambda **_kw: str(out2)
+    before = len(app._history.entries)
+    page._export()
+    pump(app, 0.3)
+    after = len(app._history.entries)
+    print("[history]", before, "->", after, "| file:", out2.exists())
+    if after != before + 1:
+        print("[history] LOI: khong ghi lich su hoi thoai")
+        ok = False
 
     # ── Chuyển trang qua lại ──
     app.shell.show("text")

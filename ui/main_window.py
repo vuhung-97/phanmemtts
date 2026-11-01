@@ -365,14 +365,12 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
             self.playback_bar.set_playing(True)
             position = self._player.get_position()
             self.playback_bar.set_position(position)
-            self.waveform_timeline.update_position(position)
             self._highlight_at(position)
 
         if ended:
             self.playback_bar.set_playing(False)
             self.textbox.clear_highlight()
             self.playback_bar.set_position(0.0)
-            self.waveform_timeline.update_position(0.0)
 
         self.after(TICK_MS, self._tick)
 

@@ -353,7 +353,9 @@ class MergePage(MergeWidgetsMixin, Page):
                 return
             waveform, sr = mixer.merge(config)
             out = exporter.export(waveform, sr, out_path)
-            self._messages.put(("merged", str(out)))
+            duration = len(waveform) / sr if sr else 0.0
+            self._messages.put(("merged", str(out), duration,
+                                len(config.voice_paths)))
         except Exception as exc:
             self._messages.put(("error", str(exc)))
 
@@ -391,8 +393,18 @@ class MergePage(MergeWidgetsMixin, Page):
                     _, text, color = msg
                     self._set_status(text, color)
                 elif kind == "merged":
-                    _, path = msg
+                    _, path, duration, parts = msg
                     self.set_busy(False)
+                    try:
+                        self.ctx._history.add(
+                            path, voice="Ghép nhạc", speed=1.0,
+                            duration=duration, chars=0,
+                            preview=f"Ghép nhạc: {parts} đoạn")
+                        history = self.ctx._export_history
+                        history.append(path)
+                        del history[:-10]
+                    except Exception:
+                        pass
                     self._set_status(f"✓ Đã ghép thành công → {path}",
                                      theme.SUCCESS)
                     self.ctx.shell.status(f"Đã ghép: {path}", theme.SUCCESS)

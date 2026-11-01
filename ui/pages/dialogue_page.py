@@ -11,6 +11,7 @@ from audio import exporter
 from audio.buffer import GrowableBuffer
 from audio.player import AudioPlayer
 from core import dialogue
+from core.document_reader import read_document
 from core.licensing import guard
 from engine.dialogue_engine import (DialogueCancelled, render_dialogue)
 from engine.tts_engine import TtsEngine
@@ -45,6 +46,9 @@ class DialoguePage(Page):
         self._timeline = None
         self._playing_preview = False
 
+        self.open_btn = Button(self.header.actions, text="Mở tệp",
+                               variant="secondary", command=self._open_file)
+        self.open_btn.pack(side="left", padx=(0, theme.SPACE_SM))
         self.sample_btn = Button(self.header.actions, text="Dán mẫu",
                                  variant="secondary", command=self._insert_sample)
         self.sample_btn.pack(side="left", padx=(0, theme.SPACE_SM))
@@ -173,6 +177,32 @@ class DialoguePage(Page):
     def _save_draft(self) -> None:
         self._pending_draft = None
         dialogue.save_draft(self.editor.get_text())
+
+    def _open_file(self) -> None:
+        path = filedialog.askopenfilename(
+            title="Mở kịch bản hội thoại",
+            filetypes=[
+                ("Văn bản", "*.docx;*.txt"),
+                ("Word Document", "*.docx"),
+                ("Text Document", "*.txt"),
+                ("Tất cả", "*.*"),
+            ],
+            parent=self,
+        )
+        if not path:
+            return
+        try:
+            self.load_script_file(path)
+        except Exception as exc:
+            self._set_status(f"Không mở được tệp: {exc}", theme.ERROR)
+
+    def load_script_file(self, path: str) -> None:
+        """Nạp kịch bản từ .docx/.txt (tách riêng để test/probe gọi trực tiếp)."""
+        content = read_document(path)
+        self.editor.set_text(content)
+        self._parse()
+        self._save_draft()
+        self._set_status(f"Đã mở: {Path(path).name}", theme.SUCCESS)
 
     def _insert_sample(self) -> None:
         self.editor.set_text(dialogue.SAMPLE_SCRIPT)
@@ -477,6 +507,12 @@ class DialoguePage(Page):
                 chars=len(self.editor.get_text()),
                 preview=", ".join(self._script.speakers),
             )
+        except Exception:
+            pass
+        try:
+            history = self.ctx._export_history
+            history.append(str(out))
+            del history[:-10]
         except Exception:
             pass
         self._set_status(f"Đã xuất: {out}", theme.SUCCESS)

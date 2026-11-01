@@ -129,6 +129,7 @@ class PlayerBar(ctk.CTkFrame):
 
     def set_position(self, seconds: float) -> None:
         self._position = max(0.0, float(seconds))
+        self.waveform.update_position(self._position)
         self._refresh_time()
 
     def get_position(self) -> float:

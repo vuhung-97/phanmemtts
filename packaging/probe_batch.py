@@ -110,6 +110,11 @@ def main() -> int:
         print("[out] LOI: tep audio qua nho", flush=True)
         ok = False
 
+    print("[history] so ban:", len(app._history.entries))
+    if len(app._history.entries) < 3:
+        print("[history] LOI: hang loat khong ghi lich su")
+        ok = False
+
     status = dialog.status_label.cget("text")
     print("[status]", status, flush=True)
     if "Xong" not in status:

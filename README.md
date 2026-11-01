@@ -143,8 +143,10 @@ An: [nghỉ 1s] Có ba tin đáng chú ý.
 - Nội dung đầy đủ: `DIEU-KHOAN.md`, `PRIVACY.md`, `THIRD-PARTY-NOTICES.md` (cạnh file chạy).
 
 ## Lịch sử bản dựng
-Mỗi lần **💾 Xuất file** thành công, app sao chép file vào
-`%LOCALAPPDATA%\PhanMemTTS\history\<id>\audio.mp3` và ghi `index.json`.
+
+Mỗi lần **Xuất file** thành công ở **bất kỳ tab nào** (Đọc văn bản, Hội thoại, Hàng loạt, Ghép nhạc),
+app sao chép file vào `%LOCALAPPDATA%\PhanMemTTS\history\<id>\audio.mp3` và ghi `index.json`.
+Hàng loạt ghi một mục cho mỗi phần audio đã xuất.
 
 Bấm **Công cụ → Lịch sử bản dựng** (`Ctrl+H`) để xem, **▶ Nghe** (mở bằng trình
 phát mặc định), **📂** mở thư mục, **🗑** xoá bản ghi.
