@@ -478,6 +478,16 @@ Hành động trên page
 Kết quả: `pytest` **210/210**; `probe_shell`, `probe_pages`, `probe_editor_tools`, `probe_tags_history`, `probe_terms` **OK**.
 Editor còn **310 px** @1024×700, **410 px** @1280×800.
 
+### P2.6 — hiện toolbar + dàn cột Hàng loạt (01/11/2026)
+
+| Lỗi | Nguyên nhân | Sửa |
+|---|---|---|
+| Toolbar không hiện | Đường phân cách trong `AppToolbar` là `CTkFrame` mặc định cao **200 px** → đẩy nút `Tệp/Trợ giúp` và trạng thái xuống ngoài vùng 40 px | Đặt `height=1`; thêm check mọi widget toolbar nằm trong biên 40 px (`probe_shell`) |
+| Hàng loạt: trái hẹp, phải rộng vô ích | Cột phải đòi min-width ~600 px (2 entry cùng hàng) nên weight 3:2 vô hiệu | Hai cột `weight 3:2` + `uniform="batch"` (60/40); form tuỳ chọn xếp **dọc**, entry width 120 |
+
+Kết quả đo: @1024 trái 434 / phải 298 (41%); @1280 588/400 (40%); @1440 684/464 (40%).
+`probe_shell` OK (toolbar không còn widget bị cắt), `probe_pages` OK (padding 0 lỗi, cột đạt yêu cầu).
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

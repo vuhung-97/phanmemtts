@@ -125,6 +125,27 @@ def main() -> int:
         print("[nav] LOI: van mo dialog thay vi page")
         ok = False
 
+    # ── 6b. Hàng loạt: hai cột cùng co giãn ──
+    app.shell.show("batch")
+    pump(app, 0.2)
+    bp = app.batch_page
+    widths = []
+    for size in (1024, 1280, 1440):
+        app.geometry(f"{size}x800")
+        pump(app, 0.2)
+        children = bp.body.winfo_children()
+        left_w = children[0].winfo_width()
+        right_w = children[1].winfo_width()
+        widths.append((size, left_w, right_w))
+        share = right_w / max(1, left_w + right_w)
+        print(f"[batch] {size}: trai={left_w} phai={right_w} ({share:.0%})")
+        if left_w < 280 or right_w < 240:
+            print("[batch] LOI: cot qua hep")
+            ok = False
+        if not (0.30 <= share <= 0.48):
+            print("[batch] LOI: ti le cot sai")
+            ok = False
+
     # ── 7. Padding trong Card ──
     def walk(widget):
         for child in widget.winfo_children():

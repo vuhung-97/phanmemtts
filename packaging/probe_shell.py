@@ -96,6 +96,24 @@ def main() -> int:
             print(f"[key] LOI: chua bind {seq}")
             ok = False
 
+    # ── 2b. Widget trong toolbar phải nằm gọn trong 40 px ──
+    clipped = []
+    for child in tb.winfo_children():
+        if not child.winfo_ismapped():
+            continue
+        if child.winfo_y() < 0 or child.winfo_y() + child.winfo_height() > tb.winfo_height() + 1:
+            clipped.append((child.__class__.__name__, child.winfo_y(),
+                            child.winfo_height()))
+    print("[toolbar] widget bi cat:", clipped)
+    if clipped:
+        print("[toolbar] LOI: noi dung toolbar tran ra ngoai")
+        ok = False
+    menu_clipped = [w for w in tb._menu_buttons.values()
+                    if not w.winfo_ismapped() or w.winfo_height() < 20]
+    if menu_clipped:
+        print("[toolbar] LOI: nut menu khong hien")
+        ok = False
+
     # ── 3. Sidebar + điều hướng ──
     nav_ids = [x[0] for x in NAV_MAIN + NAV_TOOLS]
     print("[nav] items:", nav_ids, flush=True)

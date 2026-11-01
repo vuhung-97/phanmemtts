@@ -57,7 +57,7 @@ class AppToolbar(ctk.CTkFrame):
         self._build_file_menu()
         self._build_help_menu()
 
-        divider = ctk.CTkFrame(self, width=1, fg_color=theme.BORDER)
+        divider = ctk.CTkFrame(self, width=1, height=1, fg_color=theme.BORDER)
         divider.grid(row=0, column=1, padx=theme.SPACE_MD, pady=10, sticky="ns")
 
         status = ctk.CTkFrame(self, fg_color="transparent")
