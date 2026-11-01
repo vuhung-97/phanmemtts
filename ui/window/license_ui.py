@@ -28,6 +28,11 @@ class LicenseMixin:
         return status
 
     def _open_license_dialog(self) -> None:
+        if hasattr(self, "shell") and self.shell.has_page("license"):
+            self.shell.show("license")
+            self.license_page.refresh()
+            self._refresh_license_badge()
+            return
         from ui.components.license_dialog import LicenseDialog
 
         LicenseDialog(self, on_activate=self._open_activation)

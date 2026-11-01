@@ -15,3 +15,4 @@ class PlaceholderPage(Page):
             self.body, icon="🚧", title=title,
             hint=note,
         ).grid(row=0, column=0, sticky="nsew")
+        self.body.grid_rowconfigure(0, weight=1)

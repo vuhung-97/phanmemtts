@@ -23,8 +23,12 @@ from core.tags import find_unknown_tags
 from engine.model_manager import ModelManager
 from ui import theme
 from ui.config import load_settings
+from ui.pages.dictionary_page import DictionaryPage
+from ui.pages.license_page import LicensePage
 from ui.pages.placeholder_page import PlaceholderPage
+from ui.pages.settings_page import SettingsPage
 from ui.pages.text_page import TextPage
+from ui.pages.voices_page import VoicesPage
 from ui.shell.app_shell import AppShell
 from ui.window import (ConvertMixin, ExportMixin, LicenseMixin,
                        MessagesMixin, ToolsMixin)
@@ -133,6 +137,14 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
 
         self.text_page = TextPage(self.shell.content, self)
         self.shell.register(self.text_page)
+        self.settings_page = SettingsPage(self.shell.content, self)
+        self.shell.register(self.settings_page)
+        self.license_page = LicensePage(self.shell.content, self)
+        self.shell.register(self.license_page)
+        self.dictionary_page = DictionaryPage(self.shell.content, self)
+        self.shell.register(self.dictionary_page)
+        self.voices_page = VoicesPage(self.shell.content, self)
+        self.shell.register(self.voices_page)
         self.shell.register(PlaceholderPage(
             self.shell.content, self, page_id="dialogue", title="Hội thoại",
             note="Hội thoại nhiều giọng sẽ có ở bước P4 của kế hoạch 3.5.0."))

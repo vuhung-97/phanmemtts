@@ -100,6 +100,10 @@ class Badge(ctk.CTkLabel):
             padx=0, **kwargs,
         )
 
+    def set_tone(self, tone: str) -> None:
+        bg, fg = self.TONES.get(tone, self.TONES["neutral"])
+        self.configure(fg_color=bg, text_color=fg)
+
 
 class PageHeader(ctk.CTkFrame):
     """Tiêu đề page: title + subtitle + vùng nút hành động bên phải."""

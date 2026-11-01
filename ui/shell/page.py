@@ -26,7 +26,6 @@ class Page(ctk.CTkFrame):
         self.body = ctk.CTkFrame(self, fg_color="transparent")
         self.body.grid(row=1, column=0, sticky="nsew")
         self.body.grid_columnconfigure(0, weight=1)
-        self.body.grid_rowconfigure(0, weight=1)
 
     # ── vòng đời ──
 

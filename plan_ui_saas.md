@@ -440,6 +440,20 @@ Hành động trên page
 | Dọn dẹp | Xoá `packaging/probe_menu_toolbar.py` (gộp vào `probe_shell.py`) |
 | Còn lại của P0 | `probe_navigation` riêng (hiện nằm trong `probe_shell`) |
 
+### P1 — xong (01/11/2026)
+
+| Page | Nội dung | Ghi chú |
+|---|---|---|
+| `SettingsPage` | Precision / threads / lưu trữ; nút Lưu + badge “Chưa lưu”; cảnh báo INT8 | Lưu vào `app_settings.json`, nạp lại model khi đổi precision/threads |
+| `LicensePage` | Badge trạng thái, loại, hạn, còn lại, mã máy + sao chép, nút nhập mã, hướng dẫn | `on_show` tự refresh; kích hoạt qua modal cũ |
+| `DictionaryPage` | Form thêm/sửa, bảng + tìm kiếm, bật/tắt, nhập/xuất tệp | Lưu ngay; báo `_on_dictionary_changed` để vô hiệu audio cũ |
+| `VoicesPage` | Checklist 26 giọng, chọn tất cả/bỏ chọn, lưu, nhập/tạo/xuất/xoá giọng | Tạo/nhập vẫn là modal `ImportVoiceDialog` |
+
+- `probe_pages` **OK**: 4 page đăng ký, lưu cài đặt, thêm từ điển, lưu lựa chọn giọng, trang bản quyền, không mở dialog khi điều hướng.
+- `probe_shell`, `probe_license`, `probe_terms`, `probe_editor_tools`, `probe_tags_history` **OK**; `pytest` **210/210**.
+- Sửa lỗi layout: `Page.body` không còn tự đặt `row0 weight=1` (gây khoảng trống lớn ở đầu page).
+- Bỏ vài glyph emoji không hiển thị trên Segoe UI (⬆⬇☑🔓💾) ở 4 page mới.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

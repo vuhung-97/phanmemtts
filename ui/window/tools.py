@@ -74,6 +74,9 @@ class ToolsMixin:
         return None
 
     def _open_voice_manager(self) -> None:
+        if hasattr(self, "shell") and self.shell.has_page("voices"):
+            self.shell.show("voices")
+            return
         enabled = load_enabled_voices()
         if enabled is None:
             enabled = {m.model_id for m in self._all_models}
@@ -95,6 +98,9 @@ class ToolsMixin:
     # ── Từ điển phát âm & làm sạch văn bản ──
 
     def _open_dictionary(self) -> None:
+        if hasattr(self, "shell") and self.shell.has_page("dictionary"):
+            self.shell.show("dictionary")
+            return
         from ui.components.dictionary_dialog import DictionaryDialog
 
         DictionaryDialog(self, on_changed=self._on_dictionary_changed)
@@ -127,6 +133,9 @@ class ToolsMixin:
     # ── Cài đặt ──
 
     def _open_settings(self) -> None:
+        if hasattr(self, "shell") and self.shell.has_page("settings"):
+            self.shell.show("settings")
+            return
         from ui.components.settings_dialog import SettingsDialog
 
         def on_save(settings: dict) -> None:
