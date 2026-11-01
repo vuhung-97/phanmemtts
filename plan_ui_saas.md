@@ -454,6 +454,17 @@ Hành động trên page
 - Sửa lỗi layout: `Page.body` không còn tự đặt `row0 weight=1` (gây khoảng trống lớn ở đầu page).
 - Bỏ vài glyph emoji không hiển thị trên Segoe UI (⬆⬇☑🔓💾) ở 4 page mới.
 
+### P2 — xong (01/11/2026)
+
+| Page | Nội dung | Ghi chú |
+|---|---|---|
+| `BatchPage` | Editor `[P1]…`, bảng phần, chọn tất cả/bỏ, tên tệp, thư mục, MP3/WAV, zip, tiến trình, huỷ | Tự lấy văn bản từ trang Đọc văn bản; gate bản quyền 2 lớp; dùng `TtsEngine` + `exporter` như cũ |
+| `HistoryPage` | Danh sách bản dựng, nghe, mở thư mục, xoá từng bản / tất cả, cảnh báo 500 MB | Dùng player ngoài hệ thống như cũ |
+
+- Kiểm chứng: BatchPage xuất thật 2 phần → 2 MP3 (`bai_P1.mp3`, `bai_P2.mp3`), status “Xong: 2 tệp…”.
+- HistoryPage hiển thị đúng tổng dung lượng, empty state.
+- `probe_shell`, `probe_pages`, `probe_license`, `probe_terms`, `probe_editor_tools`, `probe_tags_history` **OK**; `pytest` **210/210**.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

@@ -159,6 +159,9 @@ class ToolsMixin:
     # ── Lịch sử bản dựng ──
 
     def _open_history(self) -> None:
+        if hasattr(self, shell) and self.shell.has_page(history):
+            self.shell.show(history)
+            return
         HistoryDialog(self, self._history)
 
     # ── Trợ giúp ──
@@ -209,6 +212,9 @@ class ToolsMixin:
     # ── Chuyển đổi hàng loạt ──
 
     def _open_batch_dialog(self) -> None:
+        if hasattr(self, shell) and self.shell.has_page(batch):
+            self.shell.show(batch)
+            return
         if self._busy:
             self.topbar.set_status(
                 "Đang chuyển đổi — dừng lại trước khi xuất hàng loạt.",
