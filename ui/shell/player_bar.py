@@ -34,11 +34,13 @@ class PlayerBar(ctk.CTkFrame):
         self.grid_propagate(False)
         self.grid_columnconfigure(1, weight=1)
 
-        self._on_toggle = on_toggle
-        self._on_seek = on_seek
-        self._on_prev = on_prev_sentence
-        self._on_next = on_next_sentence
-        self._on_speed_change = on_speed_change
+        self._handlers = {
+            "toggle": on_toggle,
+            "seek": on_seek,
+            "prev": on_prev_sentence,
+            "next": on_next_sentence,
+            "speed": on_speed_change,
+        }
         self._duration = 0.0
         self._position = 0.0
 
@@ -47,19 +49,19 @@ class PlayerBar(ctk.CTkFrame):
                       pady=theme.SPACE_MD, sticky="w")
 
         self.prev_btn = Button(controls, text="⏮", variant="ghost", size="sm",
-                               width=34, command=self._on_prev)
+                               width=34, command=lambda: self._handlers["prev"]())
         self.prev_btn.pack(side="left", padx=1)
         self.rew_btn = Button(controls, text="−5s", variant="ghost", size="sm",
                               width=38, command=lambda: self._skip(-5))
         self.rew_btn.pack(side="left", padx=1)
         self.toggle_btn = Button(controls, text="▶", variant="primary", size="md",
-                                 width=44, command=self._on_toggle)
+                                 width=44, command=lambda: self._handlers["toggle"]())
         self.toggle_btn.pack(side="left", padx=theme.SPACE_XS)
         self.fwd_btn = Button(controls, text="+5s", variant="ghost", size="sm",
                               width=38, command=lambda: self._skip(5))
         self.fwd_btn.pack(side="left", padx=1)
         self.next_btn = Button(controls, text="⏭", variant="ghost", size="sm",
-                               width=34, command=self._on_next)
+                               width=34, command=lambda: self._handlers["next"]())
         self.next_btn.pack(side="left", padx=1)
 
         self.waveform = WaveformTimeline(self)
@@ -103,13 +105,21 @@ class PlayerBar(ctk.CTkFrame):
     # ── transport ──
 
     def _skip(self, delta: float) -> None:
-        self._on_seek(max(self._position + delta, 0.0))
+        self._handlers["seek"](max(self._position + delta, 0.0))
+
+    def set_handlers(self, **handlers) -> None:
+        """Đổi handler khi chuyển trang (Ghép nhạc dùng preview riêng)."""
+        self._handlers.update({k: v for k, v in handlers.items()
+                               if v is not None})
 
     def _seek_from_waveform(self, seconds: float) -> None:
-        self._on_seek(seconds)
+        self._handlers["seek"](seconds)
 
     def _speed_changed(self, value: str) -> None:
-        self._on_speed_change(float(value.replace("x", "")))
+        self._handlers["speed"](float(value.replace("x", "")))
+
+    def set_speed_enabled(self, enabled: bool) -> None:
+        self.speed_combo.configure(state="normal" if enabled else "disabled")
 
     # ── API (tương thích PlaybackBar cũ) ──
 
@@ -156,7 +166,7 @@ class PlayerBar(ctk.CTkFrame):
     def set_transport_enabled(self, enabled: bool) -> None:
         state = "normal" if enabled else "disabled"
         for widget in (self.prev_btn, self.rew_btn, self.toggle_btn,
-                       self.fwd_btn, self.next_btn, self.speed_combo):
+                       self.fwd_btn, self.next_btn):
             widget.configure(state=state)
 
     def _refresh_time(self) -> None:

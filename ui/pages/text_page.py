@@ -164,6 +164,24 @@ class TextPage(Page):
                 hover_color=theme.PRIMARY_HOVER, command=self.ctx._start_convert,
             )
 
+    def on_show(self) -> None:
+        bar = self.ctx.shell.player_bar
+        bar.set_handlers(
+            toggle=self.ctx._toggle_play,
+            seek=self.ctx._seek,
+            prev=self.ctx._prev_sentence,
+            next=self.ctx._next_sentence,
+            speed=self.ctx._on_speed_change,
+        )
+        bar.set_speed_enabled(True)
+        if self.ctx._play_store is not None and self.ctx._timeline is not None:
+            bar.set_source(self.ctx._play_store, self.ctx._sample_rate,
+                           self.ctx._timeline.sentences)
+            bar.set_duration(self.ctx._timeline.total_duration)
+            bar.set_transport_enabled(True)
+        else:
+            bar.clear()
+
     def get_test_text(self) -> str | None:
         from ui.config import load_test_text, save_test_text
 

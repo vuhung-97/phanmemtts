@@ -32,13 +32,13 @@ class MergeWidgetsMixin:
 
     # ── UI ──
 
-    def _build_ui(self, export_history: list[str]) -> None:
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+    def _build_ui(self, parent, export_history: list[str]) -> None:
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(0, weight=1)
 
         # Container cuộn toàn bộ dialog (vừa màn 768px, cuộn xuống dùng tiếp)
         self._scroll = ctk.CTkScrollableFrame(
-            self, fg_color="transparent",
+            parent, fg_color="transparent",
             scrollbar_button_color=theme.TEXT_DIM,
             scrollbar_button_hover_color=theme.ACCENT,
         )
@@ -137,62 +137,6 @@ class MergeWidgetsMixin:
             font=(theme.FONT_FAMILY, 9, "bold"),
         )
         self._out_ruler.grid(row=row, column=0, padx=20, sticky="w")
-        row += 1
-
-        # ── Buttons (căn giữa, không kéo 100% cho gọn) ──
-        btn_row = ctk.CTkFrame(self._scroll, fg_color="transparent")
-        btn_row.grid(row=row, column=0, padx=20, pady=(6, 4), sticky="ew")
-        btn_row.grid_columnconfigure((0, 3), weight=1)
-        btn_row.grid_columnconfigure((1, 2), weight=0)
-
-        self.preview_btn = ctk.CTkButton(
-            btn_row, text="▶  Nghe thử", width=260, height=36,
-            fg_color="transparent", border_width=1, border_color=theme.ACCENT,
-            text_color=theme.ACCENT, hover_color=theme.SURFACE, corner_radius=8,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
-            command=self._preview,
-        )
-        self.preview_btn.grid(row=0, column=1, padx=(0, 6), sticky="")
-
-        self.merge_btn = ctk.CTkButton(
-            btn_row, text="💾  Ghép & Xuất file", width=300, height=36,
-            fg_color=theme.SUCCESS, hover_color=theme.SUCCESS_HOVER, corner_radius=8,
-            font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
-            command=self._start_merge,
-        )
-        self.merge_btn.grid(row=0, column=2, padx=(6, 0), sticky="")
-        row += 1
-
-        # ── Thanh tua khi nghe thử ──
-        seek_row = ctk.CTkFrame(self._scroll, fg_color=theme.SURFACE, corner_radius=8)
-        seek_row.grid(row=row, column=0, padx=20, pady=(2, 2), sticky="ew")
-        seek_row.grid_columnconfigure(1, weight=1)
-
-        self._prev_cur = ctk.CTkLabel(seek_row, text="00:00", width=50,
-                                      text_color=theme.TEXT,
-                                      font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"))
-        self._prev_cur.grid(row=0, column=0, padx=(10, 4), pady=5, sticky="w")
-
-        self._seek_slider = ctk.CTkSlider(
-            seek_row, from_=0.0, to=1.0, state="disabled",
-            progress_color=theme.ACCENT, button_color=theme.ACCENT,
-            command=self._on_seek_slider,
-        )
-        self._seek_slider.set(0.0)
-        self._seek_slider.grid(row=0, column=1, padx=4, pady=5, sticky="ew")
-
-        self._prev_total = ctk.CTkLabel(seek_row, text="00:00", width=50,
-                                        text_color=theme.TEXT_DIM,
-                                        font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"))
-        self._prev_total.grid(row=0, column=2, padx=(4, 4), pady=5, sticky="e")
-
-        self._stop_preview_btn = ctk.CTkButton(
-            seek_row, text="⏹", width=36, height=28, state="disabled",
-            fg_color="transparent", border_width=1, border_color=theme.ERROR,
-            text_color=theme.ERROR, hover_color=theme.SURFACE, corner_radius=6,
-            command=self._stop_preview,
-        )
-        self._stop_preview_btn.grid(row=0, column=3, padx=(0, 10), pady=5)
         row += 1
 
         # ── Status ──

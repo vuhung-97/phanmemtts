@@ -488,6 +488,20 @@ Editor còn **310 px** @1024×700, **410 px** @1280×800.
 Kết quả đo: @1024 trái 434 / phải 298 (41%); @1280 588/400 (40%); @1440 684/464 (40%).
 `probe_shell` OK (toolbar không còn widget bị cắt), `probe_pages` OK (padding 0 lỗi, cột đạt yêu cầu).
 
+### P3 — xong (01/11/2026)
+
+| Việc | Chi tiết |
+|---|---|
+| MergePage | ui/pages/merge_page.py — MergePage(MergeWidgetsMixin, Page), cuộn dọc, không còn Toplevel |
+| merge_widgets.py | _build_ui(parent, history) dựng vào Page.body; bỏ nút/seek bar riêng (dùng player chung) |
+| Player chung | PlayerBar.set_handlers() + set_speed_enabled(): trang Ghép nhạc điều khiển preview, khoá tốc độ; rời trang trả handler + khôi phục waveform cho TextPage |
+| Header | Chọn file gốc · Nghe thử · Ghép & Xuất (primary) |
+| Preview | AudioPlayer riêng + waveform trên PlayerBar chung; tick 40 ms khi trang đang mở |
+| Xuất | Giữ mixer.merge, gate bản quyền 2 lớp, báo qua toolbar + status trong trang |
+| Probe | probe_merge_page **OK**: thêm file gốc, preview (1 s), xuất MP3 5 KB, chuyển trang giữ file, tốc độ trả lại cho trang Văn bản |
+
+pytest **212/212**; probe_shell, probe_pages, probe_merge_page, probe_tags_history, probe_license, probe_ui_flow **OK**.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

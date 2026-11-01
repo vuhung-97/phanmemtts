@@ -225,6 +225,7 @@ trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút t�
 .venv\Scripts\python.exe packaging\probe_tags_history.py  # probe thẻ cảm xúc/nghỉ + lịch sử
 .venv\Scripts\python.exe packaging\probe_shell.py          # probe shell SaaS (header/toolbar/sidebar/player)
 .venv\Scripts\python.exe packaging\probe_pages.py          # probe page Cài đặt / Từ điển / Giọng đọc / Bản quyền
+.venv\Scripts\python.exe packaging\probe_merge_page.py     # probe trang Ghép nhạc (preview + xuất file)
 .venv\Scripts\python.exe packaging\probe_license.py       # probe kích hoạt + freemium + chống clone
 .venv\Scripts\python.exe packaging\probe_editor_tools.py  # probe làm sạch + từ điển phát âm
 .venv\Scripts\python.exe packaging\probe_batch.py         # probe xuất hàng loạt [P1]/[P2] + zip
