@@ -46,13 +46,13 @@ class DialoguePage(Page):
         self._timeline = None
         self._playing_preview = False
 
-        self.open_btn = Button(self.header.actions, text="Mở tệp",
+        self.open_btn = Button(self.header.actions, text="📁  Mở file",
                                variant="secondary", command=self._open_file)
         self.open_btn.pack(side="left", padx=(0, theme.SPACE_SM))
-        self.sample_btn = Button(self.header.actions, text="Dán mẫu",
+        self.sample_btn = Button(self.header.actions, text="📄  Dán mẫu",
                                  variant="secondary", command=self._insert_sample)
         self.sample_btn.pack(side="left", padx=(0, theme.SPACE_SM))
-        self.export_btn = Button(self.header.actions, text="Xuất file",
+        self.export_btn = Button(self.header.actions, text="💾  Xuất file",
                                  variant="secondary", command=self._export)
         self.export_btn.pack(side="left", padx=(0, theme.SPACE_SM))
         self.create_btn = Button(self.header.actions, text="⚡  Tạo hội thoại",

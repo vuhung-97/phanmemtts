@@ -61,6 +61,19 @@ def main() -> int:
     pump(app, 0.3)
     page = app.dialogue_page
     print("[page] hien tai:", app.shell.current_page.page_id)
+    labels = {
+        "open": page.open_btn.cget("text"),
+        "sample": page.sample_btn.cget("text"),
+        "export": page.export_btn.cget("text"),
+        "create": page.create_btn.cget("text"),
+    }
+    print("[button]", labels)
+    if "Mở file" not in labels["open"] or "📁" not in labels["open"]:
+        print("[button] LOI: nut mo file thieu icon/ten")
+        ok = False
+    if "📄" not in labels["sample"] or "💾" not in labels["export"]:
+        print("[button] LOI: nut Dan mau / Xuat file thieu icon")
+        ok = False
 
     # ── Parse + lỗi ──
     page.editor.set_text("An: ok\nDòng thiếu tên.")

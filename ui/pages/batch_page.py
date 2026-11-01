@@ -32,9 +32,9 @@ class BatchPage(Page):
                                 "error": "", "files": [], "zip": ""}
         self._parse_job = None
 
-        Button(self.header.actions, text="Mở tệp", variant="secondary",
+        Button(self.header.actions, text="📁  Mở file", variant="secondary",
                command=self._open_file).pack(side="left", padx=(0, theme.SPACE_SM))
-        self.start_btn = Button(self.header.actions, text="Xuất các phần",
+        self.start_btn = Button(self.header.actions, text="💾  Xuất các phần",
                                 variant="primary", command=self._start)
         self.start_btn.pack(side="left")
 
@@ -363,7 +363,7 @@ class BatchPage(Page):
             self.after(100, self._poll)
             return
         self._running = False
-        self.start_btn.configure(text="Xuất các phần", fg_color=theme.PRIMARY,
+        self.start_btn.configure(text="💾  Xuất các phần", fg_color=theme.PRIMARY,
                                  hover_color=theme.PRIMARY_HOVER)
         if state.get("error"):
             return

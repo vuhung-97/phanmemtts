@@ -454,7 +454,7 @@ body("Mở sidebar → Hội thoại (Ctrl+2). Mỗi dòng là một lượt nó
      "Dòng bắt đầu bằng # là chú thích và bị bỏ qua.")
 bullet("Dòng thiếu Tên: sẽ báo lỗi kèm số dòng và nút «Sửa dòng N»; phải sửa hết mới tạo được. ",
        "Bắt buộc đúng định dạng: ")
-bullet("Bấm «Mở tệp» để nhập kịch bản từ .docx/.txt, hoặc dán trực tiếp; «Dán mẫu» để xem ví dụ. ", "Nhập kịch bản: ")
+bullet("Bấm «Mở file» để nhập kịch bản từ .docx/.txt, hoặc dán trực tiếp; «Dán mẫu» để xem ví dụ. ", "Nhập kịch bản: ")
 bullet("Cột phải hiện từng nhân vật: chọn giọng, bấm 🔊 để nghe thử, hoặc bấm «Gán tự động» "
        "(nam/nữ xen kẽ). ", "Gán giọng: ")
 bullet("App tự nhớ giọng theo tên nhân vật và tự lưu nháp kịch bản — không cần file JSON. ",

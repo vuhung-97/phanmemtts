@@ -26,6 +26,8 @@ class ToolsMixin:
             pass
         self._all_models = self._model_manager.scan()
         if not self._all_models:
+            if hasattr(self, "shell"):
+                self.shell.set_voices(0, 0)
             self.topbar.set_status(self._bundle_problem(), theme.ERROR)
             return self._all_models
 
@@ -37,6 +39,8 @@ class ToolsMixin:
 
         if not visible:
             self.topbar.set_voices([], None)
+            if hasattr(self, "shell"):
+                self.shell.set_voices(0, len(self._all_models))
             self.topbar.set_status(
                 "Tất cả giọng đều bị tắt — bấm ＋ Thêm để bật lại.", theme.ERROR)
             return self._all_models
@@ -45,7 +49,7 @@ class ToolsMixin:
         selected = prev if prev in names else names[0]
         self.topbar.set_voices(names, selected)
         if hasattr(self, "shell"):
-            self.shell.set_voices(len(self._all_models), len(self._all_models))
+            self.shell.set_voices(len(names), len(self._all_models))
         self.topbar.set_status(
             f"{len(names)}/{len(self._all_models)} giọng sẵn sàng.", theme.TEXT_DIM)
         return self._all_models

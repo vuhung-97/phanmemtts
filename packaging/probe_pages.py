@@ -106,6 +106,23 @@ def main() -> int:
     pump(app, 0.2)
     print("[voices] save:", vp.status_label.cget("text"))
 
+    # Bỏ tick còn 3 giọng -> nhãn toolbar phải đổi theo
+    for checkbox in vp._checkboxes.values():
+        checkbox.deselect()
+    for checkbox in list(vp._checkboxes.values())[:3]:
+        checkbox.select()
+    vp._save()
+    pump(app, 0.2)
+    label = app.shell.toolbar.voices_label.cget("text")
+    print("[voices] nhan toolbar:", label)
+    if label != f"3/{total} giọng":
+        print(f"[voices] LOI: nhan dung sai (mong doi 3/{total})")
+        ok = False
+    from ui.config import load_enabled_voices
+    if len(load_enabled_voices() or set()) != 3:
+        print("[voices] LOI: so giong luu khong khop")
+        ok = False
+
     # ── 5. Bản quyền ──
     app.shell.show("license")
     pump(app)

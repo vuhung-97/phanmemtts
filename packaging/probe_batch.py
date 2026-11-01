@@ -69,6 +69,10 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     pump(app, 0.3)
     dialog = app.batch_page
+    print("[button] xuat:", dialog.start_btn.cget("text"))
+    if "💾" not in dialog.start_btn.cget("text"):
+        print("[button] LOI: nut xuat thieu icon")
+        ok = False
     dialog.editor.delete("1.0", "end")
     dialog.editor.insert("1.0", TEXT)
     dialog._parse()

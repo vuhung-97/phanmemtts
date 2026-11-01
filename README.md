@@ -103,7 +103,7 @@ Thẻ nghỉ nhận `s` / `giây` / `ms`, số thập phân bằng dấu phẩy 
 
 ## Chuyển đổi hàng loạt
 
-`Công cụ → Chuyển đổi hàng loạt…` (`Ctrl+B`). Dán trực tiếp hoặc **mở tệp `.docx` / `.txt`**;
+`Công cụ → Chuyển đổi hàng loạt…` (`Ctrl+B`). Dán trực tiếp hoặc **Mở file `.docx` / `.txt`**;
 đặt marker ở **đầu dòng**:
 
 ```
@@ -129,6 +129,7 @@ An: [nghỉ 1s] Có ba tin đáng chú ý.
 
 - **Dòng thiếu `Tên:`** → báo lỗi kèm số dòng và nút **Sửa dòng N**; không cho tạo cho tới khi sửa xong.
 - Tên trùng (khác hoa/thường) gộp về một nhân vật; tên tối đa 40 ký tự.
+- Có thể **mở file `.docx/.txt`** hoặc dán trực tiếp; nút **Dán mẫu** chèn ví dụ.
 - Không đọc tên nhân vật — chỉ đọc phần nội dung.
 - Cột phải **Nhân vật & giọng**: chọn giọng từng người, **🔊** nghe thử, **Gán tự động** (nam/nữ xen kẽ).
 - App **tự nhớ giọng theo tên nhân vật** và **tự lưu nháp** kịch bản — không cần file JSON.
