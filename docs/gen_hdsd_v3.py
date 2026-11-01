@@ -9,7 +9,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-OUT = "docs/Huong_dan_su_dung_V3_v3.4.0.docx"
+OUT = "docs/Huong_dan_su_dung_V3_v3.5.0.docx"
 FONT = "Times New Roman"
 
 doc = Document()
@@ -432,6 +432,46 @@ bullet("Có. App vừa tạo vừa phát sau ~5 câu đệm; cứ để loa, câ
 bullet("Có. Khi đang chuyển đổi, nút ⚡ Chuyển đổi đổi thành nút ⏹ Dừng; bấm để hủy, app báo số câu đã tạo. ",
        "Hỏi: Dừng giữa chừng được không? Đáp: ")
 
+# ================= CH10 =================
+doc.add_heading("10. Giao diện SaaS và Hội thoại nhiều giọng (mới từ 3.5.0)", level=1)
+body("Bản 3.5.0 đổi toàn bộ giao diện sang mô hình SaaS: header, toolbar, sidebar và thanh phát dùng chung. "
+     "Mỗi chức năng là một trang riêng, chuyển qua lại không mất dữ liệu đang soạn/đang nghe.")
+doc.add_heading("10.1. Bố cục màn hình", level=2)
+table(["Vùng", "Nội dung", "Ghi chú"],
+      [["Header (56 px)", "Logo + tên phần mềm + phiên bản", "Chỉ nhận diện thương hiệu"],
+       ["Toolbar (40 px)", "Menu Tệp / Trợ giúp; bên phải là trạng thái và số giọng", "Phím tắt giữ nguyên"],
+       ["Sidebar (232 px)", "5 chức năng chính + 4 công cụ + trạng thái bản quyền", "Bấm « để thu gọn còn 64 px"],
+       ["Nội dung", "Trang của chức năng đang chọn", "Cuộn được; Ctrl+1…9 chuyển nhanh"],
+       ["Player (108 px)", "Waveform + ⏮ ▶ ⏭ + −5/+5 + thời lượng + tốc độ", "Luôn hiển thị; nút mờ khi chưa có audio"]])
+doc.add_heading("10.2. Các trang chức năng", level=2)
+bullet("Đọc văn bản, Hội thoại, Ghép nhạc, Hàng loạt, Lịch sử. ", "Nhóm chính: ")
+bullet("Từ điển, Giọng đọc, Cài đặt, Bản quyền. ", "Nhóm công cụ: ")
+bullet("Chuyển đổi, xuất file, ghép nhạc… vẫn giữ nguyên thao tác; chỉ đổi vị trí nút. ",
+       "Lưu ý: ")
+doc.add_heading("10.3. Hội thoại nhiều giọng", level=2)
+body("Mở sidebar → Hội thoại (Ctrl+2). Mỗi dòng là một lượt nói, dạng Tên nhân vật: nội dung. "
+     "Dòng bắt đầu bằng # là chú thích và bị bỏ qua.")
+bullet("Dòng thiếu Tên: sẽ báo lỗi kèm số dòng và nút «Sửa dòng N»; phải sửa hết mới tạo được. ",
+       "Bắt buộc đúng định dạng: ")
+bullet("Cột phải hiện từng nhân vật: chọn giọng, bấm 🔊 để nghe thử, hoặc bấm «Gán tự động» "
+       "(nam/nữ xen kẽ). ", "Gán giọng: ")
+bullet("App tự nhớ giọng theo tên nhân vật và tự lưu nháp kịch bản — không cần file JSON. ",
+       "Tự động: ")
+bullet("Chọn 0,25 / 0,5 / 0,75 / 1,0 / 1,5 giây tuỳ nhịp hội thoại. ", "Nghỉ giữa lượt: ")
+bullet("Bấm Tạo hội thoại → nghe trên thanh player chung. Chưa kích hoạt vẫn tạo và nghe được, "
+       "chỉ khoá Xuất file. ", "Tạo và nghe: ")
+bullet("Bấm Xuất file → chọn MP3/WAV. Mỗi lần xuất được lưu một mục trong Lịch sử. ", "Xuất file: ")
+doc.add_heading("10.4. Phím tắt", level=2)
+table(["Phím", "Tác dụng"],
+      [["Ctrl+1 … Ctrl+9", "Chuyển nhanh 9 trang theo thứ tự sidebar"],
+       ["Ctrl+O", "Mở văn bản .docx/.txt"],
+       ["Ctrl+H", "Lịch sử bản dựng"],
+       ["Ctrl+B", "Chuyển đổi hàng loạt"],
+       ["Ctrl+Shift+D", "Từ điển phát âm"],
+       ["Ctrl+Shift+K", "Làm sạch văn bản"],
+       ["Ctrl+Shift+L", "Thông tin bản quyền"],
+       ["Alt+F / Alt+T", "Mở menu Tệp / Trợ giúp"]])
+
 doc.add_page_break()
 doc.add_heading("Phụ lục: Checklist 11 ảnh cần chụp", level=1)
 body("Chụp bằng Win+Shift+S, lưu PNG vào docs/images/ đúng tên bên dưới, rồi trong Word: "
@@ -450,7 +490,7 @@ table(["Mã", "Tên file", "Chụp gì / Cỡ hiển thị"],
        ["10", "hinh-10-track-timeline.png", "1 track + Volume / 12cm"],
        ["11", "hinh-11-output-timeline.png", "Timeline output + Xuất / 12cm"]])
 
-body("Thông tin tài liệu: Phần mềm chuyển đổi văn bản thành giọng nói tự nhiên v3, phiên bản 3.4.0 "
+body("Thông tin tài liệu: Phần mềm chuyển đổi văn bản thành giọng nói tự nhiên v3, phiên bản 3.5.0 "
      "(bản phát hành OneDir: EXE + _internal/ + models/ cạnh nhau). "
      "Tài liệu này thay thế mọi hướng dẫn miệng trước đây; khi app lên phiên bản mới, "
      "chỉ cần chụp lại các ảnh có giao diện thay đổi.")

@@ -6,11 +6,10 @@ from tkinter import filedialog, messagebox
 
 import version
 from core.document_reader import read_document
+from core.paths import open_in_system
 from core.text_processor import clean_for_reading
 from engine.tts_engine import TtsEngine
 from ui import theme
-from ui.components.history_dialog import HistoryDialog, open_in_system
-from ui.components.voice_manager import VoiceManagerDialog
 from ui.config import (load_enabled_voices, save_enabled_voices, save_settings)
 
 
@@ -74,36 +73,12 @@ class ToolsMixin:
         return None
 
     def _open_voice_manager(self) -> None:
-        if hasattr(self, "shell") and self.shell.has_page("voices"):
-            self.shell.show("voices")
-            return
-        enabled = load_enabled_voices()
-        if enabled is None:
-            enabled = {m.model_id for m in self._all_models}
-
-        def on_save(new_enabled: set[str]) -> None:
-            save_enabled_voices(new_enabled)
-            self._scan_models()
-
-        def on_voice_changed(name: str) -> None:
-            # Ghi đè/xóa giọng đang được nạp -> giải phóng, lần sinh sau tải lại
-            self._model_manager.unload_if(f"vieneu:{name}")
-
-        VoiceManagerDialog(
-            self, self._all_models, enabled, on_save,
-            get_models=self._scan_models,
-            on_voice_changed=on_voice_changed,
-        )
+        self.shell.show("voices")
 
     # ── Từ điển phát âm & làm sạch văn bản ──
 
     def _open_dictionary(self) -> None:
-        if hasattr(self, "shell") and self.shell.has_page("dictionary"):
-            self.shell.show("dictionary")
-            return
-        from ui.components.dictionary_dialog import DictionaryDialog
-
-        DictionaryDialog(self, on_changed=self._on_dictionary_changed)
+        self.shell.show("dictionary")
 
     def _on_dictionary_changed(self) -> None:
         """Từ điển đổi -> âm thanh đã tổng hợp không còn đúng."""
@@ -133,36 +108,12 @@ class ToolsMixin:
     # ── Cài đặt ──
 
     def _open_settings(self) -> None:
-        if hasattr(self, "shell") and self.shell.has_page("settings"):
-            self.shell.show("settings")
-            return
-        from ui.components.settings_dialog import SettingsDialog
-
-        def on_save(settings: dict) -> None:
-            changed = (
-                settings["precision"] != self._settings["precision"]
-                or settings["threads"] != self._settings["threads"]
-            )
-            self._settings = dict(settings)
-            save_settings(settings)
-            if changed:
-                self._model_manager.set_runtime(
-                    precision=settings["precision"], threads=settings["threads"])
-                self.topbar.set_status(
-                    "Đã cập nhật cấu hình model — giọng sẽ nạp lại khi chuyển đổi.",
-                    theme.TEXT_DIM)
-            else:
-                self.topbar.set_status("Đã lưu cài đặt.", theme.SUCCESS)
-
-        SettingsDialog(self, dict(self._settings), on_save)
+        self.shell.show("settings")
 
     # ── Lịch sử bản dựng ──
 
     def _open_history(self) -> None:
-        if hasattr(self, shell) and self.shell.has_page(history):
-            self.shell.show(history)
-            return
-        HistoryDialog(self, self._history)
+        self.shell.show("history")
 
     # ── Trợ giúp ──
 
@@ -196,50 +147,13 @@ class ToolsMixin:
             parent=self,
         )
 
-    # Chức năng ghép nhạc (đấu dây từ TopBar qua on_merge).
     def _open_merge_dialog(self) -> None:
-        if hasattr(self, "shell") and self.shell.has_page("merge"):
-            self.shell.show("merge")
-            return
-        if not self._ensure_license("ghép nhạc"):
-            return
-        from ui.components.merge_dialog import MergeDialog
-
-        MergeDialog(
-            self,
-            export_history=self._export_history,
-            on_merged=lambda path: self.topbar.set_status(
-                f"Đã ghép: {path}", theme.SUCCESS),
-        )
+        self.shell.show("merge")
 
     # ── Chuyển đổi hàng loạt ──
 
     def _open_batch_dialog(self) -> None:
-        if hasattr(self, shell) and self.shell.has_page(batch):
-            self.shell.show(batch)
-            return
-        if self._busy:
-            self.topbar.set_status(
-                "Đang chuyển đổi — dừng lại trước khi xuất hàng loạt.",
-                theme.ERROR)
-            return
-        if not self._ensure_license("xuất nhiều tệp"):
-            return
-        model = self._selected_model()
-        if model is None:
-            self.topbar.set_status("Không có giọng đọc để xuất.", theme.ERROR)
-            return
-        from ui.components.batch_dialog import BatchDialog
-
-        BatchDialog(
-            self,
-            text=self.textbox.get_text(),
-            model=model,
-            model_manager=self._model_manager,
-            voice_name=self.topbar.get_selected_voice() or "",
-            speed=self.topbar.get_speed(),
-            on_done=lambda message: self.topbar.set_status(message, theme.SUCCESS),
-        )
+        self.shell.show("batch")
 
     # ── Test giọng ──
 

@@ -1,28 +1,14 @@
 from __future__ import annotations
 
-import os
-import subprocess
-import sys
 from pathlib import Path
 from tkinter import messagebox
 
 import customtkinter as ctk
 
+from core.paths import open_in_system
 from ui import theme
 from ui.shell.page import Page
 from ui.ui_kit import Badge, Button, Card
-
-
-def _open_in_system(path: Path) -> None:
-    try:
-        if os.name == "nt":
-            os.startfile(str(path))          # type: ignore[attr-defined]
-        elif sys.platform == "darwin":
-            subprocess.Popen(["open", str(path)])
-        else:
-            subprocess.Popen(["xdg-open", str(path)])
-    except Exception:
-        pass
 
 
 class HistoryPage(Page):
@@ -135,7 +121,7 @@ class HistoryPage(Page):
                command=lambda e=entry: self._play(e)).pack(side="left",
                                                            padx=(0, theme.SPACE_XS))
         Button(actions, text="📂", variant="secondary", size="sm", width=36,
-               command=lambda e=entry: _open_in_system(
+               command=lambda e=entry: open_in_system(
                    self._store.audio_path(e).parent)).pack(side="left",
                                                            padx=(0, theme.SPACE_XS))
         Button(actions, text="🗑", variant="ghost", size="sm", width=36,
@@ -153,7 +139,7 @@ class HistoryPage(Page):
                 parent=self,
             )
             return
-        _open_in_system(path)
+        open_in_system(path)
 
     def _delete(self, entry) -> None:
         if not messagebox.askyesno(
@@ -180,4 +166,4 @@ class HistoryPage(Page):
         self._rebuild()
 
     def _open_folder(self) -> None:
-        _open_in_system(self._store.root)
+        open_in_system(self._store.root)

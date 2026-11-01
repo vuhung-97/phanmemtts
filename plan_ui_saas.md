@@ -516,6 +516,20 @@ pytest **212/212**; probe_shell, probe_pages, probe_merge_page, probe_tags_histo
 
 Tổng `pytest` lên **236 test**.
 
+### P5 — xong (01/11/2026)
+
+| Việc | Chi tiết |
+|---|---|
+| Dọn dialog cũ | Xoá 	opbar.py, playback_bar.py, sidebar.py, settings_dialog.py, dictionary_dialog.py, history_dialog.py, atch_dialog.py, merge_dialog.py, oice_manager.py, license_dialog.py, placeholder_page.py |
+| Điều hướng | 	ools.py / license_ui.py chỉ còn shell.show(page); open_in_system chuyển vào core/paths.py |
+| Probe | probe_batch chuyển sang BatchPage; probe_tags_history kiểm tra HistoryPage |
+| HDSD | Sinh Huong_dan_su_dung_V3_v3.5.0.docx với chương 10 “Giao diện SaaS & Hội thoại”; build tự chọn HDSD mới nhất |
+| Version | 3.5.0 |
+| Build | uild_v3.bat test → 84 file / 32,7 MB; manifest 3.5.0; update_3.5.0.zip 29,96 MB (3.4.0 → 3.5.0, 81 file payload + 11 file xoá) |
+| Kiểm tra | probe_obfuscated_build **OK** (sha256, obfuscate, không secret, exe mở cửa sổ) |
+
+**Chưa làm trong P5:** DialogShell dùng chung cho 3 modal (Kích hoạt / Điều khoản / Tạo giọng) — giữ nguyên giao diện hiện tại, dời sang 4.0.0 cùng dark mode.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

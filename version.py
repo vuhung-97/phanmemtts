@@ -1,2 +1,2 @@
-__version__ = "3.4.0"
+__version__ = "3.5.0"
 __app_name__ = "Phần mềm chuyển đổi văn bản thành giọng nói tự nhiên v3"

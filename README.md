@@ -2,7 +2,7 @@
 
 Ứng dụng đọc văn bản thành giọng nói tiếng Việt, chạy hoàn toàn offline trên CPU.
 
-Phiên bản hiện tại: **v3.4.0**
+Phiên bản hiện tại: **v3.5.0**
 
 ## Tính năng
 

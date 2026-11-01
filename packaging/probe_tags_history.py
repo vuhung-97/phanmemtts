@@ -117,13 +117,12 @@ def main() -> int:
         print(f"[history] xoá bản ghi: {removed} còn {len(app._history.entries)}")
         ok &= removed and not audio_path.exists()
 
-    # ── 4. Dialog lịch sử mở được ──
-    from ui.components.history_dialog import HistoryDialog
-
-    dlg = HistoryDialog(app, app._history)
+    # ── 4. Trang lịch sử mở được ──
+    app.shell.show("history")
     app.update()
-    dlg.destroy()
-    print("[history] dialog mở/đóng OK")
+    app.shell.show("text")
+    app.update()
+    print("[history] page mở/đóng OK")
 
     app.destroy()
     print("KẾT QUẢ:", "OK" if ok else "LỖI")

@@ -57,3 +57,19 @@ def resource_path(rel: str) -> Path:
     if hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS) / rel
     return app_dir() / rel
+
+
+def open_in_system(path: Path | str) -> None:
+    """Mở file/thư mục bằng ứng dụng mặc định của hệ điều hành."""
+    import subprocess
+
+    target = str(path)
+    try:
+        if os.name == "nt":
+            os.startfile(target)          # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", target])
+        else:
+            subprocess.Popen(["xdg-open", target])
+    except Exception:
+        pass

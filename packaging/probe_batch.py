@@ -64,15 +64,14 @@ def main() -> int:
         print("LOI: khong co model giong doc", flush=True)
         return 1
 
-    from ui.components.batch_dialog import BatchDialog
-
+    app.shell.show("batch")
     out_dir = _TMP / "out"
     out_dir.mkdir(parents=True, exist_ok=True)
-    dialog = BatchDialog(
-        app, text=TEXT, model=model, model_manager=app._model_manager,
-        voice_name=model.display_name, speed=1.0,
-    )
     pump(app, 0.3)
+    dialog = app.batch_page
+    dialog.editor.delete("1.0", "end")
+    dialog.editor.insert("1.0", TEXT)
+    dialog._parse()
 
     parts = dialog._parts
     labels = [p.label for p in parts]
@@ -117,7 +116,7 @@ def main() -> int:
         print("[status] LOI: khong bao xong", flush=True)
         ok = False
 
-    dialog.destroy()
+    app.shell.show("text")
     app.update()
     app.destroy()
     print("\nKẾT QUẢ:", "OK" if ok else "LỖI", flush=True)
