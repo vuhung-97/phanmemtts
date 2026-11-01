@@ -24,11 +24,11 @@ from engine.model_manager import ModelManager
 from ui import theme
 from ui.config import load_settings
 from ui.pages.batch_page import BatchPage
+from ui.pages.dialogue_page import DialoguePage
 from ui.pages.dictionary_page import DictionaryPage
 from ui.pages.history_page import HistoryPage
 from ui.pages.license_page import LicensePage
 from ui.pages.merge_page import MergePage
-from ui.pages.placeholder_page import PlaceholderPage
 from ui.pages.settings_page import SettingsPage
 from ui.pages.text_page import TextPage
 from ui.pages.voices_page import VoicesPage
@@ -154,9 +154,8 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         self.shell.register(self.history_page)
         self.merge_page = MergePage(self.shell.content, self)
         self.shell.register(self.merge_page)
-        self.shell.register(PlaceholderPage(
-            self.shell.content, self, page_id="dialogue", title="Hội thoại",
-            note="Hội thoại nhiều giọng sẽ có ở bước P4 của kế hoạch 3.5.0."))
+        self.dialogue_page = DialoguePage(self.shell.content, self)
+        self.shell.register(self.dialogue_page)
 
         # ── Alias tương thích mixin/probe cũ ──
         self.topbar = self.text_page

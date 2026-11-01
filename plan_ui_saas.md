@@ -502,6 +502,20 @@ Kết quả đo: @1024 trái 434 / phải 298 (41%); @1280 588/400 (40%); @1440 
 
 pytest **212/212**; probe_shell, probe_pages, probe_merge_page, probe_tags_history, probe_license, probe_ui_flow **OK**.
 
+### P4 — xong (01/11/2026)
+
+| Việc | Chi tiết |
+|---|---|
+| `core/dialogue.py` | Parse `Tên: nội dung`, lỗi theo dòng, gộp tên trùng, offset ký tự; `dialogue_cast.json` (nhớ giọng), `dialogue_draft.txt` (nháp), kịch bản mẫu |
+| `engine/dialogue_engine.py` | `render_dialogue`: đổi giọng theo lượt (`set_voice`, không nạp lại model), nghỉ giữa lượt, timeline quy về ký tự kịch bản, huỷ giữa chừng |
+| `engine/vieneu_engine.py` | `set_voice()` (nhận cả `vieneu:...`) |
+| `DialoguePage` | Editor + cột phải “Nhân vật & giọng”, gán tự động nam/nữ xen kẽ, 🔊 nghe thử, lỗi + “Sửa dòng N”, tạo/xuất, player chung |
+| An toàn | Thiếu tên/nội dung → chặn tạo; đang tạo khoá sidebar (trừ Lịch sử); xuất cần bản quyền |
+| Làm sạch | `clean_for_reading` không gộp dòng `Tên:` |
+| Test | `tests/test_dialogue.py` **24 pass**; `probe_dialogue` **OK** (3 lượt, 4 câu, 6,3 s, MP3 54 KB) |
+
+Tổng `pytest` lên **236 test**.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

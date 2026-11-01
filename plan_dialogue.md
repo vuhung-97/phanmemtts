@@ -1,7 +1,7 @@
 # KẾ HOẠCH — HỘI THOẠI NHIỀU GIỌNG (`v3.5.0`)
 
-> **Trạng thái:** kế hoạch, **chưa triển khai**.
-> **Mốc hiện tại:** `v3.4.0`.
+> **Trạng thái:** **đã triển khai (P4, 01/11/2026)** — `core/dialogue.py`, `engine/dialogue_engine.py`, `ui/pages/dialogue_page.py`, 24 test + `probe_dialogue`.
+> **Mốc hiện tại:** `v3.4.0` (đang phát triển `v3.5.0`).
 > **Bản đích:** `v3.5.0` — nằm trong đợt đổi UI SaaS, **không phát hành trung gian**.
 > **Giao diện:** hội thoại là **một page** trong shell mới, không phải tab/dialog.
 > **Tài liệu liên quan:** `plan_ui_saas.md` (shell, palette, router, player chung) · `plan_update.md`.

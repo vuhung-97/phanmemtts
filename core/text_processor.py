@@ -94,6 +94,8 @@ _TERMINAL_END = ".?!…:;\"')]}»"
 _BULLET_START = re.compile(r"^\s{0,3}(?:[-*+•–]|\d+[.)])\s+")
 #: Dòng chỉ gồm thẻ điều khiển (``[nghỉ 2s]``) -> không gộp.
 _ONLY_TAGS = re.compile(r"^\s*(?:\[[^\]\n]{1,60}\]\s*)+$")
+#: Dòng kịch bản hội thoại ``Tên: nội dung`` -> không gộp với dòng trước.
+_SPEAKER_LINE = re.compile(r"^\s*[^:\n]{1,40}:\s+\S")
 #: Ký tự cho phép gộp dòng sau dù chữ đầu viết hoa.
 _SOFT_END = ",([—-"
 _SPACES = re.compile(r"[ \t]{2,}")
@@ -108,6 +110,8 @@ def _should_join(prev: str, cur: str) -> bool:
     if not prev or not cur:
         return False
     if _ONLY_TAGS.match(prev) or _ONLY_TAGS.match(cur):
+        return False
+    if _SPEAKER_LINE.match(cur):
         return False
     if _BULLET_START.match(cur):
         return False

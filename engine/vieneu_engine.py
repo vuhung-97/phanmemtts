@@ -212,6 +212,16 @@ class VieneuTTS:
         self._voice = voice
         self.sample_rate = SAMPLE_RATE
 
+    def set_voice(self, voice: str) -> None:
+        """Đổi giọng cho các lần generate sau — KHÔNG nạp lại model.
+
+        ``voice`` nhận cả ``model_id`` (``vieneu:Adam bựa``) hoặc tên giọng.
+        """
+        name = voice.split(":", 1)[-1] if ":" in voice else voice
+        if not name:
+            raise ValueError("Tên giọng rỗng.")
+        self._voice = name
+
     def generate(self, text: str, speed: float = 1.0, **kwargs) -> SimpleNamespace:
         if not text.strip():
             return SimpleNamespace(samples=np.zeros(0, dtype=np.float32),

@@ -23,6 +23,7 @@ Phiên bản hiện tại: **v3.4.0**
 - **Từ điển phát âm**: thay cách đọc từ viết tắt/tên riêng (`KTX` → `ký túc xá`), có bật/tắt, nhập/xuất tệp
 - **Làm sạch văn bản**: bỏ dòng trống thừa + gộp dòng ngắt giữa câu, giữ nguyên công thức/danh sách, hoàn tác bằng `Ctrl+Z`
 - **Chuyển đổi hàng loạt**: marker `[P1]`, `[P2]`… → mỗi phần một tệp MP3/WAV, tuỳ chọn đóng gói `.zip`
+- **Hội thoại nhiều giọng**: kịch bản `Tên: nội dung`, gán giọng từng nhân vật, khoảng nghỉ giữa lượt, xuất 1 file MP3/WAV
 - **Điều khoản & quyền riêng tư**: đồng ý lần đầu, cam kết quyền sử dụng giọng khi tạo giọng mới
 - **Lịch sử bản dựng**: mỗi lần xuất file được lưu bản sao; nghe lại / mở thư mục / xoá ngay trong app
 - **Giao diện SaaS**: header (logo + tên + version) + toolbar `Tệp` / `Trợ giúp` + sidebar chức năng (thu gọn được) + thanh phát dùng chung có waveform; mỗi chức năng là một trang riêng, chuyển qua lại không mất trạng thái
@@ -114,6 +115,25 @@ Thẻ nghỉ nhận `s` / `giây` / `ms`, số thập phân bằng dấu phẩy 
 - Phần trước marker đầu tiên (nếu có) thành `P0`.
 - Bỏ tick phần không muốn xuất; chọn MP3/WAV; tuỳ chọn đóng gói **.zip**.
 - Cần đã kích hoạt bản quyền (giống **Xuất file**).
+
+## Hội thoại nhiều giọng
+
+Mở **🎭 Hội thoại** ở sidebar (`Ctrl+2`). Mỗi dòng là một lượt nói:
+
+```
+# Bản tin phát thanh (dòng bắt đầu # là chú thích)
+An: Xin chào, tôi là An.
+Bình: Chào An. Hôm nay có gì mới?
+An: [nghỉ 1s] Có ba tin đáng chú ý.
+```
+
+- **Dòng thiếu `Tên:`** → báo lỗi kèm số dòng và nút **Sửa dòng N**; không cho tạo cho tới khi sửa xong.
+- Tên trùng (khác hoa/thường) gộp về một nhân vật; tên tối đa 40 ký tự.
+- Không đọc tên nhân vật — chỉ đọc phần nội dung.
+- Cột phải **Nhân vật & giọng**: chọn giọng từng người, **🔊** nghe thử, **Gán tự động** (nam/nữ xen kẽ).
+- App **tự nhớ giọng theo tên nhân vật** và **tự lưu nháp** kịch bản — không cần file JSON.
+- **Nghỉ giữa lượt**: 0,25 / 0,5 / 0,75 / 1,0 / 1,5 giây.
+- Bấm **⚡ Tạo hội thoại** → phát trên thanh player chung; **💾 Xuất file** ra MP3/WAV (cần kích hoạt bản quyền, vẫn nghe thử được khi chưa kích hoạt).
 
 ## Điều khoản & quyền riêng tư
 
@@ -226,6 +246,7 @@ trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút t�
 .venv\Scripts\python.exe packaging\probe_shell.py          # probe shell SaaS (header/toolbar/sidebar/player)
 .venv\Scripts\python.exe packaging\probe_pages.py          # probe page Cài đặt / Từ điển / Giọng đọc / Bản quyền
 .venv\Scripts\python.exe packaging\probe_merge_page.py     # probe trang Ghép nhạc (preview + xuất file)
+.venv\Scripts\python.exe packaging\probe_dialogue.py       # probe Hội thoại nhiều giọng (model thật)
 .venv\Scripts\python.exe packaging\probe_license.py       # probe kích hoạt + freemium + chống clone
 .venv\Scripts\python.exe packaging\probe_editor_tools.py  # probe làm sạch + từ điển phát âm
 .venv\Scripts\python.exe packaging\probe_batch.py         # probe xuất hàng loạt [P1]/[P2] + zip
