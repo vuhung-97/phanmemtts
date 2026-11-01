@@ -44,13 +44,14 @@ class BatchPage(Page):
         # ── Trái: văn bản nguồn ──
         left = Card(self.body, padding=theme.SPACE_MD)
         left.grid(row=0, column=0, sticky="nsew", padx=(0, theme.SPACE_MD))
-        left.grid_rowconfigure(1, weight=1)
-        left.grid_columnconfigure(0, weight=1)
-        SectionTitle(left, "Văn bản nguồn",
+        lbox = left.content
+        lbox.grid_rowconfigure(1, weight=1)
+        lbox.grid_columnconfigure(0, weight=1)
+        SectionTitle(lbox, "Văn bản nguồn",
                      "Dòng bắt đầu bằng [P1], [P2]…").grid(row=0, column=0,
                                                           sticky="w")
         self.editor = ctk.CTkTextbox(
-            left, fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
+            lbox, fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
             border_width=1, border_color=theme.BORDER, corner_radius=theme.RADIUS_SM,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE), wrap="word",
         )
@@ -66,12 +67,13 @@ class BatchPage(Page):
 
         parts_card = Card(right, padding=theme.SPACE_MD)
         parts_card.grid(row=0, column=0, sticky="nsew")
-        parts_card.grid_rowconfigure(2, weight=1)
-        parts_card.grid_columnconfigure(0, weight=1)
+        pbox = parts_card.content
+        pbox.grid_rowconfigure(2, weight=1)
+        pbox.grid_columnconfigure(0, weight=1)
 
-        SectionTitle(parts_card, "Các phần sẽ xuất").grid(row=0, column=0, sticky="w")
+        SectionTitle(pbox, "Các phần sẽ xuất").grid(row=0, column=0, sticky="w")
 
-        mid = ctk.CTkFrame(parts_card, fg_color="transparent")
+        mid = ctk.CTkFrame(pbox, fg_color="transparent")
         mid.grid(row=1, column=0, pady=(theme.SPACE_XS, theme.SPACE_SM), sticky="ew")
         mid.grid_columnconfigure(0, weight=1)
         self.summary_label = ctk.CTkLabel(
@@ -84,33 +86,34 @@ class BatchPage(Page):
         Button(mid, text="Bỏ", variant="ghost", size="sm",
                command=lambda: self._set_all(False)).grid(row=0, column=2)
 
-        self._list = ctk.CTkScrollableFrame(parts_card, fg_color=theme.SURFACE)
+        self._list = ctk.CTkScrollableFrame(pbox, fg_color=theme.SURFACE)
         self._list.grid(row=2, column=0, sticky="nsew")
         self._list.grid_columnconfigure(0, weight=1)
 
         options = Card(right, padding=theme.SPACE_MD)
         options.grid(row=1, column=0, sticky="ew", pady=(theme.SPACE_MD, 0))
-        options.grid_columnconfigure(1, weight=1)
-        options.grid_columnconfigure(3, weight=1)
+        obox = options.content
+        obox.grid_columnconfigure(1, weight=1)
+        obox.grid_columnconfigure(3, weight=1)
 
-        ctk.CTkLabel(options, text="Tên tệp", anchor="w",
+        ctk.CTkLabel(obox, text="Tên tệp", anchor="w",
                      text_color=theme.TEXT_DIM,
                      font=(theme.FONT_FAMILY, theme.FONT_SIZE - 2)).grid(
             row=0, column=0, padx=(0, theme.SPACE_SM), sticky="w")
-        self.base_entry = self._entry(options, "bai_doc")
+        self.base_entry = self._entry(obox, "bai_doc")
         self.base_entry.grid(row=0, column=1, sticky="ew")
 
-        ctk.CTkLabel(options, text="Thư mục", anchor="w",
+        ctk.CTkLabel(obox, text="Thư mục", anchor="w",
                      text_color=theme.TEXT_DIM,
                      font=(theme.FONT_FAMILY, theme.FONT_SIZE - 2)).grid(
             row=0, column=2, padx=(theme.SPACE_MD, theme.SPACE_SM), sticky="w")
-        self.folder_entry = self._entry(options, "")
+        self.folder_entry = self._entry(obox, "")
         self.folder_entry.grid(row=0, column=3, sticky="ew")
-        Button(options, text="…", variant="secondary", size="sm", width=34,
+        Button(obox, text="…", variant="secondary", size="sm", width=34,
                command=self._choose_folder).grid(row=0, column=4,
                                                  padx=(theme.SPACE_XS, 0))
 
-        fmt = ctk.CTkFrame(options, fg_color="transparent")
+        fmt = ctk.CTkFrame(obox, fg_color="transparent")
         fmt.grid(row=1, column=0, columnspan=3, pady=(theme.SPACE_SM, 0), sticky="w")
         self.format_var = ctk.StringVar(value="mp3")
         for value, label in (("mp3", "MP3 (nhẹ)"), ("wav", "WAV (gốc)")):
@@ -128,12 +131,12 @@ class BatchPage(Page):
             hover_color=theme.PRIMARY_HOVER, corner_radius=4,
         ).pack(side="left")
 
-        self.progress = ctk.CTkProgressBar(options, height=8)
+        self.progress = ctk.CTkProgressBar(obox, height=8)
         self.progress.set(0)
         self.progress.grid(row=2, column=0, columnspan=5,
                            pady=(theme.SPACE_MD, theme.SPACE_XS), sticky="ew")
         self.status_label = ctk.CTkLabel(
-            options, text="", anchor="w", text_color=theme.TEXT_DIM,
+            obox, text="", anchor="w", text_color=theme.TEXT_DIM,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 2),
         )
         self.status_label.grid(row=3, column=0, columnspan=5, sticky="w")

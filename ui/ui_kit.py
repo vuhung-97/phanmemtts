@@ -64,7 +64,11 @@ class IconButton(Button):
 
 
 class Card(ctk.CTkFrame):
-    """Khối nội dung trắng, viền nhẹ, bo góc 12."""
+    """Khối nội dung trắng, viền nhẹ, bo góc 12, có vùng đệm trong.
+
+    Đặt widget con vào ``card.content`` (không phải ``card``) để luôn cách
+    viền đúng ``padding`` px.
+    """
 
     def __init__(self, master, padding: int = theme.SPACE_LG, **kwargs) -> None:
         kwargs.setdefault("fg_color", theme.SURFACE)
@@ -73,6 +77,8 @@ class Card(ctk.CTkFrame):
         kwargs.setdefault("corner_radius", theme.RADIUS_MD)
         super().__init__(master, **kwargs)
         self._padding = padding
+        self.content = ctk.CTkFrame(self, fg_color="transparent")
+        self.content.pack(fill="both", expand=True, padx=padding, pady=padding)
 
     @property
     def padding(self) -> int:

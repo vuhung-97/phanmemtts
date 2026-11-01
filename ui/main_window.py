@@ -163,7 +163,6 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         self.waveform_timeline = self.shell.player_bar.waveform
 
         self.shell.show("text")
-        self.shell.player_bar.set_visible(False)
 
         self.bind("<Control-h>", lambda _e: self._navigate("history"))
         self.bind("<Control-b>", lambda _e: self._navigate("batch"))
@@ -290,7 +289,6 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         self.waveform_timeline.clear()
         if hasattr(self, "shell"):
             self.shell.player_bar.clear()
-            self.shell.player_bar.set_visible(False)
         self.topbar.set_status(status, theme.TEXT_DIM)
 
     def _release_stores(self) -> None:

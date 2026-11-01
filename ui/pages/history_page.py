@@ -104,10 +104,11 @@ class HistoryPage(Page):
         card = Card(self.list_frame, padding=theme.SPACE_MD)
         card.grid(row=row, column=0, sticky="ew", padx=2,
                   pady=(0, theme.SPACE_SM))
-        card.grid_columnconfigure(0, weight=1)
+        cbox = card.content
+        cbox.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            card, text=entry.created_text, anchor="w",
+            cbox, text=entry.created_text, anchor="w",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
             text_color=theme.TEXT,
         ).grid(row=0, column=0, sticky="w")
@@ -115,19 +116,19 @@ class HistoryPage(Page):
         meta = (f"Giọng: {entry.voice or '—'} · {entry.speed_text} · "
                 f"{entry.duration_text} · {entry.size_text}")
         ctk.CTkLabel(
-            card, text=meta, anchor="w",
+            cbox, text=meta, anchor="w",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
             text_color=theme.TEXT_DIM,
         ).grid(row=1, column=0, sticky="w")
 
         ctk.CTkLabel(
-            card, text=entry.preview or "(không có văn bản)", anchor="w",
+            cbox, text=entry.preview or "(không có văn bản)", anchor="w",
             justify="left", wraplength=620,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
             text_color=theme.TEXT_DIM,
         ).grid(row=2, column=0, pady=(2, 0), sticky="w")
 
-        actions = ctk.CTkFrame(card, fg_color="transparent")
+        actions = ctk.CTkFrame(cbox, fg_color="transparent")
         actions.grid(row=0, column=1, rowspan=3, padx=(theme.SPACE_SM, 0),
                      sticky="e")
         Button(actions, text="▶  Nghe", variant="soft", size="sm", width=84,

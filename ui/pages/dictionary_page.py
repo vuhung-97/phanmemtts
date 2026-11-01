@@ -34,16 +34,17 @@ class DictionaryPage(Page):
         # ── Form ──
         form = Card(self.body, padding=theme.SPACE_LG)
         form.grid(row=0, column=0, sticky="ew")
-        form.grid_columnconfigure(1, weight=1)
-        form.grid_columnconfigure(3, weight=1)
+        box = form.content
+        box.grid_columnconfigure(1, weight=1)
+        box.grid_columnconfigure(3, weight=1)
 
-        SectionTitle(form, "Thêm / sửa mục").grid(
+        SectionTitle(box, "Thêm / sửa mục").grid(
             row=0, column=0, columnspan=4, pady=(0, theme.SPACE_SM), sticky="w")
 
-        self.src_entry = self._entry(form, "Cụm cần thay", 0)
-        self.dst_entry = self._entry(form, "Cách đọc", 2)
+        self.src_entry = self._entry(box, "Cụm cần thay", 0)
+        self.dst_entry = self._entry(box, "Cách đọc", 2)
 
-        opts = ctk.CTkFrame(form, fg_color="transparent")
+        opts = ctk.CTkFrame(box, fg_color="transparent")
         opts.grid(row=2, column=0, columnspan=3, pady=(theme.SPACE_SM, 0), sticky="w")
         self.whole_var = ctk.BooleanVar(value=True)
         ctk.CTkCheckBox(
@@ -61,7 +62,7 @@ class DictionaryPage(Page):
             hover_color=theme.PRIMARY_HOVER, corner_radius=4,
         ).pack(side="left")
 
-        actions = ctk.CTkFrame(form, fg_color="transparent")
+        actions = ctk.CTkFrame(box, fg_color="transparent")
         actions.grid(row=2, column=3, pady=(theme.SPACE_SM, 0), sticky="e")
         Button(actions, text="✕ Bỏ chọn", variant="ghost", size="sm",
                command=self._clear_form).pack(side="left", padx=(0, theme.SPACE_SM))
@@ -69,7 +70,7 @@ class DictionaryPage(Page):
                               size="sm", command=self._save_entry)
         self.add_btn.pack(side="left")
         self.edit_hint = ctk.CTkLabel(
-            form, text="", anchor="w", text_color=theme.TEXT_DIM,
+            box, text="", anchor="w", text_color=theme.TEXT_DIM,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 2),
         )
         self.edit_hint.grid(row=1, column=0, columnspan=2, sticky="w")
@@ -77,10 +78,11 @@ class DictionaryPage(Page):
         # ── Danh sách ──
         list_card = Card(self.body, padding=theme.SPACE_MD)
         list_card.grid(row=2, column=0, sticky="nsew", pady=(theme.SPACE_MD, 0))
-        list_card.grid_rowconfigure(1, weight=1)
-        list_card.grid_columnconfigure(0, weight=1)
+        lbox = list_card.content
+        lbox.grid_rowconfigure(1, weight=1)
+        lbox.grid_columnconfigure(0, weight=1)
 
-        top = ctk.CTkFrame(list_card, fg_color="transparent")
+        top = ctk.CTkFrame(lbox, fg_color="transparent")
         top.grid(row=0, column=0, sticky="ew", pady=(0, theme.SPACE_SM))
         top.grid_columnconfigure(0, weight=1)
         self.search_entry = ctk.CTkEntry(
@@ -108,7 +110,7 @@ class DictionaryPage(Page):
         else:
             self.enable_switch.deselect()
 
-        self._list = ctk.CTkScrollableFrame(list_card, fg_color=theme.SURFACE)
+        self._list = ctk.CTkScrollableFrame(lbox, fg_color=theme.SURFACE)
         self._list.grid(row=1, column=0, sticky="nsew")
         self._list.grid_columnconfigure(0, weight=1)
 

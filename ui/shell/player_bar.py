@@ -98,6 +98,7 @@ class PlayerBar(ctk.CTkFrame):
         )
         self.speed_combo.set("1.0x")
         self.speed_combo.pack(side="left")
+        self.set_transport_enabled(False)
 
     # ── transport ──
 
@@ -128,6 +129,7 @@ class PlayerBar(ctk.CTkFrame):
 
     def set_source(self, source, sample_rate: int, sentences=None) -> None:
         self.waveform.set_source(source, sample_rate, sentences)
+        self.set_transport_enabled(True)
 
     def update_position(self, seconds: float) -> None:
         self._position = max(0.0, float(seconds))
@@ -138,6 +140,7 @@ class PlayerBar(ctk.CTkFrame):
         self._duration = 0.0
         self._position = 0.0
         self.waveform.clear()
+        self.set_transport_enabled(False)
         self._refresh_time()
 
     def get_speed(self) -> float:
@@ -147,11 +150,14 @@ class PlayerBar(ctk.CTkFrame):
         self.speed_combo.set(f"{value:g}x")
 
     def set_visible(self, visible: bool) -> None:
-        if visible:
-            if not self.winfo_ismapped():
-                self.grid()
-        else:
-            self.grid_remove()
+        """Giữ tương thích: thanh phát luôn hiển thị (yêu cầu 3.5.0)."""
+        self.set_transport_enabled(visible or bool(self._duration > 0))
+
+    def set_transport_enabled(self, enabled: bool) -> None:
+        state = "normal" if enabled else "disabled"
+        for widget in (self.prev_btn, self.rew_btn, self.toggle_btn,
+                       self.fwd_btn, self.next_btn, self.speed_combo):
+            widget.configure(state=state)
 
     def _refresh_time(self) -> None:
         self.time_label.configure(

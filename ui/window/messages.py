@@ -48,7 +48,7 @@ class MessagesMixin:
             self._base_timeline = self._timeline
             self._player.load_source(play_store, sample_rate, has_more=True)
             self._stream_has_started_playing = False
-            self.shell.player_bar.set_visible(True)
+            self.shell.player_bar.set_transport_enabled(True)
         elif kind == "stream_chunk":
             _, timed, cur, tot = message
             if self._timeline is None:

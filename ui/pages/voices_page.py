@@ -45,9 +45,10 @@ class VoicesPage(Page):
 
         card = Card(self.body, padding=theme.SPACE_MD)
         card.grid(row=1, column=0, sticky="nsew")
-        card.grid_rowconfigure(0, weight=1)
-        card.grid_columnconfigure(0, weight=1)
-        self._list = ctk.CTkScrollableFrame(card, fg_color=theme.SURFACE)
+        box = card.content
+        box.grid_rowconfigure(0, weight=1)
+        box.grid_columnconfigure(0, weight=1)
+        self._list = ctk.CTkScrollableFrame(box, fg_color=theme.SURFACE)
         self._list.grid(row=0, column=0, sticky="nsew")
         self._list.grid_columnconfigure(0, weight=1)
 

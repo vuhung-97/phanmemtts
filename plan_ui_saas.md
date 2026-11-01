@@ -465,6 +465,19 @@ Hành động trên page
 - HistoryPage hiển thị đúng tổng dung lượng, empty state.
 - `probe_shell`, `probe_pages`, `probe_license`, `probe_terms`, `probe_editor_tools`, `probe_tags_history` **OK**; `pytest` **210/210**.
 
+### P2.5 — sửa padding + player luôn hiển thị (01/11/2026)
+
+| Việc | Chi tiết |
+|---|---|
+| `Card` có vùng đệm | `ui_kit.Card` tạo `content` frame bên trong, `padx/pady = padding` (12/16 px) |
+| Migrate 7 page | Text, Settings, License, Dictionary, Voices, Batch, History đặt widget vào `card.content` |
+| Nút không sát viền | Hàng nút cuối (🗑/📂/⬇/…) cách mép ≥ 8 px; kiểm tra tự động trong `probe_pages` |
+| Player luôn hiển thị | Bỏ ẩn/hiện; transport (⏮ −5 ▶ +5 ⏭ + tốc độ) **disable** khi chưa có audio, bật khi có source |
+| Probe | `probe_shell` kiểm tra luôn hiển thị + disable/enable; `probe_pages` kiểm tra padding `<8 px` = 0 lỗi |
+
+Kết quả: `pytest` **210/210**; `probe_shell`, `probe_pages`, `probe_editor_tools`, `probe_tags_history`, `probe_terms` **OK**.
+Editor còn **310 px** @1024×700, **410 px** @1280×800.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

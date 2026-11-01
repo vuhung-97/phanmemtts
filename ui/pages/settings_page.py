@@ -62,14 +62,15 @@ class SettingsPage(Page):
 
         card = Card(self.body, padding=theme.SPACE_LG)
         card.grid(row=0, column=0, sticky="ew")
-        card.grid_columnconfigure(1, weight=1)
+        box = card.content
+        box.grid_columnconfigure(1, weight=1)
 
         row = 0
-        row = self._section(card, "Mô hình", row)
-        self.precision_combo = _combo(card, list(PRECISION_LABELS.values()))
-        row = self._row(card, row, "Độ chính xác", self.precision_combo)
+        row = self._section(box, "Mô hình", row)
+        self.precision_combo = _combo(box, list(PRECISION_LABELS.values()))
+        row = self._row(box, row, "Độ chính xác", self.precision_combo)
         self.int8_label = ctk.CTkLabel(
-            card, text="", text_color=theme.TEXT_DIM, anchor="w",
+            box, text="", text_color=theme.TEXT_DIM, anchor="w",
             justify="left", wraplength=620,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
         )
@@ -77,31 +78,32 @@ class SettingsPage(Page):
                              sticky="w")
         row += 1
 
-        row = self._section(card, "Hiệu năng", row)
-        self.threads_combo = _combo(card, list(THREAD_LABELS.values()), 200)
-        row = self._row(card, row, "Số luồng CPU", self.threads_combo)
+        row = self._section(box, "Hiệu năng", row)
+        self.threads_combo = _combo(box, list(THREAD_LABELS.values()), 200)
+        row = self._row(box, row, "Số luồng CPU", self.threads_combo)
         ctk.CTkLabel(
-            card, text="Chạy hoàn toàn trên CPU của máy (bản phát hành không kèm GPU).",
+            box, text="Chạy hoàn toàn trên CPU của máy (bản phát hành không kèm GPU).",
             text_color=theme.TEXT_DIM, justify="left", wraplength=620,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
         ).grid(row=row, column=1, pady=(0, theme.SPACE_SM), sticky="w")
         row += 1
 
-        row = self._section(card, "Cách lưu âm thanh", row)
-        self.storage_combo = _combo(card, list(STORAGE_LABELS.values()), 420)
-        row = self._row(card, row, "Bộ nhớ", self.storage_combo)
+        row = self._section(box, "Cách lưu âm thanh", row)
+        self.storage_combo = _combo(box, list(STORAGE_LABELS.values()), 420)
+        row = self._row(box, row, "Bộ nhớ", self.storage_combo)
 
         note = Card(self.body, padding=theme.SPACE_MD)
         note.grid(row=1, column=0, sticky="ew", pady=(theme.SPACE_MD, 0))
+        note_box = note.content
         ctk.CTkLabel(
-            note, text="Thay đổi độ chính xác hoặc số luồng sẽ nạp lại model "
+            note_box, text="Thay đổi độ chính xác hoặc số luồng sẽ nạp lại model "
                        "ở lần chuyển đổi tiếp theo.",
             text_color=theme.TEXT_DIM, anchor="w", justify="left",
             wraplength=720,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
         ).pack(anchor="w")
         self.status_label = ctk.CTkLabel(
-            note, text="", text_color=theme.TEXT_DIM, anchor="w",
+            note_box, text="", text_color=theme.TEXT_DIM, anchor="w",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
         )
         self.status_label.pack(anchor="w", pady=(theme.SPACE_XS, 0))

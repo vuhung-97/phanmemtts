@@ -26,6 +26,7 @@ from core import dictionary                    # noqa: E402
 from core.licensing import store               # noqa: E402
 from ui.config import load_settings            # noqa: E402
 from ui.main_window import MainWindow          # noqa: E402
+from ui.ui_kit import Card                     # noqa: E402
 
 
 def pump(app, seconds: float = 0.3) -> None:
@@ -122,6 +123,40 @@ def main() -> int:
     print("[nav] so dialog mo:", len(toplevels))
     if toplevels:
         print("[nav] LOI: van mo dialog thay vi page")
+        ok = False
+
+    # ── 7. Padding trong Card ──
+    def walk(widget):
+        for child in widget.winfo_children():
+            yield child
+            yield from walk(child)
+
+    issues = []
+    for page_id in ids + ("text", "batch", "history"):
+        if not app.shell.has_page(page_id):
+            continue
+        app.shell.show(page_id)
+        pump(app, 0.15)
+        page = app.shell.current_page
+        for card in walk(page):
+            if not isinstance(card, Card) or not card.winfo_ismapped():
+                continue
+            x0, y0 = card.winfo_rootx(), card.winfo_rooty()
+            x1 = x0 + card.winfo_width()
+            y1 = y0 + card.winfo_height()
+            for child in card.content.winfo_children():
+                if not child.winfo_ismapped():
+                    continue
+                cx0, cy0 = child.winfo_rootx(), child.winfo_rooty()
+                cx1, cy1 = cx0 + child.winfo_width(), cy0 + child.winfo_height()
+                gaps = (cx0 - x0, cy0 - y0, x1 - cx1, y1 - cy1)
+                if min(gaps) < 8:
+                    issues.append((page_id, child.__class__.__name__, gaps))
+    print("[padding] widget sat vien (<8px):", len(issues))
+    for issue in issues[:5]:
+        print("   ", issue)
+    if issues:
+        print("[padding] LOI: noi dung dinh vien the")
         ok = False
 
     app.destroy()

@@ -32,16 +32,17 @@ class TextPage(Page):
         # ── Hàng điều khiển: giọng đọc + test ──
         controls = Card(self.body, padding=theme.SPACE_MD, height=56)
         controls.grid(row=0, column=0, sticky="ew", pady=(0, theme.SPACE_SM))
-        controls.grid_columnconfigure(3, weight=1)
+        box = controls.content
+        box.grid_columnconfigure(3, weight=1)
 
         ctk.CTkLabel(
-            controls, text="Giọng đọc",
+            box, text="Giọng đọc",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 2, "bold"),
             text_color=theme.TEXT_DIM,
         ).grid(row=0, column=0, padx=(theme.SPACE_SM, theme.SPACE_XS), sticky="w")
 
         self.voice_combo = ctk.CTkComboBox(
-            controls, height=32, width=210, state="readonly",
+            box, height=32, width=210, state="readonly",
             values=["(chưa có model)"], command=lambda _v: ctx._on_voice_change(_v),
             corner_radius=theme.RADIUS_SM,
             fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
@@ -53,17 +54,17 @@ class TextPage(Page):
         )
         self.voice_combo.grid(row=0, column=1, sticky="w")
 
-        self.add_voice_btn = Button(controls, text="＋ Thêm", variant="secondary",
+        self.add_voice_btn = Button(box, text="＋ Thêm", variant="secondary",
                                     size="sm", command=ctx._open_voice_manager)
         self.add_voice_btn.grid(row=0, column=2, padx=theme.SPACE_SM, sticky="w")
 
-        self.test_btn = Button(controls, text="🔊  Test", variant="secondary",
+        self.test_btn = Button(box, text="🔊  Test", variant="secondary",
                                size="sm", command=ctx._test_voice)
         self.test_btn.grid(row=0, column=4, padx=(theme.SPACE_MD, theme.SPACE_XS),
                            sticky="e")
 
         self.test_entry = ctk.CTkEntry(
-            controls, height=32, corner_radius=theme.RADIUS_SM,
+            box, height=32, corner_radius=theme.RADIUS_SM,
             fg_color=theme.INPUT_BG, text_color=theme.INPUT_TEXT,
             placeholder_text_color=theme.INPUT_PLACEHOLDER,
             border_color=theme.BORDER, border_width=1,

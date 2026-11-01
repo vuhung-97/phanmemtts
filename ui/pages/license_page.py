@@ -30,9 +30,10 @@ class LicensePage(Page):
 
         card = Card(self.body, padding=theme.SPACE_LG)
         card.grid(row=0, column=0, sticky="ew")
-        card.grid_columnconfigure(1, weight=1)
+        box = card.content
+        box.grid_columnconfigure(1, weight=1)
 
-        self._badge = Badge(card, text="—", tone="neutral")
+        self._badge = Badge(box, text="—", tone="neutral")
         self._badge.grid(row=0, column=0, columnspan=2, pady=(0, theme.SPACE_MD),
                          sticky="w")
 
@@ -40,29 +41,29 @@ class LicensePage(Page):
         rows = (("kind", "Loại"), ("expiry", "Hạn dùng"), ("left", "Còn lại"))
         for index, (key, label) in enumerate(rows, start=1):
             ctk.CTkLabel(
-                card, text=label, anchor="w",
+                box, text=label, anchor="w",
                 font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
                 text_color=theme.TEXT_DIM,
             ).grid(row=index, column=0, padx=(0, theme.SPACE_XL),
                    pady=theme.SPACE_XS, sticky="w")
             value = ctk.CTkLabel(
-                card, text="—", anchor="w",
+                box, text="—", anchor="w",
                 font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
                 text_color=theme.TEXT,
             )
             value.grid(row=index, column=1, pady=theme.SPACE_XS, sticky="w")
             self._values[key] = value
 
-        ctk.CTkFrame(card, height=1, fg_color=theme.BORDER).grid(
+        ctk.CTkFrame(box, height=1, fg_color=theme.BORDER).grid(
             row=4, column=0, columnspan=2, pady=theme.SPACE_MD, sticky="ew")
 
         ctk.CTkLabel(
-            card, text="Mã máy", anchor="w",
+            box, text="Mã máy", anchor="w",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
             text_color=theme.TEXT_DIM,
         ).grid(row=5, column=0, padx=(0, theme.SPACE_XL), sticky="w")
 
-        machine_row = ctk.CTkFrame(card, fg_color="transparent")
+        machine_row = ctk.CTkFrame(box, fg_color="transparent")
         machine_row.grid(row=5, column=1, sticky="w")
         self.machine_label = ctk.CTkLabel(
             machine_row, text=self._machine, anchor="w",
@@ -75,7 +76,7 @@ class LicensePage(Page):
                                                 padx=(theme.SPACE_SM, 0))
 
         self.note = ctk.CTkLabel(
-            card, text="", anchor="w", justify="left", wraplength=760,
+            box, text="", anchor="w", justify="left", wraplength=760,
             font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
             text_color=theme.TEXT_DIM,
         )
@@ -84,9 +85,10 @@ class LicensePage(Page):
 
         help_card = Card(self.body, padding=theme.SPACE_LG)
         help_card.grid(row=1, column=0, sticky="nsew", pady=(theme.SPACE_MD, 0))
-        SectionTitle(help_card, "Cách kích hoạt").pack(anchor="w")
+        help_box = help_card.content
+        SectionTitle(help_box, "Cách kích hoạt").pack(anchor="w")
         ctk.CTkLabel(
-            help_card,
+            help_box,
             text=("1. Bấm “Sao chép” mã máy ở trên, gửi cho nhà phát triển.\n"
                   "2. Nhận mã kích hoạt 15 ký tự (hoặc file .lic).\n"
                   "3. Bấm “Nhập mã mới”, dán mã và xác nhận.\n\n"

@@ -50,7 +50,6 @@ def main() -> int:
 
     # ── 1. Kích thước ──
     print("[size] size | header | toolbar | sidebar | player | textbox")
-    shell.player_bar.set_visible(True)
     for label, w, h in SIZES:
         app.geometry(f"{w}x{h}")
         pump(app, 0.25)
@@ -181,16 +180,18 @@ def main() -> int:
         print("[status] LOI: khong cap nhat thanh trang thai")
         ok = False
 
-    # ── 7. Player ẩn/hiện ──
-    shell.player_bar.set_visible(False)
-    pump(app, 0.1)
-    hidden = not shell.player_bar.winfo_ismapped()
-    shell.player_bar.set_visible(True)
-    pump(app, 0.1)
-    shown = shell.player_bar.winfo_ismapped()
-    print("[player] an khi khong audio:", hidden, "| hien khi co audio:", shown)
-    if not hidden or not shown:
-        print("[player] LOI: an/hien player sai")
+    # ── 7. Player luôn hiển thị ──
+    mapped = shell.player_bar.winfo_ismapped()
+    disabled = str(shell.player_bar.toggle_btn.cget("state"))
+    shell.player_bar.set_transport_enabled(True)
+    app.update()
+    enabled = str(shell.player_bar.toggle_btn.cget("state"))
+    shell.player_bar.set_transport_enabled(False)
+    app.update()
+    print("[player] luon hien:", bool(mapped), "| rong thi disable:", disabled,
+          "| co audio thi enable:", enabled)
+    if not mapped or disabled != "disabled" or enabled != "normal":
+        print("[player] LOI: trang thai player sai")
         ok = False
 
     app.destroy()

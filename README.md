@@ -35,7 +35,8 @@ Header   : logo + tên phần mềm + version
 Toolbar  : Tệp · Trợ giúp        (bên phải: trạng thái + số giọng)
 Sidebar  : 5 chức năng chính + 4 công cụ + trạng thái bản quyền
 Nội dung : trang của chức năng đang chọn (cuộn được)
-Player   : waveform + ⏮ ▶ ⏭ + −5/+5 + thời lượng + tốc độ (hiện khi có audio)
+Player   : waveform + ⏮ ▶ ⏭ + −5/+5 + thời lượng + tốc độ (luôn hiển thị;
+           nút điều khiển mờ khi chưa có audio)
 ```
 
 | Sidebar | Nội dung | Phím tắt |
