@@ -544,6 +544,18 @@ Tổng `pytest` lên **236 test**.
 - Rebuild `3.5.0`: 84 file, `update_3.5.0.zip` **29,96 MB**, `probe_obfuscated_build` **OK**.
 - HDSD bổ sung mục “Mở tệp .docx/.txt” và “Lịch sử mọi tab”.
 
+### P5.2 — lịch sử chỉ metadata (03/11/2026)
+
+| Việc | Chi tiết |
+|---|---|
+| `core/history.py` schema v2 | `path` tuyệt đối tới file người dùng xuất; **không sao chép audio**; `remove/clear` chỉ bỏ mục, không xoá file; `prune` theo 200 mục, bỏ ngưỡng 500 MB/1 GB |
+| Migration | Mục schema cũ (`audio_file`) **tự xoá một lần**: chỉ xoá file trong `history/`, bỏ mục legacy, ghi marker `.migrated_v2`, ghi lại `migration_summary` |
+| UI Lịch sử | Summary “không tốn thêm dung lượng”; ghi chú lịch sử chỉ lưu thông tin; badge **“Thiếu file”** khi file gốc bị di chuyển/xoá; xoá mục/clear không đụng audio |
+| Test | `tests/test_history.py` viết lại **15 test**; `probe_tags_history` xác nhận `dung_file_goc=True, khong_ban_sao=True`, xoá mục vẫn còn file |
+| Tài liệu | README + HDSD cập nhật mô tả metadata-only |
+
+Tổng `pytest`: **237 test**. `probe_tags_history`, `probe_pages`, `probe_dialogue`, `probe_merge_page`, `probe_batch` **OK**.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

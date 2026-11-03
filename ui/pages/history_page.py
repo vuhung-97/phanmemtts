@@ -5,6 +5,7 @@ from tkinter import messagebox
 
 import customtkinter as ctk
 
+from core.history import format_size
 from core.paths import open_in_system
 from ui import theme
 from ui.shell.page import Page
@@ -17,7 +18,7 @@ class HistoryPage(Page):
     def __init__(self, master, ctx, **kwargs) -> None:
         super().__init__(master, ctx, page_id="history",
                          title="Lịch sử bản dựng",
-                         subtitle="Bản sao các file đã xuất", **kwargs)
+                         subtitle="Chỉ lưu thông tin — không sao chép file âm thanh", **kwargs)
         self._store = ctx._history
 
         self.clear_btn = Button(self.header.actions, text="Xoá tất cả",
@@ -59,19 +60,18 @@ class HistoryPage(Page):
 
         entries = self._store.entries
         self.summary_label.configure(
-            text=f"{len(entries)} bản · {self._store.total_size_text()}")
+            text=f"{len(entries)} bản · không tốn thêm dung lượng")
         self.clear_btn.configure(state="normal" if entries else "disabled")
 
-        if self._store.is_large():
-            self.notice_label.configure(
-                text="⚠ Lịch sử đã vượt 500 MB — nên xoá bớt bản cũ. "
-                     "Hệ thống tự xoá bản cũ nhất khi vượt 1 GB.",
-                text_color=theme.ERROR)
-        else:
-            self.notice_label.configure(
-                text="Mỗi bản là một bản sao trong thư mục dữ liệu; "
-                     "xoá ở đây không ảnh hưởng file bạn đã xuất.",
-                text_color=theme.TEXT_DIM)
+        notice = ("Lịch sử chỉ lưu thông tin. File âm thanh do bạn quản lý — "
+                  "xoá ở đây không xoá file gốc.")
+        summary = self._store.migration_summary
+        if summary:
+            count, freed = summary
+            notice = (f"Đã tự dọn {count} bản sao cũ ({format_size(freed)}). "
+                      + notice)
+            self._store.migration_summary = None
+        self.notice_label.configure(text=notice, text_color=theme.TEXT_DIM)
 
         if not entries:
             ctk.CTkLabel(
@@ -93,11 +93,18 @@ class HistoryPage(Page):
         cbox = card.content
         cbox.grid_columnconfigure(0, weight=1)
 
+        head = ctk.CTkFrame(cbox, fg_color="transparent")
+        head.grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
-            cbox, text=entry.created_text, anchor="w",
+            head, text=entry.created_text, anchor="w",
             font=(theme.FONT_FAMILY, theme.FONT_SIZE, "bold"),
             text_color=theme.TEXT,
-        ).grid(row=0, column=0, sticky="w")
+        ).pack(side="left")
+        if not entry.exists:
+            from ui.ui_kit import Badge
+
+            Badge(head, text="Thiếu file", tone="danger").pack(
+                side="left", padx=(theme.SPACE_SM, 0))
 
         meta = (f"Giọng: {entry.voice or '—'} · {entry.speed_text} · "
                 f"{entry.duration_text} · {entry.size_text}")
@@ -134,8 +141,8 @@ class HistoryPage(Page):
         if not path.exists():
             messagebox.showwarning(
                 "Thiếu file",
-                "Bản ghi này đã mất file audio (có thể bị xoá thủ công).\n"
-                "Hãy xoá bản ghi khỏi lịch sử.",
+                "File âm thanh đã bị di chuyển hoặc xoá khỏi vị trí cũ.\n"
+                "Bạn có thể xoá mục này khỏi lịch sử.",
                 parent=self,
             )
             return
@@ -145,7 +152,7 @@ class HistoryPage(Page):
         if not messagebox.askyesno(
                 "Xoá bản ghi",
                 f"Xoá bản dựng {entry.created_text} khỏi lịch sử?\n"
-                "(File bạn đã xuất ra ngoài vẫn còn.)",
+                "File âm thanh bạn đã xuất vẫn còn nguyên.",
                 parent=self):
             return
         self._store.remove(entry.id)
@@ -157,9 +164,8 @@ class HistoryPage(Page):
             return
         if not messagebox.askyesno(
                 "Xoá tất cả",
-                f"Xoá toàn bộ {len(entries)} bản dựng trong lịch sử "
-                f"({self._store.total_size_text()})?\n"
-                "(File bạn đã xuất ra ngoài vẫn còn.)",
+                f"Xoá toàn bộ {len(entries)} mục trong lịch sử?\n"
+                "Không xoá bất kỳ file âm thanh nào bạn đã xuất.",
                 parent=self):
             return
         self._store.clear()

@@ -146,14 +146,17 @@ An: [nghỉ 1s] Có ba tin đáng chú ý.
 ## Lịch sử bản dựng
 
 Mỗi lần **Xuất file** thành công ở **bất kỳ tab nào** (Đọc văn bản, Hội thoại, Hàng loạt, Ghép nhạc),
-app sao chép file vào `%LOCALAPPDATA%\PhanMemTTS\history\<id>\audio.mp3` và ghi `index.json`.
-Hàng loạt ghi một mục cho mỗi phần audio đã xuất.
+app chỉ ghi **thông tin** vào `%LOCALAPPDATA%\PhanMemTTS\history\index.json`:
+thời gian, giọng, tốc độ, thời lượng, số ký tự, đoạn xem trước và **đường dẫn tới file bạn đã xuất**.
+**Không sao chép file âm thanh** — không tốn thêm dung lượng. Hàng loạt ghi một mục cho mỗi phần.
 
-Bấm **Công cụ → Lịch sử bản dựng** (`Ctrl+H`) để xem, **▶ Nghe** (mở bằng trình
-phát mặc định), **📂** mở thư mục, **🗑** xoá bản ghi.
+Bấm **Công cụ → Lịch sử bản dựng** (`Ctrl+H`) để xem, **▶ Nghe** (mở bằng trình phát mặc định),
+**📂** mở thư mục chứa file gốc, **🗑** xoá mục.
 
-- Xoá trong lịch sử chỉ xoá **bản sao** — file bạn đã xuất ra ngoài vẫn còn.
-- Cảnh báo khi vượt **500 MB**; tự xoá bản cũ nhất khi vượt **1 GB** (tối đa 200 bản).
+- Xoá mục / xoá tất cả chỉ xoá **danh sách**, **không xoá file âm thanh**.
+- File bị di chuyển/xoá → mục được đánh dấu **“Thiếu file”**.
+- Bản sao cũ (bản 3.5.0 trước đây) được **tự dọn một lần** khi mở lịch sử.
+- Tối đa **200 mục** (bỏ mục cũ nhất, không xoá file).
 
 ## Bản quyền & kích hoạt
 

@@ -109,13 +109,18 @@ def main() -> int:
     if entries:
         entry = entries[0]
         audio_path = app._history.audio_path(entry)
+        same_file = audio_path.resolve() == out.resolve()
+        no_copy = not (app._history.root / entry.id).exists()
         print(f"[history] giọng={entry.voice!r} {entry.speed_text} "
-              f"{entry.duration_text} {entry.size_text} file={audio_path.exists()}")
+              f"{entry.duration_text} {entry.size_text} "
+              f"dung_file_goc={same_file} khong_ban_sao={no_copy}")
+        ok &= same_file and no_copy
         ok &= audio_path.exists()
         ok &= entry.duration > 0
         removed = app._history.remove(entry.id)
-        print(f"[history] xoá bản ghi: {removed} còn {len(app._history.entries)}")
-        ok &= removed and not audio_path.exists()
+        print(f"[history] xoá mục: {removed} còn {len(app._history.entries)} "
+              f"file_goc_con={out.exists()}")
+        ok &= removed and out.exists() and audio_path.exists()
 
     # ── 4. Trang lịch sử mở được ──
     app.shell.show("history")

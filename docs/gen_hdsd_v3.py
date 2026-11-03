@@ -286,7 +286,7 @@ add_placeholder(doc, "06", "hinh-06-playback-bar.png", "Thanh phát lại: seekb
 doc.add_heading("5.6. Xuất file MP3 / WAV", level=2)
 body("Điều kiện: đã Chuyển đổi xong (waveform có sóng). Bấm 💾 Xuất file → chọn đuôi .mp3 (nhẹ, gửi Zalo/mail tiện) "
      "hoặc .wav (nặng, chất lượng gốc) → chọn thư mục lưu → đợi báo Đã xuất: đường dẫn file. "
-     "File vừa xuất được lưu vào lịch sử Gần đây để dùng lại ở hộp Ghép nhạc. "
+     "File vừa xuất được ghi vào lịch sử Gần đây (chỉ thông tin, không sao chép) để dùng lại ở hộp Ghép nhạc. "
      "Nếu báo Chưa có âm thanh – hãy chuyển đổi trước nghĩa là bạn quên bước Chuyển đổi.")
 
 # ================= CH6 =================
@@ -447,6 +447,7 @@ doc.add_heading("10.2. Các trang chức năng", level=2)
 bullet("Đọc văn bản, Hội thoại, Ghép nhạc, Hàng loạt, Lịch sử. ", "Nhóm chính: ")
 bullet("Từ điển, Giọng đọc, Cài đặt, Bản quyền. ", "Nhóm công cụ: ")
 bullet("Mọi tab khi xuất file đều được ghi vào Lịch sử (Đọc văn bản, Hội thoại, Hàng loạt, Ghép nhạc). ", "Lịch sử: ")
+bullet("Lịch sử chỉ lưu thông tin (đường dẫn, giọng, thời lượng); không sao chép file. Xoá mục không xoá file âm thanh. ", "Lịch sử: ")
 bullet("Chuyển đổi, xuất file, ghép nhạc… vẫn giữ nguyên thao tác; chỉ đổi vị trí nút. ",
        "Lưu ý: ")
 doc.add_heading("10.3. Hội thoại nhiều giọng", level=2)

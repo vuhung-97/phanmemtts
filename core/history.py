@@ -1,22 +1,20 @@
-"""Lịch sử bản dựng audio — bền vững trên đĩa.
+"""Lịch sử bản dựng — **chỉ metadata**, không sao chép file âm thanh.
 
-Cấu trúc (mặc định trong ``data_dir()/history``)::
+Vì sao: mỗi lần xuất người dùng đã có 1 file; lưu thêm bản sao trong
+``%LOCALAPPDATA%`` là thừa dung lượng. Lịch sử chỉ ghi lại thông tin và
+**đường dẫn tuyệt đối** tới file gốc do người dùng chọn.
 
-    index.json              # danh sách bản ghi, mới nhất trước
-    <id>/audio.mp3          # bản SAO của file đã xuất
+Hệ quả:
 
-Vì sao phải sao chép: người dùng thường xuất ra Desktop/USB rồi xoá file gốc;
-lịch sử phải còn nghe lại được. Xoá một mục trong lịch sử chỉ xoá bản sao,
-không đụng file người dùng đã xuất.
-
-Mọi lỗi đọc/ghi đều được nuốt (trả danh sách rỗng / bỏ qua) vì lịch sử là
-tính năng phụ — không được làm hỏng luồng xuất file chính.
+- Xoá một mục / xoá tất cả **không** xoá file âm thanh.
+- File bị di chuyển/xoá → mục vẫn còn, UI đánh dấu "Thiếu file".
+- Bản sao cũ (schema v1, ``audio_file`` tương đối) bị **tự xoá một lần**
+  khi mở lịch sử: chỉ xoá file nằm trong thư mục ``history/`` của app.
 """
 
 from __future__ import annotations
 
 import json
-import shutil
 import time
 import uuid
 from dataclasses import dataclass
@@ -25,9 +23,8 @@ from pathlib import Path
 from core.paths import data_dir
 
 MAX_ITEMS = 200                      # số bản ghi tối đa
-WARN_BYTES = 500 * 1024 * 1024       # 500 MB -> UI cảnh báo
-PRUNE_BYTES = 1024 * 1024 * 1024     # 1 GB -> tự xoá bản cũ nhất
 PREVIEW_CHARS = 80
+MIGRATION_MARKER = ".migrated_v2"
 
 
 def format_size(size: int) -> str:
@@ -59,7 +56,7 @@ def make_preview(text: str, limit: int = PREVIEW_CHARS) -> str:
 
 @dataclass
 class HistoryEntry:
-    """Một lần xuất file thành công."""
+    """Một lần xuất file — chỉ metadata, ``path`` trỏ tới file gốc."""
 
     id: str
     created_at: float
@@ -68,8 +65,9 @@ class HistoryEntry:
     duration: float
     chars: int
     preview: str
-    audio_file: str          # đường dẫn tương đối trong thư mục lịch sử
+    path: str
     size: int
+    legacy: bool = False      # mục schema cũ (có bản sao trong history/)
 
     # ── JSON ──
 
@@ -82,22 +80,34 @@ class HistoryEntry:
             "duration": self.duration,
             "chars": self.chars,
             "preview": self.preview,
-            "audio_file": self.audio_file,
+            "path": self.path,
             "size": self.size,
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "HistoryEntry":
+    def from_dict(cls, data: dict, root: Path | None = None) -> "HistoryEntry":
+        if not isinstance(data, dict):
+            raise ValueError("entry không hợp lệ")
+        entry_id = str(data["id"])
+        path = str(data.get("path") or "")
+        legacy = False
+        if not path:
+            relative = str(data.get("audio_file") or "")
+            if not relative:
+                raise KeyError("path")
+            path = str((root / relative) if root is not None else relative)
+            legacy = True
         return cls(
-            id=str(data["id"]),
+            id=entry_id,
             created_at=float(data.get("created_at", 0.0)),
             voice=str(data.get("voice", "")),
             speed=float(data.get("speed", 1.0)),
             duration=float(data.get("duration", 0.0)),
             chars=int(data.get("chars", 0)),
             preview=str(data.get("preview", "")),
-            audio_file=str(data["audio_file"]),
+            path=path,
             size=int(data.get("size", 0)),
+            legacy=legacy,
         )
 
     # ── Hiển thị ──
@@ -121,14 +131,23 @@ class HistoryEntry:
     def speed_text(self) -> str:
         return f"{self.speed:g}x"
 
+    @property
+    def exists(self) -> bool:
+        try:
+            return bool(self.path) and Path(self.path).is_file()
+        except OSError:
+            return False
+
 
 class HistoryStore:
-    """Đọc/ghi ``index.json`` + các thư mục con chứa bản sao audio."""
+    """Đọc/ghi ``index.json`` — không giữ bản sao âm thanh."""
 
     def __init__(self, root: Path | str | None = None) -> None:
         self.root = Path(root) if root is not None else data_dir() / "history"
         self.index_path = self.root / "index.json"
+        self.migration_summary: tuple[int, int] | None = None
         self._entries: list[HistoryEntry] = self._load()
+        self._purge_legacy()
 
     # ── Đọc / ghi ──
 
@@ -143,10 +162,12 @@ class HistoryStore:
             raw = json.loads(self.index_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return []
+        if isinstance(raw, dict):
+            raw = raw.get("entries")
         out: list[HistoryEntry] = []
         for item in raw if isinstance(raw, list) else []:
             try:
-                out.append(HistoryEntry.from_dict(item))
+                out.append(HistoryEntry.from_dict(item, self.root))
             except (KeyError, TypeError, ValueError):
                 continue
         out.sort(key=lambda e: e.created_at, reverse=True)
@@ -155,18 +176,69 @@ class HistoryStore:
     def _save(self) -> None:
         try:
             self.root.mkdir(parents=True, exist_ok=True)
-            payload = json.dumps([e.to_dict() for e in self._entries],
-                                 ensure_ascii=False, indent=1)
+            payload = json.dumps(
+                {"ver": 2, "entries": [e.to_dict() for e in self._entries]},
+                ensure_ascii=False, indent=1)
             tmp = self.index_path.with_suffix(".json.tmp")
             tmp.write_text(payload, encoding="utf-8")
             tmp.replace(self.index_path)
         except OSError:
             pass
 
+    # ── Dọn bản sao schema cũ (tự động, 1 lần) ──
+
+    def _purge_legacy(self) -> None:
+        marker = self.root / MIGRATION_MARKER
+        legacy = [e for e in self._entries if e.legacy]
+        if not legacy:
+            if not marker.exists():
+                try:
+                    self.root.mkdir(parents=True, exist_ok=True)
+                    marker.write_text("1", encoding="utf-8")
+                except OSError:
+                    pass
+            return
+
+        freed = 0
+        for entry in legacy:
+            path = Path(entry.path)
+            if self._inside_root(path) and path.is_file():
+                try:
+                    freed += path.stat().st_size
+                    path.unlink()
+                except OSError:
+                    pass
+        self._entries = [e for e in self._entries if not e.legacy]
+        self._cleanup_empty_dirs()
+        self._save()
+        try:
+            marker.write_text("1", encoding="utf-8")
+        except OSError:
+            pass
+        self.migration_summary = (len(legacy), freed)
+
+    def _inside_root(self, path: Path) -> bool:
+        try:
+            return path.resolve().is_relative_to(self.root.resolve())
+        except (OSError, ValueError):
+            return False
+
+    def _cleanup_empty_dirs(self) -> None:
+        if not self.root.is_dir():
+            return
+        for folder in sorted(self.root.iterdir(), reverse=True):
+            if not folder.is_dir():
+                continue
+            try:
+                if not any(folder.iterdir()):
+                    folder.rmdir()
+            except OSError:
+                pass
+
     # ── Truy vấn ──
 
     def audio_path(self, entry: HistoryEntry) -> Path:
-        return self.root / entry.audio_file
+        return Path(entry.path)
 
     def get(self, entry_id: str) -> HistoryEntry | None:
         for entry in self._entries:
@@ -180,31 +252,25 @@ class HistoryStore:
     def total_size_text(self) -> str:
         return format_size(self.total_size())
 
-    def is_large(self) -> bool:
-        return self.total_size() >= WARN_BYTES
-
     # ── Thay đổi ──
 
     def add(self, audio_path: str | Path, *, voice: str = "", speed: float = 1.0,
-            duration: float = 0.0, chars: int = 0, preview: str = "") -> HistoryEntry:
-        """Sao chép file vừa xuất vào lịch sử và ghi index."""
+            duration: float = 0.0, chars: int = 0,
+            preview: str = "") -> HistoryEntry:
+        """Ghi metadata của file vừa xuất. KHÔNG sao chép file."""
         source = Path(audio_path)
-        entry_id = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
-        folder = self.root / entry_id
-        folder.mkdir(parents=True, exist_ok=True)
-        name = f"audio{source.suffix.lower() or '.mp3'}"
-        dest = folder / name
-        shutil.copy2(source, dest)
+        if not source.is_file():
+            raise FileNotFoundError(str(source))
         entry = HistoryEntry(
-            id=entry_id,
+            id=time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6],
             created_at=time.time(),
             voice=str(voice or ""),
             speed=float(speed),
             duration=float(duration),
             chars=int(chars),
             preview=make_preview(preview),
-            audio_file=f"{entry_id}/{name}",
-            size=dest.stat().st_size,
+            path=str(source.resolve()),
+            size=source.stat().st_size,
         )
         self._entries.insert(0, entry)
         self.prune()
@@ -212,38 +278,40 @@ class HistoryStore:
         return entry
 
     def remove(self, entry_id: str) -> bool:
+        """Xoá khỏi danh sách — KHÔNG xoá file âm thanh."""
         entry = self.get(entry_id)
         if entry is None:
             return False
         self._entries.remove(entry)
-        self._delete_files(entry)
         self._save()
         return True
 
     def clear(self) -> int:
+        """Xoá toàn bộ danh sách — KHÔNG xoá file âm thanh."""
         count = len(self._entries)
-        for entry in self._entries:
-            self._delete_files(entry)
         self._entries.clear()
         self._save()
         return count
 
-    def prune(self, max_items: int = MAX_ITEMS,
-              max_bytes: int = PRUNE_BYTES) -> list[str]:
-        """Xoá bản cũ nhất cho tới khi đủ giới hạn. Trả về id đã xoá."""
+    def prune(self, max_items: int = MAX_ITEMS) -> list[str]:
+        """Bỏ bớt mục cũ nhất khi vượt số lượng — không xoá file."""
         removed: list[str] = []
-        while self._entries and (
-            len(self._entries) > max_items or self.total_size() > max_bytes
-        ):
-            oldest = self._entries.pop()          # cuối danh sách = cũ nhất
-            self._delete_files(oldest)
+        while len(self._entries) > max_items:
+            oldest = self._entries.pop()
             removed.append(oldest.id)
+        if removed:
+            self._save()
         return removed
 
-    def _delete_files(self, entry: HistoryEntry) -> None:
-        folder = (self.root / entry.audio_file).parent
-        try:
-            if folder != self.root and folder.exists():
-                shutil.rmtree(folder, ignore_errors=True)
-        except OSError:
-            pass
+    # Tương thích code cũ (không còn dùng để cảnh báo dung lượng).
+    def is_large(self) -> bool:
+        return False
+
+    def remove_empty_legacy_dirs(self) -> None:
+        self._cleanup_empty_dirs()
+
+    def cleanup_legacy(self) -> tuple[int, int]:
+        """Dọn thủ công (dùng cho test): trả (số mục, byte)."""
+        before = len(self._entries)
+        self._purge_legacy()
+        return self.migration_summary or (before - len(self._entries), 0)
