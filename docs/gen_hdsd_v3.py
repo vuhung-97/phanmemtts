@@ -9,7 +9,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-OUT = "docs/Huong_dan_su_dung_V3_v3.5.0.docx"
+OUT = "docs/Huong_dan_su_dung_V3_v3.5.1.docx"
 FONT = "Times New Roman"
 
 doc = Document()
@@ -494,7 +494,7 @@ table(["Mã", "Tên file", "Chụp gì / Cỡ hiển thị"],
        ["10", "hinh-10-track-timeline.png", "1 track + Volume / 12cm"],
        ["11", "hinh-11-output-timeline.png", "Timeline output + Xuất / 12cm"]])
 
-body("Thông tin tài liệu: Phần mềm chuyển đổi văn bản thành giọng nói tự nhiên v3, phiên bản 3.5.0 "
+body("Thông tin tài liệu: Phần mềm chuyển đổi văn bản thành giọng nói tự nhiên v3, phiên bản 3.5.1 "
      "(bản phát hành OneDir: EXE + _internal/ + models/ cạnh nhau). "
      "Tài liệu này thay thế mọi hướng dẫn miệng trước đây; khi app lên phiên bản mới, "
      "chỉ cần chụp lại các ảnh có giao diện thay đổi.")

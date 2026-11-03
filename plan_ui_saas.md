@@ -566,6 +566,18 @@ Tổng `pytest`: **237 test**. `probe_tags_history`, `probe_pages`, `probe_dialo
 
 Kết quả: `pytest` **237/237**; `probe_tab_state`, `probe_dialogue`, `probe_merge_page`, `probe_pages`, `probe_shell`, `probe_tags_history` **OK**.
 
+### Phát hành 3.5.1 (03/11/2026)
+
+- ersion.py → **3.5.1**; HDSD Huong_dan_su_dung_V3_v3.5.1.docx.
+- Build: 84 file / 32,7 MB; manifest dist\_release\manifests\3.5.1.json.
+- Gói cập nhật **3.5.0 → 3.5.1**: dist\_release\update_3.5.0_to_3.5.1.zip
+  - 29,98 MB, SHA256 148A6B6B92B1DCF522B02D44B702302FF0AE0D2FE754D256536985C64ED744B9
+  - Payload 81 file = **toàn bộ 78 file .py** + exe + HDSD + runtime; 0 file xoá
+  - An toàn với mọi bản 3.5.0 (kể cả bản cũ) vì code obfuscate đổi hash mỗi lần build.
+- Test cài thử: copy 3.5.1 → hạ manifest về 3.5.0 → capnhat.ps1 -Quiet -NoLaunch
+  → lên 3.5.1, backup 3.5.0_<timestamp> đầy đủ.
+- probe_obfuscated_build **OK** (84 file khớp sha256, exe mở cửa sổ).
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).
