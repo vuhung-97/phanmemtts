@@ -174,13 +174,21 @@ class TextPage(Page):
             speed=self.ctx._on_speed_change,
         )
         bar.set_speed_enabled(True)
+        bar.set_speed(self.ctx._applied_speed)
         if self.ctx._play_store is not None and self.ctx._timeline is not None:
             bar.set_source(self.ctx._play_store, self.ctx._sample_rate,
                            self.ctx._timeline.sentences)
             bar.set_duration(self.ctx._timeline.total_duration)
+            bar.set_position(self.ctx._player.get_position())
+            bar.set_playing(self.ctx._player.is_playing)
             bar.set_transport_enabled(True)
         else:
             bar.clear()
+
+    def on_hide(self) -> None:
+        if self.ctx._player.is_playing or self.ctx._player.is_buffering:
+            self.ctx._player.pause()
+        self.ctx.shell.player_bar.set_playing(False)
 
     def get_test_text(self) -> str | None:
         from ui.config import load_test_text, save_test_text

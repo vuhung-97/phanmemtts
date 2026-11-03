@@ -7,8 +7,11 @@ from tkinter import filedialog
 
 import customtkinter as ctk
 
+import numpy as np
+
 from audio import exporter
 from audio.buffer import GrowableBuffer
+from audio.speed import apply_speed
 from audio.player import AudioPlayer
 from core import dialogue
 from core.document_reader import read_document
@@ -44,6 +47,11 @@ class DialoguePage(Page):
         self._player = AudioPlayer()
         self._store = None
         self._timeline = None
+        self._base_store = None
+        self._base_timeline = None
+        self._applied_speed = 1.0
+        self._speed_applying = False
+        self._pending_speed: float | None = None
         self._playing_preview = False
 
         self.open_btn = Button(self.header.actions, text="📁  Mở file",
@@ -151,11 +159,19 @@ class DialoguePage(Page):
             seek=self._seek,
             prev=lambda: self._seek(0.0),
             next=lambda: self._seek(0.0),
-            speed=lambda _v: self._set_status(
-                "Tốc độ áp dụng cho lần tạo hội thoại tiếp theo.",
-                theme.TEXT_DIM),
+            speed=self._on_speed_change,
         )
         bar.set_speed_enabled(True)
+        bar.set_speed(self._applied_speed)
+        if self._store is not None and self._timeline is not None:
+            bar.set_source(self._store, self._sample_rate,
+                           self._timeline.sentences)
+            bar.set_duration(self._timeline.total_duration)
+            bar.set_position(self._player.get_position())
+            bar.set_playing(self._player.is_playing)
+            bar.set_transport_enabled(True)
+        else:
+            bar.clear()
         self._refresh_voice_choices()
         self.after(80, self._poll_messages)
         self.after(40, self._tick)
@@ -460,6 +476,55 @@ class DialoguePage(Page):
                 return value
         return 0.5
 
+    # ── tốc độ ──
+
+    def _on_speed_change(self, value: float) -> None:
+        speed = max(float(value), 0.5)
+        if self._base_store is None:
+            self._set_status("Bấm “Tạo hội thoại” trước khi đổi tốc độ.",
+                             theme.TEXT_DIM)
+            self.ctx.shell.player_bar.set_speed(self._applied_speed)
+            return
+        self._pending_speed = speed
+        self._request_speed(speed)
+
+    def _request_speed(self, speed: float) -> None:
+        if self._speed_applying:
+            return
+        if abs(speed - self._applied_speed) < 1e-9:
+            self._pending_speed = None
+            self.ctx.shell.player_bar.set_speed(self._applied_speed)
+            return
+        self._speed_applying = True
+        self._set_status(f"Đang đổi tốc độ {speed:g}x…", theme.TEXT_DIM)
+        threading.Thread(
+            target=self._speed_worker,
+            args=(speed, self._player.get_position(),
+                  self._player.is_playing),
+            daemon=True,
+        ).start()
+
+    def _speed_worker(self, speed: float, position: float,
+                      was_playing: bool) -> None:
+        try:
+            sr = self._sample_rate
+            block = max(1, int(sr * 10))
+            total = int(self._base_store.total_samples)
+            buffer = GrowableBuffer()
+            pos = 0
+            while pos < total:
+                chunk = self._base_store.read(pos, block)
+                if chunk is None or chunk.size == 0:
+                    break
+                buffer.append(apply_speed(
+                    np.array(chunk, dtype=np.float32), speed))
+                pos += chunk.size
+            timeline = self._base_timeline.scaled(speed)
+            self._messages.put(("speed_applied", buffer, timeline, speed,
+                                position, was_playing))
+        except Exception as exc:
+            self._messages.put(("speed_error", str(exc)))
+
     # ── phát / xuất ──
 
     def _toggle_play(self) -> None:
@@ -477,7 +542,8 @@ class DialoguePage(Page):
 
     def _stop_playback(self) -> None:
         try:
-            self._player.stop()
+            if self._player.is_playing or self._player.is_buffering:
+                self._player.pause()
         except Exception:
             pass
         self.ctx.shell.player_bar.set_playing(False)
@@ -559,9 +625,12 @@ class DialoguePage(Page):
                                      theme.SUCCESS)
                 elif kind == "rendered":
                     _, store, sr, timeline, script = msg
+                    self._base_store = store
+                    self._base_timeline = timeline
                     self._store = store
                     self._timeline = timeline
                     self._sample_rate = sr
+                    self._applied_speed = 1.0
                     self._busy = False
                     self.ctx.shell.set_busy(False)
                     self._reset_create_button()
@@ -576,6 +645,46 @@ class DialoguePage(Page):
                     self._set_status(
                         f"Xong: {len(timeline.sentences)} câu, "
                         f"{timeline.total_duration:.1f} giây.", theme.SUCCESS)
+                    speed = bar.get_speed()
+                    if abs(speed - 1.0) > 1e-9:
+                        self._request_speed(speed)
+                elif kind == "speed_applied":
+                    _, store, timeline, speed, position, was_playing = msg
+                    self._speed_applying = False
+                    old_speed = self._applied_speed or 1.0
+                    self._store = store
+                    self._timeline = timeline
+                    self._applied_speed = speed
+                    self._sample_rate = timeline.sample_rate
+                    duration = timeline.total_duration
+                    new_pos = (min(position * old_speed / speed, duration)
+                               if speed > 0 else 0.0)
+                    self._player.stop()
+                    self._player.load_source(store, timeline.sample_rate,
+                                             has_more=False)
+                    if new_pos > 0:
+                        self._player.seek(new_pos)
+                    if was_playing:
+                        self._player.play()
+                    bar = self.ctx.shell.player_bar
+                    bar.set_speed(speed)
+                    bar.set_source(store, timeline.sample_rate,
+                                   timeline.sentences)
+                    bar.set_duration(duration)
+                    bar.set_position(new_pos)
+                    bar.set_playing(was_playing)
+                    self._set_status(f"Đã áp tốc độ {speed:g}x.",
+                                     theme.SUCCESS)
+                    pending = self._pending_speed
+                    self._pending_speed = None
+                    if pending is not None and abs(pending - speed) > 1e-9:
+                        self._request_speed(pending)
+                elif kind == "speed_error":
+                    _, text = msg
+                    self._speed_applying = False
+                    self._pending_speed = None
+                    self.ctx.shell.player_bar.set_speed(self._applied_speed)
+                    self._set_status(f"Lỗi đổi tốc độ: {text}", theme.ERROR)
                 elif kind == "cancelled":
                     self._busy = False
                     self.ctx.shell.set_busy(False)

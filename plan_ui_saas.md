@@ -556,6 +556,16 @@ Tổng `pytest` lên **236 test**.
 
 Tổng `pytest`: **237 test**. `probe_tags_history`, `probe_pages`, `probe_dialogue`, `probe_merge_page`, `probe_batch` **OK**.
 
+### P5.3 — trạng thái player theo tab + tốc độ Hội thoại (03/11/2026)
+
+| Lỗi | Nguyên nhân | Sửa |
+|---|---|---|
+| Chuyển tab bị sai thời gian/waveform (vd. văn bản 1:54 → hội thoại 4:44 → văn bản vẫn 4:44) | Mỗi page chỉ đổi handler, không khôi phục source/duration riêng; tab Đọc văn bản không dừng audio khi rời tab | `TextPage.on_hide` pause; `on_show` khôi phục source/duration/position/speed; `DialoguePage.on_show` khôi phục hoặc `bar.clear()`; `MergePage` khôi phục preview hoặc clear |
+| Tốc độ Hội thoại không đổi | Handler chỉ hiện thông báo; render cố định `speed=1.0` | Thêm `_on_speed_change` + time-stretch nền (base/play store, `timeline.scaled`), giữ vị trí khi đang phát, xuất file theo bản đã áp |
+| Probes | — | `probe_tab_state` mới: văn bản ↔ hội thoại 2 vòng, tab rỗng clear, 1.0→1.5→1.0 |
+
+Kết quả: `pytest` **237/237**; `probe_tab_state`, `probe_dialogue`, `probe_merge_page`, `probe_pages`, `probe_shell`, `probe_tags_history` **OK**.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

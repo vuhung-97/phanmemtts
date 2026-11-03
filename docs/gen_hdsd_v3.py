@@ -461,6 +461,7 @@ bullet("Cột phải hiện từng nhân vật: chọn giọng, bấm 🔊 để
 bullet("App tự nhớ giọng theo tên nhân vật và tự lưu nháp kịch bản — không cần file JSON. ",
        "Tự động: ")
 bullet("Chọn 0,25 / 0,5 / 0,75 / 1,0 / 1,5 giây tuỳ nhịp hội thoại. ", "Nghỉ giữa lượt: ")
+bullet("Đổi tốc độ trên thanh phát áp dụng ngay; mỗi tab giữ audio riêng khi chuyển qua lại. ", "Tốc độ & chuyển tab: ")
 bullet("Bấm Tạo hội thoại → nghe trên thanh player chung. Chưa kích hoạt vẫn tạo và nghe được, "
        "chỉ khoá Xuất file. ", "Tạo và nghe: ")
 bullet("Bấm Xuất file → chọn MP3/WAV. Mỗi lần xuất được lưu một mục trong Lịch sử. ", "Xuất file: ")

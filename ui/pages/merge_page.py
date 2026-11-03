@@ -34,6 +34,9 @@ class MergePage(MergeWidgetsMixin, Page):
         # Preview dùng AudioPlayer riêng; điều khiển qua PlayerBar chung
         self._preview_player = AudioPlayer()
         self._preview_active = False
+        self._preview_source = None
+        self._preview_sr = 0
+        self._preview_duration = 0.0
 
         self._voice_paths: list[str] = []
         self._voice_durations: list[float] = []
@@ -62,6 +65,15 @@ class MergePage(MergeWidgetsMixin, Page):
     def on_show(self) -> None:
         self._active = True
         self._bind_player()
+        bar = self.ctx.shell.player_bar
+        bar.set_speed_enabled(False)
+        if self._preview_source is not None:
+            bar.set_source(self._preview_source, self._preview_sr)
+            bar.set_duration(self._preview_duration)
+            bar.set_position(self._preview_player.get_position())
+            bar.set_playing(self._preview_player.is_playing)
+        else:
+            bar.clear()
         self.after(80, self._poll_messages)
         self.after(40, self._tick)
 
@@ -147,6 +159,9 @@ class MergePage(MergeWidgetsMixin, Page):
 
         source = GrowableBuffer()
         source.append(waveform)
+        self._preview_source = source
+        self._preview_sr = sr
+        self._preview_duration = len(waveform) / sr if sr else 0.0
         bar = self.ctx.shell.player_bar
         bar.set_source(source, sr)
         bar.set_duration(len(waveform) / sr if sr > 0 else 0.0)

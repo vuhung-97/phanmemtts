@@ -134,6 +134,7 @@ An: [nghỉ 1s] Có ba tin đáng chú ý.
 - Cột phải **Nhân vật & giọng**: chọn giọng từng người, **🔊** nghe thử, **Gán tự động** (nam/nữ xen kẽ).
 - App **tự nhớ giọng theo tên nhân vật** và **tự lưu nháp** kịch bản — không cần file JSON.
 - **Nghỉ giữa lượt**: 0,25 / 0,5 / 0,75 / 1,0 / 1,5 giây.
+- Đổi **tốc độ** trên thanh phát áp dụng ngay (time-stretch), không cần tạo lại; mỗi tab giữ audio riêng khi chuyển qua lại.
 - Bấm **⚡ Tạo hội thoại** → phát trên thanh player chung; **💾 Xuất file** ra MP3/WAV (cần kích hoạt bản quyền, vẫn nghe thử được khi chưa kích hoạt).
 
 ## Điều khoản & quyền riêng tư
@@ -253,6 +254,7 @@ trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút t�
 .venv\Scripts\python.exe packaging\probe_pages.py          # probe page Cài đặt / Từ điển / Giọng đọc / Bản quyền
 .venv\Scripts\python.exe packaging\probe_merge_page.py     # probe trang Ghép nhạc (preview + xuất file)
 .venv\Scripts\python.exe packaging\probe_dialogue.py       # probe Hội thoại nhiều giọng (model thật)
+.venv\Scripts\python.exe packaging\probe_tab_state.py      # probe chuyển tab + tốc độ Hội thoại
 .venv\Scripts\python.exe packaging\probe_license.py       # probe kích hoạt + freemium + chống clone
 .venv\Scripts\python.exe packaging\probe_editor_tools.py  # probe làm sạch + từ điển phát âm
 .venv\Scripts\python.exe packaging\probe_batch.py         # probe xuất hàng loạt [P1]/[P2] + zip
