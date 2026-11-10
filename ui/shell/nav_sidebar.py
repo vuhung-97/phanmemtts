@@ -4,6 +4,7 @@ from typing import Callable
 
 import customtkinter as ctk
 
+from core.licensing import edition
 from ui import theme
 from ui.ui_kit import Button, Tooltip
 
@@ -21,6 +22,13 @@ NAV_TOOLS: tuple[tuple[str, str, str], ...] = (
     ("settings", "⚙", "Cài đặt"),
     ("license", "🔑", "Bản quyền"),
 )
+
+
+def nav_items() -> tuple[tuple[str, str, str], ...]:
+    """Mục sidebar hiển thị theo chế độ phát hành (full ẩn Bản quyền)."""
+    tools = tuple(item for item in NAV_TOOLS
+                  if item[0] != "license" or edition.license_visible())
+    return NAV_MAIN + tools
 
 
 class NavSidebar(ctk.CTkFrame):
@@ -59,8 +67,11 @@ class NavSidebar(ctk.CTkFrame):
             text_color=theme.TEXT_DIM, cursor="hand2",
         )
         self.license_label.grid(row=0, column=0, sticky="w", padx=theme.SPACE_XS)
-        self.license_label.bind("<Button-1>",
-                                lambda _e: self._navigate("license"))
+        if edition.license_visible():
+            self.license_label.bind("<Button-1>",
+                                    lambda _e: self._navigate("license"))
+        else:
+            self.license_label.grid_remove()
 
         self.collapse_btn = Button(
             footer, text="«", variant="ghost", size="sm", width=28,
@@ -77,8 +88,9 @@ class NavSidebar(ctk.CTkFrame):
             child.destroy()
         self._tooltips.clear()
 
+        items = nav_items()
         row = 0
-        for page_id, icon, label in NAV_MAIN:
+        for page_id, icon, label in items[:len(NAV_MAIN)]:
             self._item(row, page_id, icon, label)
             row += 1
 
@@ -96,7 +108,7 @@ class NavSidebar(ctk.CTkFrame):
                 pady=(theme.SPACE_MD, theme.SPACE_SM), sticky="ew")
             row += 1
 
-        for page_id, icon, label in NAV_TOOLS:
+        for page_id, icon, label in items[len(NAV_MAIN):]:
             self._item(row, page_id, icon, label)
             row += 1
 
@@ -126,6 +138,8 @@ class NavSidebar(ctk.CTkFrame):
             self._tooltips.append(Tooltip(button, label))
 
     def _navigate(self, page_id: str) -> None:
+        if page_id == "license" and not edition.license_visible():
+            return
         if self._busy and page_id != "history":
             return
         self.set_active(page_id)
@@ -143,6 +157,8 @@ class NavSidebar(ctk.CTkFrame):
         self._refresh_license()
 
     def _refresh_license(self) -> None:
+        if not edition.license_visible():
+            return
         if not self._license_text:
             self.license_label.configure(text="")
             return

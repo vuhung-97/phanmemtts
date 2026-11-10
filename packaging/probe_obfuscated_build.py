@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import version  # noqa: E402
+from core.app_info import load_app_name  # noqa: E402
 
 APP_NAME = "PhanMemChuyenDoiVanBanThanhGiongNoiTuNhien_v3"
 DEFAULT_DIST = ROOT / "dist" / APP_NAME
@@ -110,7 +111,7 @@ def check_launch(dist: Path) -> None:
         check("có file exe", False)
         return
     proc = subprocess.Popen([str(exe)], cwd=str(dist))
-    title = f"{version.__app_name__} - v{version.__version__}"
+    title = f"{load_app_name()} - v{version.__version__}"
     found = False
     try:
         for _ in range(40):

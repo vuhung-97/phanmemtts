@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import time
 
-from core.licensing import guard, trial
+from core.licensing import edition, guard, trial
 from ui import theme
 
 
@@ -28,11 +28,16 @@ class LicenseMixin:
         return status
 
     def _open_license_dialog(self) -> None:
+        if not edition.license_visible():
+            return
         self.shell.show("license")
         self.license_page.refresh()
         self._refresh_license_badge()
 
     def _open_activation(self) -> bool:
+        if not edition.license_visible():
+            self._refresh_license_badge()
+            return True
         from ui.components.activation_dialog import ask_activation
 
         ok = ask_activation(self, status=guard.check_startup(use_cache=False))

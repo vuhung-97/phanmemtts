@@ -17,9 +17,11 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.licensing import fingerprint, guard, shortcode, store, trial  # noqa: E402
+from core.licensing import (edition, fingerprint, guard, shortcode, store,  # noqa: E402
+                            trial)
 from ui.components.activation_dialog import ActivationDialog  # noqa: E402
 from ui.main_window import MainWindow  # noqa: E402
+from ui.shell.nav_sidebar import nav_items  # noqa: E402
 
 BASE = ROOT / "build" / "_probe_license"
 ok = True
@@ -48,6 +50,46 @@ def code(kind: int = shortcode.KIND_MONTH, m24: int | None = None,
                            kind, today=today)
 
 
+def check_full_edition() -> int:
+    """Bản full: đã cấp sẵn vĩnh viễn, ẩn mọi lối vào trang Bản quyền."""
+    fresh("full")
+    app = MainWindow()
+    app.update()
+    if getattr(app, "_prompt_job", None):
+        app.after_cancel(app._prompt_job)
+
+    status = guard.check_startup(use_cache=False)
+    check("full: bản quyền vĩnh viễn", status.is_lifetime, status.badge_text())
+    check("full: xuất file không bị khoá",
+          "🔒" not in app.topbar.export_btn.cget("text"),
+          app.topbar.export_btn.cget("text"))
+    nav_ids = [item[0] for item in nav_items()]
+    check("full: sidebar ẩn Bản quyền", "license" not in nav_ids,
+          str(nav_ids))
+    help_labels = []
+    menu = app.shell.toolbar.menus.get("help")
+    if menu is not None:
+        for index in range(menu.index("end") + 1):
+            if menu.type(index) == "command":
+                help_labels.append(menu.entrycget(index, "label"))
+    check("full: menu Trợ giúp ẩn Thông tin bản quyền",
+          "Thông tin bản quyền" not in help_labels, str(help_labels))
+    check("full: không bind Ctrl+Shift+L",
+          not app.bind("<Control-Shift-L>"))
+    check("full: badge sidebar không hiện",
+          not app.shell.sidebar.license_label.winfo_ismapped())
+
+    app._navigate("license")
+    app.update()
+    check("full: điều hướng Bản quyền bị chặn",
+          app.shell.current_page.page_id != "license",
+          app.shell.current_page.page_id)
+
+    app.destroy()
+    print("\nKẾT QUẢ:", "OK" if ok else "LỖI", flush=True)
+    return 0 if ok else 1
+
+
 def dialog_for(app, timeout: float = 0.3) -> ActivationDialog:
     dialog = ActivationDialog(app)
     app.update()
@@ -57,6 +99,9 @@ def dialog_for(app, timeout: float = 0.3) -> ActivationDialog:
 
 
 def main() -> int:
+    if edition.is_full():
+        return check_full_edition()
+
     fresh("start")
     app = MainWindow()
     app.update()

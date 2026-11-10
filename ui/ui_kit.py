@@ -85,6 +85,164 @@ class Card(ctk.CTkFrame):
         return self._padding
 
 
+class ScrollArea(ctk.CTkScrollableFrame):
+    """Vùng cuộn dọc cho nội dung page.
+
+    - Khi nội dung vừa khung: ép inner frame cao bằng khung nhìn để grid/weight
+      hoạt động y như ``CTkFrame`` cũ (editor, danh sách vẫn lấp đầy).
+    - Khi có widget/card bên trong lòi khỏi đáy: mới bật thanh cuộn và cho
+      inner frame cao bằng chiều cao tự nhiên.
+    - Luôn chừa gutter cố định nên ẩn/hiện thanh cuộn không làm nhảy layout.
+    """
+
+    def __init__(self, master, **kwargs) -> None:
+        kwargs.setdefault("fg_color", "transparent")
+        kwargs.setdefault("corner_radius", 0)
+        kwargs.setdefault("scrollbar_fg_color", theme.BG)
+        kwargs.setdefault("scrollbar_button_color", theme.BG)
+        kwargs.setdefault(
+            "scrollbar_button_hover_color", theme.SCROLL_BUTTON_HOVER)
+        super().__init__(master, orientation="vertical", **kwargs)
+        self._scrollbar.configure(width=8)
+        self._parent_frame.grid_columnconfigure(1, minsize=theme.SCROLL_GUTTER)
+        self._bar_visible = False
+        self._syncing = False
+        self._job = None
+        self._last_key: tuple[int, int, int] | None = None
+        self._force = True
+        self._parent_frame.bind("<Map>", self._schedule, add="+")
+        self._parent_canvas.bind("<Configure>", self._schedule, add="+")
+        self.bind("<Configure>", self._schedule, add="+")
+
+    # ── API cho page/probe ──
+
+    @property
+    def scrollbar_visible(self) -> bool:
+        return self._bar_visible
+
+    def refresh_layout(self) -> None:
+        """Gọi sau khi thêm/bớt widget cấp 1 (card) trong body."""
+        self._force = True
+        self._schedule()
+
+    def scroll_to_top(self) -> None:
+        self._parent_canvas.yview_moveto(0.0)
+
+    def scroll_to_bottom(self) -> None:
+        self._parent_canvas.yview_moveto(1.0)
+
+    # ── layout ──
+
+    def _schedule(self, _event=None) -> None:
+        if self._syncing or self._job is not None:
+            return
+        try:
+            self._job = self.after_idle(self._apply)
+        except Exception:
+            self._job = None
+
+    def _apply(self) -> None:
+        self._job = None
+        if not self.winfo_exists():
+            return
+        canvas = self._parent_canvas
+        height = canvas.winfo_height()
+        width = canvas.winfo_width()
+        if height <= 1 or width <= 1:
+            return
+        key = (width, height, self.winfo_reqheight())
+        if key == self._last_key and not self._force:
+            return
+        self._last_key = key
+        self._force = False
+        self._syncing = True
+        try:
+            # Đo lại ở đúng chiều cao khung nhìn (grid co các hàng có weight).
+            self._set_height(height)
+            self.update_idletasks()
+            overflow = self._overflows(height)
+            target = height
+            if overflow:
+                target = max(height, self.winfo_reqheight(),
+                             self._content_bottom())
+            self._set_height(target)
+            self._toggle_bar(overflow)
+            if not overflow:
+                canvas.yview_moveto(0.0)
+            self.update_idletasks()
+            canvas.configure(
+                scrollregion=canvas.bbox("all") or (0, 0, width, target))
+        finally:
+            self._syncing = False
+
+    def _set_height(self, height: int) -> None:
+        try:
+            self._parent_canvas.itemconfigure(
+                self._create_window_id, height=max(1, int(height)))
+        except Exception:
+            pass
+
+    def _overflows(self, height: int) -> bool:
+        for child in self.winfo_children():
+            if not child.winfo_ismapped():
+                continue
+            if self._subtree_overflows(child, height):
+                return True
+        return False
+
+    def _subtree_overflows(self, widget, height: int) -> bool:
+        """Widget (hoặc con của nó) có lòi khỏi khung nhìn không.
+
+        Vùng cuộn lồng bên trong được coi là "cố ý cắt" nên bỏ qua phần nội
+        dung của nó, chỉ kiểm tra bản thân khung cuộn có nằm gọn không.
+        """
+        top = self.winfo_rooty()
+        if isinstance(widget, ctk.CTkScrollableFrame):
+            host = widget._parent_frame
+            if not host.winfo_ismapped():
+                return False
+            bottom = host.winfo_rooty() - top + host.winfo_height()
+            return bottom > height + 2
+        if widget.winfo_ismapped():
+            bottom = widget.winfo_rooty() - top + widget.winfo_height()
+            if bottom > height + 2:
+                return True
+        for child in widget.winfo_children():
+            if self._subtree_overflows(child, height):
+                return True
+        return False
+
+    def _content_bottom(self) -> int:
+        top = self.winfo_rooty()
+        bottom = 0
+        for child in self.winfo_children():
+            if not child.winfo_ismapped():
+                continue
+            host = (child._parent_frame
+                    if isinstance(child, ctk.CTkScrollableFrame) else child)
+            bottom = max(bottom, host.winfo_rooty() - top + host.winfo_height())
+        return bottom
+
+    def _toggle_bar(self, visible: bool) -> None:
+        if visible == self._bar_visible:
+            return
+        self._bar_visible = visible
+        color = theme.SCROLL_BUTTON if visible else theme.BG
+        self._scrollbar.configure(button_color=color)
+        self._scrollbar.configure(
+            button_hover_color=(theme.SCROLL_BUTTON_HOVER
+                                if visible else theme.BG))
+
+    def destroy(self) -> None:
+        if self._job is not None:
+            try:
+                self.after_cancel(self._job)
+            except Exception:
+                pass
+            self._job = None
+        super().destroy()
+
+
 class Badge(ctk.CTkLabel):
     """Nhãn trạng thái nhỏ (xám/xanh/vàng/đỏ)."""
 

@@ -1,6 +1,6 @@
 PHẦN MỀM CHUYỂN ĐỔI VĂN BẢN THÀNH GIỌNG NÓI TỰ NHIÊN v3
 ============================================================
-Phiên bản: 3.0.0 | Windows 10/11 64-bit | Offline 100% | Không cần cài Python.
+Phiên bản: 3.5.2 | Windows 10/11 64-bit | Offline 100% | Không cần cài Python.
 
 1. CÀI ĐẶT
    Giải nén file ZIP ra một thư mục, ví dụ:
@@ -27,6 +27,8 @@ Phiên bản: 3.0.0 | Windows 10/11 64-bit | Offline 100% | Không cần cài Py
    - Nếu phần mềm báo thiếu model: kiểm tra models/vieneu/hf_cache
      còn đủ 20 file (~600MB).
    - Cần mở được file .docx / .txt; xuất kết quả MP3 hoặc WAV.
+   - Muốn đổi tên phần mềm hiển thị: mở app_config.json cạnh EXE,
+     sửa giá trị "app_name" rồi khởi động lại (giữ đúng định dạng JSON).
 
 5. CẤU TRÚC PHÁT HÀNH
    PhanMemChuyenDoiVanBanThanhGiongNoiTuNhien_v3.exe

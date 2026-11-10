@@ -82,10 +82,10 @@ class AppShell(ctk.CTkFrame):
         self._busy = False
 
         # Ctrl+1…9 chuyển nhanh theo thứ tự sidebar
-        from ui.shell.nav_sidebar import NAV_MAIN, NAV_TOOLS
+        from ui.shell.nav_sidebar import nav_items
 
         top = self.winfo_toplevel()
-        for index, (page_id, _icon, _label) in enumerate(NAV_MAIN + NAV_TOOLS, 1):
+        for index, (page_id, _icon, _label) in enumerate(nav_items(), 1):
             top.bind(
                 f"<Control-Key-{index}>",
                 lambda _e, pid=page_id: (on_navigate or (lambda _p: None))(pid),

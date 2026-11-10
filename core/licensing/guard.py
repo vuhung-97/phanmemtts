@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 from datetime import date
 
-from core.licensing import fingerprint, shortcode, store, trial
+from core.licensing import edition, fingerprint, shortcode, store, trial
 
 # Trạng thái
 LICENSED = "licensed"
@@ -93,6 +93,10 @@ def _build(state: str, **kwargs) -> LicenseStatus:
 
 
 def _evaluate(ts: float) -> LicenseStatus:
+    if edition.is_full():
+        # Bản full: cấp sẵn vĩnh viễn, không đọc/ghi store, không chặn tính năng.
+        return _build(LICENSED, kind=shortcode.KIND_LIFETIME)
+
     machine = fingerprint.machine_code()
     machine24 = fingerprint.machine24()
 
@@ -222,6 +226,8 @@ def install(code_text: str, now: float | None = None) -> LicenseStatus:
 def record_activity(now: float | None = None) -> LicenseStatus:
     """Gọi mỗi 60 giây trong app: ghi mốc thời gian + kiểm tra lại."""
     ts = float(now if now is not None else time.time())
+    if edition.is_full():
+        return check_startup(ts, use_cache=False)
     store.record_seen(ts)
     return check_startup(ts)
 

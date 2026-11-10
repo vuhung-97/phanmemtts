@@ -99,7 +99,19 @@ class LicensePage(Page):
             text_color=theme.TEXT_DIM,
         ).pack(anchor="w", pady=(theme.SPACE_SM, 0))
 
+        self._help_card = help_card
         self.refresh()
+        # Khoá chiều cao tối thiểu: thiếu chỗ thì Page.body tự hiện thanh cuộn
+        # thay vì bóp card hướng dẫn xuống còn vài chục px.
+        self.after_idle(self._lock_help_height)
+
+    def _lock_help_height(self) -> None:
+        try:
+            self._help_card.update_idletasks()
+            self.body.grid_rowconfigure(
+                1, minsize=self._help_card.winfo_reqheight())
+        except Exception:
+            pass
 
     # ── dữ liệu ──
 

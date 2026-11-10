@@ -5,6 +5,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 
 import version
+from core.app_info import load_app_name
 from core.document_reader import read_document
 from core.paths import open_in_system
 from core.text_processor import clean_for_reading
@@ -144,7 +145,7 @@ class ToolsMixin:
     def _show_about(self) -> None:
         messagebox.showinfo(
             "Giới thiệu",
-            f"{version.__app_name__}\n"
+            f"{load_app_name()}\n"
             f"Phiên bản {version.__version__}\n\n"
             "Chuyển văn bản thành giọng nói tiếng Việt, chạy hoàn toàn offline trên CPU.\n"
             "Không gửi dữ liệu ra ngoài.",

@@ -15,9 +15,10 @@ import customtkinter as ctk
 
 import version
 from audio.player import AudioPlayer
+from core.app_info import load_app_name
 from audio.temp_store import TempSession, cleanup_stale_sessions
 from core.history import HistoryStore
-from core.licensing import guard
+from core.licensing import edition, guard
 from core.models import TimelineMap
 from core.tags import find_unknown_tags
 from engine.model_manager import ModelManager
@@ -52,9 +53,17 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
 
     def __init__(self) -> None:
         super().__init__()
-        self.title(f"{version.__app_name__} - v{version.__version__}")
-        self.geometry("1280x800")
-        self.minsize(1024, 700)
+        self._app_name = load_app_name()
+        self.title(f"{self._app_name} - v{version.__version__}")
+        # Vừa màn hình nhỏ (1366x768): không mở cửa sổ cao hơn vùng làm việc.
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        win_w = max(1024, min(1280, screen_w - 80))
+        win_h = max(640, min(800, screen_h - 120))
+        self.geometry(
+            f"{win_w}x{win_h}+{max(0, (screen_w - win_w) // 2)}"
+            f"+{max(0, (screen_h - win_h) // 3)}")
+        self.minsize(1024, 640)
         ctk.set_appearance_mode("light")
         self.configure(fg_color=theme.BG)
 
@@ -117,13 +126,14 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
 
         self.shell = AppShell(
             self,
-            app_name=version.__app_name__,
+            app_name=self._app_name,
             version=version.__version__,
             toolbar_callbacks={
                 "open_file": self._open_file,
                 "help": self._open_help,
                 "terms": self._open_terms,
-                "license": self._open_license_dialog,
+                "license": (self._open_license_dialog
+                            if edition.license_visible() else None),
                 "about": self._show_about,
                 "close": self._on_close,
             },
@@ -173,6 +183,8 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
 
     def _navigate(self, page_id: str) -> None:
         """Mở page mới; chức năng chưa port thì mở dialog cũ (P0)."""
+        if page_id == "license" and not edition.license_visible():
+            return
         if self.shell.show(page_id):
             return
         legacy = {

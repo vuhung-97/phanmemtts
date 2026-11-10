@@ -127,6 +127,7 @@ if defined HDSD (
     echo        [canh bao] Chua co HDSD V3 - chay docs\gen_hdsd_v3.py
 )
 if exist "packaging\HUONG_DAN_V3.txt" copy /y "packaging\HUONG_DAN_V3.txt" "%DIST%\HUONG_DAN_V3.txt" >nul
+if exist "app_config.json" copy /y "app_config.json" "%DIST%\app_config.json" >nul
 for %%F in (DIEU-KHOAN.md PRIVACY.md THIRD-PARTY-NOTICES.md) do (
     if exist "%%F" copy /y "%%F" "%DIST%\%%F" >nul
 )

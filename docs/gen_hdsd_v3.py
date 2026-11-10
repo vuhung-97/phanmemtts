@@ -9,7 +9,18 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-OUT = "docs/Huong_dan_su_dung_V3_v3.5.1.docx"
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import version  # noqa: E402
+
+FULL = getattr(version, "__edition__", "standard") == "full"
+APP_VERSION = version.__version__
+OUT = f"docs/Huong_dan_su_dung_V3_v{APP_VERSION}.docx"
 FONT = "Times New Roman"
 
 doc = Document()
@@ -387,7 +398,8 @@ bullet("Nhập Tên tệp (ví dụ bai_doc) và chọn Thư mục lưu. Tệp s
 bullet("Chọn MP3 (nhẹ) hoặc WAV (gốc). Tick Đóng gói 1 tệp .zip nếu muốn gửi một lần. ",
        "Định dạng: ")
 bullet("Bấm ⚡ Xuất các phần. Thanh tiến trình báo từng phần; muốn dừng thì bấm ⏹ Dừng. "
-       "Xuất hàng loạt cần đã kích hoạt bản quyền (giống Xuất file). ", "Chạy: ")
+       + ("" if FULL else "Xuất hàng loạt cần đã kích hoạt bản quyền (giống Xuất file). "),
+       "Chạy: ")
 
 doc.add_heading("8.4. Điều khoản sử dụng & quyền riêng tư", level=2)
 bullet("Lần chạy đầu, phần mềm hiện hộp Điều khoản sử dụng & Quyền riêng tư. "
@@ -440,12 +452,16 @@ doc.add_heading("10.1. Bố cục màn hình", level=2)
 table(["Vùng", "Nội dung", "Ghi chú"],
       [["Header (56 px)", "Logo + tên phần mềm + phiên bản", "Chỉ nhận diện thương hiệu"],
        ["Toolbar (40 px)", "Menu Tệp / Trợ giúp; bên phải là trạng thái và số giọng", "Phím tắt giữ nguyên"],
-       ["Sidebar (232 px)", "5 chức năng chính + 4 công cụ + trạng thái bản quyền", "Bấm « để thu gọn còn 64 px"],
-       ["Nội dung", "Trang của chức năng đang chọn", "Cuộn được; Ctrl+1…9 chuyển nhanh"],
+       ["Sidebar (232 px)",
+        "5 chức năng chính + " + ("3 công cụ" if FULL else "4 công cụ + trạng thái bản quyền"),
+        "Bấm « để thu gọn còn 64 px"],
+       ["Nội dung", "Trang của chức năng đang chọn",
+        f"Cuộn được; Ctrl+1…{8 if FULL else 9} chuyển nhanh"],
        ["Player (108 px)", "Waveform + ⏮ ▶ ⏭ + −5/+5 + thời lượng + tốc độ", "Luôn hiển thị; nút mờ khi chưa có audio"]])
 doc.add_heading("10.2. Các trang chức năng", level=2)
 bullet("Đọc văn bản, Hội thoại, Ghép nhạc, Hàng loạt, Lịch sử. ", "Nhóm chính: ")
-bullet("Từ điển, Giọng đọc, Cài đặt, Bản quyền. ", "Nhóm công cụ: ")
+bullet("Từ điển, Giọng đọc, Cài đặt" + ("" if FULL else ", Bản quyền") + ". ",
+       "Nhóm công cụ: ")
 bullet("Mọi tab khi xuất file đều được ghi vào Lịch sử (Đọc văn bản, Hội thoại, Hàng loạt, Ghép nhạc). ", "Lịch sử: ")
 bullet("Lịch sử chỉ lưu thông tin (đường dẫn, giọng, thời lượng); không sao chép file. Xoá mục không xoá file âm thanh. ", "Lịch sử: ")
 bullet("Chuyển đổi, xuất file, ghép nhạc… vẫn giữ nguyên thao tác; chỉ đổi vị trí nút. ",
@@ -462,19 +478,21 @@ bullet("App tự nhớ giọng theo tên nhân vật và tự lưu nháp kịch 
        "Tự động: ")
 bullet("Chọn 0,25 / 0,5 / 0,75 / 1,0 / 1,5 giây tuỳ nhịp hội thoại. ", "Nghỉ giữa lượt: ")
 bullet("Đổi tốc độ trên thanh phát áp dụng ngay; mỗi tab giữ audio riêng khi chuyển qua lại. ", "Tốc độ & chuyển tab: ")
-bullet("Bấm Tạo hội thoại → nghe trên thanh player chung. Chưa kích hoạt vẫn tạo và nghe được, "
-       "chỉ khoá Xuất file. ", "Tạo và nghe: ")
+bullet("Bấm Tạo hội thoại → nghe trên thanh player chung. "
+       + ("" if FULL else "Chưa kích hoạt vẫn tạo và nghe được, chỉ khoá Xuất file. "),
+       "Tạo và nghe: ")
 bullet("Bấm Xuất file → chọn MP3/WAV. Mỗi lần xuất được lưu một mục trong Lịch sử. ", "Xuất file: ")
 doc.add_heading("10.4. Phím tắt", level=2)
 table(["Phím", "Tác dụng"],
-      [["Ctrl+1 … Ctrl+9", "Chuyển nhanh 9 trang theo thứ tự sidebar"],
+      [["Ctrl+1 … Ctrl+" + str(8 if FULL else 9),
+        f"Chuyển nhanh {8 if FULL else 9} trang theo thứ tự sidebar"],
        ["Ctrl+O", "Mở văn bản .docx/.txt"],
        ["Ctrl+H", "Lịch sử bản dựng"],
        ["Ctrl+B", "Chuyển đổi hàng loạt"],
        ["Ctrl+Shift+D", "Từ điển phát âm"],
-       ["Ctrl+Shift+K", "Làm sạch văn bản"],
-       ["Ctrl+Shift+L", "Thông tin bản quyền"],
-       ["Alt+F / Alt+T", "Mở menu Tệp / Trợ giúp"]])
+       ["Ctrl+Shift+K", "Làm sạch văn bản"]]
+      + ([] if FULL else [["Ctrl+Shift+L", "Thông tin bản quyền"]])
+      + [["Alt+F / Alt+T", "Mở menu Tệp / Trợ giúp"]])
 
 doc.add_page_break()
 doc.add_heading("Phụ lục: Checklist 11 ảnh cần chụp", level=1)
@@ -494,7 +512,7 @@ table(["Mã", "Tên file", "Chụp gì / Cỡ hiển thị"],
        ["10", "hinh-10-track-timeline.png", "1 track + Volume / 12cm"],
        ["11", "hinh-11-output-timeline.png", "Timeline output + Xuất / 12cm"]])
 
-body("Thông tin tài liệu: Phần mềm chuyển đổi văn bản thành giọng nói tự nhiên v3, phiên bản 3.5.1 "
+body(f"Thông tin tài liệu: {version.__app_name__}, phiên bản {APP_VERSION} "
      "(bản phát hành OneDir: EXE + _internal/ + models/ cạnh nhau). "
      "Tài liệu này thay thế mọi hướng dẫn miệng trước đây; khi app lên phiên bản mới, "
      "chỉ cần chụp lại các ảnh có giao diện thay đổi.")

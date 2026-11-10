@@ -578,6 +578,19 @@ Kết quả: `pytest` **237/237**; `probe_tab_state`, `probe_dialogue`, `probe_m
   → lên 3.5.1, backup 3.5.0_<timestamp> đầy đủ.
 - probe_obfuscated_build **OK** (84 file khớp sha256, exe mở cửa sổ).
 
+### P5.4 — scroll dự phòng cho page (10/11/2026)
+
+| Việc | Chi tiết |
+|---|---|
+| `ScrollArea` | `ui/ui_kit.py`: body lấp đầy khung khi nội dung vừa (giữ nguyên grid/weight), tự hiện thanh cuộn 8 px khi có widget lòi khỏi đáy; gutter cố định nên ẩn/hiện không nhảy layout; tái dùng xử lý wheel lồng của CTk 6.0.0 |
+| `Page` | `Page(scroll=True)` mặc định, mọi page dùng `ScrollArea` cho `body`; thêm `Page.refresh_layout()` |
+| Cài đặt / Bản quyền | Tự cuộn ở 1024×640; Bản quyền khoá chiều cao tối thiểu card hướng dẫn để không bị bóp còn vài chục px |
+| Cửa sổ | `minsize(1024, 640)`; size khởi tạo theo màn hình và căn giữa (vừa laptop 1366×768) |
+| Probe | `probe_shell` thêm mốc 1024×640 + kiểm tra cuộn; `probe_scroll` mới: 9 page × 3 mốc, fallback 900×560, chống lặp layout khi rảnh |
+
+Kết quả: `pytest` **237/237**; `probe_shell`, `probe_pages`, `probe_merge_page`,
+`probe_dialogue`, `probe_scroll` **OK**.
+
 ### Việc tiếp theo
 
 - **P1**: `SettingsPage`, `DictionaryPage`, `VoicesPage`, `LicensePage` (thay 4 dialog cũ).

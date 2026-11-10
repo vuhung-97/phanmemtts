@@ -34,3 +34,4 @@ license_secret.bin
 *.lic
 issued.sqlite
 
+.codegraph/

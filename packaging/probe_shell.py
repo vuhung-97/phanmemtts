@@ -22,12 +22,12 @@ for _stream in (sys.stdout, sys.stderr):
 _TMP = Path(tempfile.mkdtemp(prefix="ppmitts_shell_"))
 os.environ["LOCALAPPDATA"] = str(_TMP)
 
-from core.licensing import store          # noqa: E402
+from core.licensing import edition, store   # noqa: E402
 from ui.main_window import MainWindow      # noqa: E402
-from ui.shell.nav_sidebar import NAV_MAIN, NAV_TOOLS  # noqa: E402
+from ui.shell.nav_sidebar import nav_items  # noqa: E402
 
 SIZES = (("1280x800", 1280, 800), ("1024x700", 1024, 700),
-         ("1440x900", 1440, 900))
+         ("1024x640", 1024, 640), ("1440x900", 1440, 900))
 
 
 def pump(app, seconds: float) -> None:
@@ -61,7 +61,8 @@ def main() -> int:
         if vals[0] != 56 or vals[1] != 40 or vals[2] != 232 or vals[3] != 108:
             print("[size] LOI: header/toolbar/sidebar/player sai kich thuoc")
             ok = False
-        if vals[4] < 300:
+        min_editor = 300 if h >= 700 else 220
+        if vals[4] < min_editor:
             print(f"[size] LOI: khung soan thao qua thap ({vals[4]}px)")
             ok = False
 
@@ -81,15 +82,23 @@ def main() -> int:
         if want not in labels.get("file", []):
             print(f"[menu] LOI: thieu {want}")
             ok = False
-    for want in ("Hướng dẫn sử dụng", "Điều khoản sử dụng",
-                 "Thông tin bản quyền", "Giới thiệu"):
+    want_help = ["Hướng dẫn sử dụng", "Điều khoản sử dụng"]
+    if edition.license_visible():
+        want_help.append("Thông tin bản quyền")
+    want_help.append("Giới thiệu")
+    for want in want_help:
         if want not in labels.get("help", []):
             print(f"[menu] LOI: thieu {want}")
             ok = False
+    if not edition.license_visible() and "Thông tin bản quyền" in labels.get("help", []):
+        print("[menu] LOI: ban full van hien muc Ban quyen")
+        ok = False
 
-    shortcuts = {"<Control-o>": "mo file", "<Control-Shift-L>": "ban quyen",
+    shortcuts = {"<Control-o>": "mo file",
                  "<Alt-f>": "menu Tep", "<Alt-t>": "menu Tro giup",
                  "<Control-Key-1>": "page 1", "<Control-Key-2>": "page 2"}
+    if edition.license_visible():
+        shortcuts["<Control-Shift-L>"] = "ban quyen"
     print("[key]", {k: bool(app.bind(k)) for k in shortcuts}, flush=True)
     for seq in shortcuts:
         if not app.bind(seq):
@@ -115,10 +124,13 @@ def main() -> int:
         ok = False
 
     # ── 3. Sidebar + điều hướng ──
-    nav_ids = [x[0] for x in NAV_MAIN + NAV_TOOLS]
+    nav_ids = [x[0] for x in nav_items()]
     print("[nav] items:", nav_ids, flush=True)
-    if nav_ids != ["text", "dialogue", "merge", "batch", "history",
-                   "dictionary", "voices", "settings", "license"]:
+    expected_nav = ["text", "dialogue", "merge", "batch", "history",
+                    "dictionary", "voices", "settings"]
+    if edition.license_visible():
+        expected_nav.append("license")
+    if nav_ids != expected_nav:
         print("[nav] LOI: danh sach muc sai")
         ok = False
 
@@ -211,6 +223,53 @@ def main() -> int:
     if not mapped or disabled != "disabled" or enabled != "normal":
         print("[player] LOI: trang thai player sai")
         ok = False
+
+    # ── 8. Scroll dự phòng khi cửa sổ nhỏ ──
+    from ui.ui_kit import ScrollArea
+
+    app.geometry("1024x640")
+    pump(app, 0.4)
+    for pid in nav_ids:
+        shell.show(pid)
+        pump(app, 0.15)
+        page = shell.current_page
+        if not isinstance(page.body, ScrollArea):
+            print(f"[scroll] LOI: {pid} khong co ScrollArea")
+            ok = False
+    for pid, want in (("settings", True), ("license", True),
+                      ("text", False), ("dictionary", False),
+                      ("merge", False)):
+        shell.show(pid)
+        pump(app, 0.3)
+        page = shell.current_page
+        bar = page.body.scrollbar_visible
+        print(f"[scroll] {pid} @1024x640 thanh cuon: {bar}", flush=True)
+        if bar is not want:
+            print(f"[scroll] LOI: {pid} sai trang thai thanh cuon")
+            ok = False
+        if bar:
+            page.body.scroll_to_bottom()
+            pump(app, 0.15)
+            canvas = page.body._parent_canvas
+            last = page.body.winfo_children()[-1]
+            visible = (last.winfo_rooty() + last.winfo_height()
+                       <= canvas.winfo_rooty() + canvas.winfo_height() + 2)
+            print(f"[scroll] {pid} cuon toi cuoi, thay card cuoi: {visible}")
+            if not visible:
+                print(f"[scroll] LOI: {pid} khong cuon toi cuoi duoc")
+                ok = False
+            page.body.scroll_to_top()
+
+    app.geometry("1280x800")
+    pump(app, 0.4)
+    for pid in ("settings", "license"):
+        shell.show(pid)
+        pump(app, 0.3)
+        bar = shell.current_page.body.scrollbar_visible
+        print(f"[scroll] {pid} @1280x800 thanh cuon: {bar}", flush=True)
+        if bar:
+            print(f"[scroll] LOI: {pid} van hien thanh cuon khi du cho")
+            ok = False
 
     app.destroy()
     print("\nKẾT QUẢ:", "OK" if ok else "LỖI", flush=True)
