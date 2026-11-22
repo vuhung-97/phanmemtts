@@ -71,6 +71,11 @@ a = Analysis(
         'PIL',
         'customtkinter',
         'huggingface_hub',
+        # 'packaging' là thư viện bên thứ ba (huggingface_hub dùng), KHÔNG phải
+        # thư mục packaging/ của repo. Trước đây bị exclude nhầm -> exe báo
+        # "No module named 'packaging'" khi khởi động.
+        'packaging',
+        'packaging.version',
     ] + _NUMPY_HIDDEN + _SCIPY_HIDDEN,
     hookspath=[],
     hooksconfig={},
@@ -90,7 +95,6 @@ a = Analysis(
         'ui',
         'version',
         'tests',
-        'packaging',
         'docs',
     ],
     win_no_prefer_redirects=False,
