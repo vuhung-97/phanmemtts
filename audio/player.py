@@ -34,6 +34,10 @@ class ArraySource:
         end = min(self._data.size, start + max(0, int(n)))
         return self._data[start:end]
 
+    def cleanup(self) -> None:
+        """Bỏ mảng để giải phóng RAM (khớp interface store)."""
+        self._data = np.zeros(0, dtype=np.float32)
+
 
 class AudioPlayer:
     """Phát âm thanh bằng stream liên tục (sounddevice).
@@ -345,9 +349,21 @@ class AudioPlayer:
                 pass
             self._stream = None
 
+    def release_source(self) -> None:
+        """Dừng phát và bỏ tham chiếu source để giải phóng audio khỏi RAM."""
+        self._close_stream()
+        with self._lock:
+            self._source = None
+            self._sample_rate = 0
+            self._pos = 0
+            self._state = PlayerState.STOPPED
+            self._has_more = False
+            self._finished_pending = False
+
     def quit(self) -> None:
         self._close_stream()
         with self._lock:
+            self._source = None
             self._state = PlayerState.STOPPED
             self._pos = 0
             self._has_more = False

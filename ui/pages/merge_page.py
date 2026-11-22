@@ -7,8 +7,7 @@ from tkinter import filedialog
 import customtkinter as ctk
 
 from audio import exporter, mixer
-from audio.buffer import GrowableBuffer
-from audio.player import AudioPlayer
+from audio.player import ArraySource, AudioPlayer
 from core.licensing import guard
 from core.models import MusicMergeConfig, TrackSegment
 from ui import theme
@@ -80,7 +79,26 @@ class MergePage(MergeWidgetsMixin, Page):
     def on_hide(self) -> None:
         self._active = False
         self._stop_preview()
+        self._release_preview_source()
         self._restore_player()
+        self.ctx.shell.player_bar.clear()
+
+    def _release_preview_source(self) -> None:
+        """Bỏ audio nghe thử (player + store) để trả RAM."""
+        try:
+            self._preview_player.release_source()
+        except Exception:
+            pass
+        source = self._preview_source
+        self._preview_source = None
+        self._preview_duration = 0.0
+        self._preview_active = False
+        cleanup = getattr(source, "cleanup", None) if source is not None else None
+        if callable(cleanup):
+            try:
+                cleanup()
+            except Exception:
+                pass
 
     def _bind_player(self) -> None:
         bar = self.ctx.shell.player_bar
@@ -153,15 +171,16 @@ class MergePage(MergeWidgetsMixin, Page):
     def _start_preview_playback(self, waveform, sr: int,
                                 label: str | None = None) -> None:
         self.set_busy(False)
-        self._preview_player.stop()
-        self._preview_player.load(waveform, sr, has_more=False)
-        self._preview_player.play()
-
-        source = GrowableBuffer()
-        source.append(waveform)
+        # Bỏ bản preview cũ trước khi dựng bản mới.
+        self._release_preview_source()
+        # Bọc mảng có sẵn — không copy thêm lần nữa.
+        source = ArraySource(waveform)
         self._preview_source = source
         self._preview_sr = sr
         self._preview_duration = len(waveform) / sr if sr else 0.0
+        # Player và thanh waveform dùng CHUNG một source (không copy lần 2).
+        self._preview_player.load_source(source, sr, has_more=False)
+        self._preview_player.play()
         bar = self.ctx.shell.player_bar
         bar.set_source(source, sr)
         bar.set_duration(len(waveform) / sr if sr > 0 else 0.0)
@@ -283,8 +302,8 @@ class MergePage(MergeWidgetsMixin, Page):
     def _preview_track_worker(self, path: str, start: float, end: float,
                               volume: float, label: str) -> None:
         try:
-            audio, sr = mixer.load_audio(path)
-            seg = mixer.extract_segment(audio, sr, start, end)
+            # Chỉ đọc đoạn cần nghe — file nhạc dài không nạp cả vào RAM.
+            seg, sr = mixer.load_segment(path, start, end)
             seg = mixer.apply_volume(seg, volume)
             if len(seg) == 0:
                 raise ValueError("Đoạn rỗng — kiểm tra lại vùng chọn.")

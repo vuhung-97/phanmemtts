@@ -23,7 +23,9 @@ class SyncTextbox(ctk.CTkTextbox):
         kwargs.setdefault("corner_radius", theme.RADIUS_SM)
         kwargs.setdefault("undo", True)
         kwargs.setdefault("autoseparators", True)
-        kwargs.setdefault("maxundo", -1)
+        # Undo có giới hạn: maxundo=-1 giữ mọi thao tác -> RAM tăng mãi khi
+        # soạn thảo lâu (đo được ~4,6 MB/1.000 thao tác).
+        kwargs.setdefault("maxundo", 200)
         super().__init__(master, **kwargs)
         self._on_text_changed = on_text_changed
 

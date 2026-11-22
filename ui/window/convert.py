@@ -106,6 +106,7 @@ class ConvertMixin:
         self._synth_text = None
         self._applied_speed = speed
         self._speed_dirty = False
+        self._text_dirty = False
         self._current_sentence = -1
         self._stream_has_started_playing = False
         self.waveform_timeline.clear()

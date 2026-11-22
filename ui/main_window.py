@@ -71,6 +71,7 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         self._model_manager = ModelManager(
             precision=self._settings["precision"],
             threads=self._settings["threads"],
+            onnx_memory=self._settings.get("onnx_memory", "auto"),
         )
         self._history = HistoryStore()
         self._player = AudioPlayer()
@@ -99,6 +100,7 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         self._timeline: TimelineMap | None = None        # timeline của play
         self._base_timeline: TimelineMap | None = None   # timeline của base
         self._synth_text: str | None = None
+        self._text_dirty = False     # văn bản đổi trong lúc đang chuyển đổi
         self._applied_speed: float = 1.0     # speed của _play_store hiện tại
         self._speed_dirty: bool = False      # speed đã đổi nhưng chưa áp
         self._speed_applying: bool = False   # guard thread đổi speed
@@ -106,6 +108,7 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         self._stream_total_sentences = 0
         self._stream_has_started_playing = False
         self._last_waveform_draw = 0.0
+        self._last_waveform_samples = 0
 
         self._all_models: list = []
         self._export_history: list[str] = []
@@ -275,7 +278,11 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         self.textbox.focus_set()
 
     def _on_text_changed(self) -> None:
-        if self._synth_text is not None and self.textbox.get_text() != self._synth_text:
+        if self._busy:
+            # Không giải phóng buffer worker đang ghi; xử lý khi stream kết thúc.
+            self._text_dirty = True
+        elif (self._synth_text is not None
+              and self.textbox.get_text() != self._synth_text):
             self._invalidate_audio("Văn bản đã thay đổi - hãy chuyển đổi lại.")
         self._refresh_tag_hint()
 
@@ -307,6 +314,9 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
 
     def _release_stores(self) -> None:
         """Giải phóng store (RAM + file tạm) và reset timeline."""
+        # Player giữ tham chiếu source -> phải bỏ trước, nếu không buffer RAM
+        # vẫn sống dù store đã được cleanup.
+        self._player.release_source()
         for store in (self._play_store, self._base_store):
             if store is None:
                 continue
@@ -397,6 +407,18 @@ class MainWindow(ConvertMixin, ExportMixin, LicenseMixin, MessagesMixin,
         self.textbox.highlight_span(sentence.char_start, sentence.char_end)
 
     def _on_close(self) -> None:
+        # Dọn audio/file tạm của các trang trước khi thoát.
+        for page, method in ((getattr(self, "dialogue_page", None),
+                              "_release_audio"),
+                             (getattr(self, "merge_page", None),
+                              "_release_preview_source")):
+            release = getattr(page, method, None) if page is not None else None
+            if callable(release):
+                try:
+                    release()
+                except Exception:
+                    pass
         self._player.quit()
         self._release_stores()
+        self._model_manager.unload()
         self.destroy()

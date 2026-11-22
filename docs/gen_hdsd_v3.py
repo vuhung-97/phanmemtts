@@ -494,6 +494,18 @@ table(["Phím", "Tác dụng"],
       + ([] if FULL else [["Ctrl+Shift+L", "Thông tin bản quyền"]])
       + [["Alt+F / Alt+T", "Mở menu Tệp / Trợ giúp"]])
 
+doc.add_heading("10.5. Cài đặt & bộ nhớ (mới từ 3.5.3)", level=2)
+body("Mở sidebar → Cài đặt. Ngoài Độ chính xác và Số luồng CPU, bản 3.5.3 thêm mục "
+     "Tiết kiệm RAM để app không tăng bộ nhớ khi dùng lâu.")
+bullet("Tự động (khuyến nghị): bật khi máy có ≤ 16 GB RAM, tắt khi máy nhiều RAM. ",
+       "Tiết kiệm RAM: ")
+bullet("Chọn Luôn tiết kiệm RAM nếu máy 8 GB hoặc thấy RAM tăng khi dùng lâu: "
+       "RAM ổn định khoảng 1,1 GB, đổi lại câu dài chậm hơn một chút. ", "Máy yếu: ")
+bullet("Đổi giọng trong combo không nạp lại model nên áp dụng ngay và không tốn thêm RAM. ",
+       "Đổi giọng: ")
+bullet("Khi chuyển sang trang khác, audio của Hội thoại / Ghép nhạc được giải phóng để "
+       "tiết kiệm RAM; quay lại trang đó cần tạo lại. ", "Chuyển trang: ")
+
 doc.add_page_break()
 doc.add_heading("Phụ lục: Checklist 11 ảnh cần chụp", level=1)
 body("Chụp bằng Win+Shift+S, lưu PNG vào docs/images/ đúng tên bên dưới, rồi trong Word: "

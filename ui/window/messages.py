@@ -14,7 +14,9 @@ from ui import theme
 # Số câu tối thiểu phải có sẵn trong buffer trước khi bắt đầu phát.
 BUFFER_TRIGGER_SENTENCES = 1
 # Chu kỳ vẽ lại waveform (giây) — tránh tính lại peaks mỗi câu (O(n²)).
-WAVEFORM_REDRAW_SEC = 0.4
+WAVEFORM_REDRAW_SEC = 1.0
+# Chỉ vẽ lại khi audio tăng thêm ít nhất 5% (tránh quét lại liên tục).
+WAVEFORM_GROWTH_RATIO = 0.05
 
 
 class MessagesMixin:
@@ -48,6 +50,8 @@ class MessagesMixin:
             self._base_timeline = self._timeline
             self._player.load_source(play_store, sample_rate, has_more=True)
             self._stream_has_started_playing = False
+            self._last_waveform_draw = 0.0
+            self._last_waveform_samples = 0
             self.shell.player_bar.set_transport_enabled(True)
         elif kind == "stream_chunk":
             _, timed, cur, tot = message
@@ -58,12 +62,17 @@ class MessagesMixin:
             if self._base_timeline is not None and self._base_timeline is not self._timeline:
                 self._base_timeline.sentences.append(timed)
 
-            current_duration = self._play_store.total_samples / self._sample_rate
+            total_samples = self._play_store.total_samples
+            current_duration = total_samples / self._sample_rate
             self.playback_bar.set_duration(current_duration)
 
             now = time.monotonic()
-            if now - self._last_waveform_draw >= WAVEFORM_REDRAW_SEC:
+            grown = (self._last_waveform_samples == 0
+                     or total_samples
+                     >= self._last_waveform_samples * (1 + WAVEFORM_GROWTH_RATIO))
+            if grown and now - self._last_waveform_draw >= WAVEFORM_REDRAW_SEC:
                 self._last_waveform_draw = now
+                self._last_waveform_samples = total_samples
                 self.waveform_timeline.set_source(
                     self._play_store, self._sample_rate, self._timeline.sentences)
 
@@ -96,6 +105,13 @@ class MessagesMixin:
         elif kind == "stream_end":
             self._player.set_has_more(False)
             self._set_busy(False)
+            if self._text_dirty:
+                self._text_dirty = False
+                if (self._synth_text is not None
+                        and self.textbox.get_text() != self._synth_text):
+                    self._invalidate_audio(
+                        "Văn bản đã thay đổi - hãy chuyển đổi lại.")
+                    return
             if self._timeline is not None:
                 dur = self._timeline.total_duration
                 self.playback_bar.set_duration(dur)

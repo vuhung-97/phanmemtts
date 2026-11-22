@@ -80,4 +80,10 @@ class GrowableBuffer:
         return self._buf[start:end]
 
     def clear(self) -> None:
+        """Đặt lại độ dài (giữ capacity để tái dùng)."""
+        self._size = 0
+
+    def cleanup(self) -> None:
+        """Giải phóng mảng lớn — dùng khi bỏ audio hẳn (khớp interface store)."""
+        self._buf = np.empty(1, dtype=np.float32)
         self._size = 0

@@ -7,9 +7,12 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from audio import exporter
+from audio.buffer import GrowableBuffer
 from audio.speed import apply_speed
+from audio.temp_store import TempSession, should_use_disk
 from core.batch import BatchPart, parse_batch, part_filename, write_zip
 from core.document_reader import read_document
+from core.paths import data_dir
 from core.licensing import guard
 from engine.tts_engine import TtsEngine
 from ui import theme
@@ -311,6 +314,8 @@ class BatchPage(Page):
             sr = engine.sample_rate
             used: set[str] = set()
             files: list[str] = []
+            storage = (getattr(self.ctx, "_settings", {}) or {}).get(
+                "storage", "auto")
             for i, part in enumerate(parts, start=1):
                 if self._cancel.is_set():
                     self._progress.update(text=f"Đã dừng sau {i - 1}/{len(parts)} "
@@ -320,23 +325,46 @@ class BatchPage(Page):
                                       text=f"Đang tạo {part.label} ({i}/{len(parts)})…")
                 if part.sentence_count == 0:
                     continue
-                waveform, _timeline = engine.synthesize(part.text, speed=1.0)
-                if speed and abs(speed - 1.0) > 1e-9:
-                    waveform = apply_speed(waveform, speed)
-                name = part_filename(part, base, f".{ext}", used)
-                out = exporter.export(waveform, sr, out_dir / name)
-                files.append(str(out))
+                # Phần dài -> ghi ra file tạm theo từng câu, không dựng cả
+                # waveform trong RAM (tránh nhân đôi bộ nhớ khi áp tốc độ).
+                session = (TempSession(data_dir() / "tmp")
+                           if should_use_disk(part.text, storage) else None)
+                store = (session.store(f"part{i}", sr) if session is not None
+                         else GrowableBuffer())
                 try:
-                    self.ctx._history.add(
-                        out, voice=model.display_name, speed=speed,
-                        duration=(len(waveform) / sr if sr else 0.0),
-                        chars=part.char_count, preview=part.text)
-                    history_list = self.ctx._export_history
-                    history_list.append(str(out))
-                    del history_list[:-10]
-                except Exception:
-                    pass
-                self._progress.update(index=i, files=list(files))
+                    for _timed, piece, _cur, _tot in engine.synthesize_stream(
+                            part.text, speed=1.0):
+                        if self._cancel.is_set():
+                            self._progress.update(
+                                text=f"Đã dừng sau {i - 1}/{len(parts)} phần.",
+                                done=True)
+                            return
+                        out_piece = (apply_speed(piece, speed)
+                                     if speed and abs(speed - 1.0) > 1e-9
+                                     else piece)
+                        store.append(out_piece)
+                    name = part_filename(part, base, f".{ext}", used)
+                    out = exporter.export_source(store, sr, out_dir / name)
+                    duration = (store.total_samples / sr) if sr else 0.0
+                    files.append(str(out))
+                    try:
+                        self.ctx._history.add(
+                            out, voice=model.display_name, speed=speed,
+                            duration=duration,
+                            chars=part.char_count, preview=part.text)
+                        history_list = self.ctx._export_history
+                        history_list.append(str(out))
+                        del history_list[:-10]
+                    except Exception:
+                        pass
+                    self._progress.update(index=i, files=list(files))
+                finally:
+                    if session is not None:
+                        session.cleanup()
+                    else:
+                        cleanup = getattr(store, "cleanup", None)
+                        if callable(cleanup):
+                            cleanup()
             if not files:
                 self._progress.update(text="Không tạo được tệp nào (văn bản rỗng?).",
                                       done=True, error="empty")

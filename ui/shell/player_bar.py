@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Callable
 
 import customtkinter as ctk
@@ -43,6 +44,7 @@ class PlayerBar(ctk.CTkFrame):
         }
         self._duration = 0.0
         self._position = 0.0
+        self._waveform_ts = 0.0     # lần vẽ playhead gần nhất (giới hạn tần số)
 
         controls = ctk.CTkFrame(self, fg_color="transparent")
         controls.grid(row=0, column=0, padx=(theme.SPACE_LG, theme.SPACE_SM),
@@ -128,8 +130,14 @@ class PlayerBar(ctk.CTkFrame):
         self._refresh_time()
 
     def set_position(self, seconds: float) -> None:
-        self._position = max(0.0, float(seconds))
-        self.waveform.update_position(self._position)
+        seconds = max(0.0, float(seconds))
+        # Nhảy xa (seek) -> vẽ ngay; còn khi phát chỉ vẽ ~6 lần/giây.
+        force = abs(seconds - self._position) > 0.5
+        self._position = seconds
+        now = time.monotonic()
+        if force or now - self._waveform_ts >= 0.16:
+            self._waveform_ts = now
+            self.waveform.update_position(seconds)
         self._refresh_time()
 
     def get_position(self) -> float:
@@ -140,16 +148,19 @@ class PlayerBar(ctk.CTkFrame):
 
     def set_source(self, source, sample_rate: int, sentences=None) -> None:
         self.waveform.set_source(source, sample_rate, sentences)
+        self._waveform_ts = time.monotonic()
         self.set_transport_enabled(True)
 
     def update_position(self, seconds: float) -> None:
         self._position = max(0.0, float(seconds))
+        self._waveform_ts = time.monotonic()
         self.waveform.update_position(seconds)
         self._refresh_time()
 
     def clear(self) -> None:
         self._duration = 0.0
         self._position = 0.0
+        self._waveform_ts = 0.0
         self.waveform.clear()
         self.set_transport_enabled(False)
         self._refresh_time()

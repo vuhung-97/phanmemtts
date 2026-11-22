@@ -2,7 +2,7 @@
 
 Ứng dụng đọc văn bản thành giọng nói tiếng Việt, chạy hoàn toàn offline trên CPU.
 
-Phiên bản hiện tại: **v3.5.1**
+Phiên bản hiện tại: **v3.5.3**
 
 ## Tính năng
 
@@ -220,7 +220,12 @@ Bấm **⚙ Cài đặt** trên thanh trên cùng:
 |---|---|
 | Độ chính xác | `FP32` (chất lượng cao, mặc định) hoặc `INT8` (nhanh hơn ~20–30%, cần CPU có VNNI) |
 | Số luồng CPU | 0 = tự động, hoặc chỉ định 2/4/6/8 luồng |
+| Tiết kiệm RAM | `Tự động` (bật khi máy ≤ 16 GB RAM) / `Luôn tiết kiệm` / `Luôn ưu tiên tốc độ` |
 | Bộ nhớ | `Tự động` / `Luôn trong RAM` / `Luôn ghi file tạm` |
+
+> **Đổi giọng không nạp lại model**: các giọng preset dùng chung một model,
+> chỉ đổi `set_voice` nên không tốn thêm RAM. Chế độ **Tiết kiệm RAM** tắt
+> vùng đệm ONNX — RAM gần như không tăng khi dùng lâu (đổi lại câu dài chậm hơn).
 
 Cấu hình lưu tại `%LOCALAPPDATA%\PhanMemTTS\app_settings.json`.
 
@@ -241,13 +246,16 @@ trong `models/vieneu/hf_cache/` của bản phát hành, nên không có nút t�
 - Python 3.10+
 - Windows 10/11
 - Màn hình tối thiểu **1024×700**
-- ~1GB RAM (bài dài dùng chế độ đĩa nên RAM gần như không đổi)
+- ~1,1 GB RAM ở chế độ Tiết kiệm RAM (RAM gần như không đổi khi dùng lâu;
+  bài dài dùng chế độ đĩa nên không tốn thêm)
 
 ## Chạy thử
 
 ```bash
 .venv\Scripts\python.exe -m pytest              # unit test
 .venv\Scripts\python.exe packaging\probe_p0.py   # probe lõi TTS + store RAM/đĩa
+.venv\Scripts\python.exe packaging\probe_ram.py      # probe chống tăng RAM (nhanh)
+.venv\Scripts\python.exe packaging\probe_ram.py --model  # + đổi giọng/tổng hợp thật
 .venv\Scripts\python.exe packaging\probe_ui_flow.py  # probe luồng chuyển đổi trong UI
 .venv\Scripts\python.exe packaging\probe_tags_history.py  # probe thẻ cảm xúc/nghỉ + lịch sử
 .venv\Scripts\python.exe packaging\probe_shell.py          # probe shell SaaS (header/toolbar/sidebar/player)

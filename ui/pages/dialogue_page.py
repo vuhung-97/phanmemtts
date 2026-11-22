@@ -12,7 +12,8 @@ import numpy as np
 from audio import exporter
 from audio.buffer import GrowableBuffer
 from audio.speed import apply_speed
-from audio.player import AudioPlayer
+from audio.player import ArraySource, AudioPlayer
+from audio.temp_store import TempAudioStore, TempSession, should_use_disk
 from core import dialogue
 from core.document_reader import read_document
 from core.licensing import guard
@@ -53,6 +54,9 @@ class DialoguePage(Page):
         self._speed_applying = False
         self._pending_speed: float | None = None
         self._playing_preview = False
+        self._disk_mode = False
+        self._store_seq = 0
+        self._temp_session: TempSession | None = None
 
         self.open_btn = Button(self.header.actions, text="📁  Mở file",
                                variant="secondary", command=self._open_file)
@@ -179,6 +183,59 @@ class DialoguePage(Page):
     def on_hide(self) -> None:
         self._active = False
         self._stop_playback()
+        # Rời trang -> trả audio về OS (trừ khi đang tạo dở).
+        if not self._busy:
+            self._release_audio()
+
+    # ── giải phóng audio ──
+
+    def _new_store(self, name: str):
+        """Store RAM hoặc file tạm, tuỳ chế độ lưu hiện tại."""
+        self._store_seq += 1
+        unique = f"{name}{self._store_seq}"
+        if self._disk_mode:
+            if self._temp_session is None:
+                from core.paths import data_dir
+
+                self._temp_session = TempSession(data_dir() / "tmp")
+            # Store đĩa chỉ cần sample_rate để tham khảo; engine luôn 48 kHz.
+            return self._temp_session.store(unique,
+                                            int(self._sample_rate or 48000))
+        return GrowableBuffer()
+
+    def _uses_disk(self) -> bool:
+        return should_use_disk(
+            self.editor.get_text(),
+            (getattr(self.ctx, "_settings", {}) or {}).get("storage", "auto"),
+        )
+
+    def _release_audio(self) -> None:
+        """Bỏ audio + file tạm của trang (gọi khi rời trang/tạo mới)."""
+        try:
+            self._player.release_source()
+        except Exception:
+            pass
+        for attr in ("_store", "_base_store"):
+            store = getattr(self, attr, None)
+            cleanup = getattr(store, "cleanup", None) if store is not None else None
+            if callable(cleanup):
+                try:
+                    cleanup()
+                except Exception:
+                    pass
+            setattr(self, attr, None)
+        if self._temp_session is not None:
+            try:
+                self._temp_session.cleanup()
+            except Exception:
+                pass
+            self._temp_session = None
+        self._timeline = None
+        self._base_timeline = None
+        self._sample_rate = 0
+        self._applied_speed = 1.0
+        self._speed_applying = False
+        self._pending_speed = None
 
     # ── soạn thảo ──
 
@@ -440,16 +497,21 @@ class DialoguePage(Page):
         self.export_btn.configure(state="disabled")
         self.ctx.shell.set_busy(True)
         self._set_status("Đang nạp giọng đọc…", theme.TEXT_DIM)
+        # Tạo mới -> giải phóng audio cũ trước; bài dài ghi ra file tạm.
+        self._release_audio()
+        self._disk_mode = self._uses_disk()
+        store = self._new_store("dialogue")
         threading.Thread(
             target=self._create_worker,
-            args=(self._script, dict(self._cast), model, self._gap_sec()),
+            args=(self._script, dict(self._cast), model, self._gap_sec(),
+                  store),
             daemon=True,
         ).start()
 
-    def _create_worker(self, script, cast: dict, model, gap_sec: float) -> None:
+    def _create_worker(self, script, cast: dict, model, gap_sec: float,
+                       buffer) -> None:
         try:
             tts = self.ctx._model_manager.load_tts(model)
-            buffer = GrowableBuffer()
 
             def progress(turn_i, turn_total, sent_i, sent_total):
                 self._messages.put((
@@ -465,9 +527,20 @@ class DialoguePage(Page):
             self._messages.put(("rendered", result.source, result.sample_rate,
                                 result.timeline, script))
         except DialogueCancelled:
+            self._cleanup_store(buffer)
             self._messages.put(("cancelled",))
         except Exception as exc:
+            self._cleanup_store(buffer)
             self._messages.put(("error", str(exc)))
+
+    @staticmethod
+    def _cleanup_store(store) -> None:
+        cleanup = getattr(store, "cleanup", None) if store is not None else None
+        if callable(cleanup):
+            try:
+                cleanup()
+            except Exception:
+                pass
 
     def _gap_sec(self) -> float:
         label = self.gap_combo.get()
@@ -497,20 +570,24 @@ class DialoguePage(Page):
             return
         self._speed_applying = True
         self._set_status(f"Đang đổi tốc độ {speed:g}x…", theme.TEXT_DIM)
+        # Audio gốc nằm trên đĩa -> bản speed cũng ra đĩa (không nhân đôi RAM).
+        if isinstance(self._base_store, TempAudioStore):
+            buffer = self._new_store("speed")
+        else:
+            buffer = GrowableBuffer()
         threading.Thread(
             target=self._speed_worker,
             args=(speed, self._player.get_position(),
-                  self._player.is_playing),
+                  self._player.is_playing, buffer),
             daemon=True,
         ).start()
 
     def _speed_worker(self, speed: float, position: float,
-                      was_playing: bool) -> None:
+                      was_playing: bool, buffer) -> None:
         try:
             sr = self._sample_rate
             block = max(1, int(sr * 10))
             total = int(self._base_store.total_samples)
-            buffer = GrowableBuffer()
             pos = 0
             while pos < total:
                 chunk = self._base_store.read(pos, block)
@@ -523,6 +600,7 @@ class DialoguePage(Page):
             self._messages.put(("speed_applied", buffer, timeline, speed,
                                 position, was_playing))
         except Exception as exc:
+            self._cleanup_store(buffer)
             self._messages.put(("speed_error", str(exc)))
 
     # ── phát / xuất ──
@@ -616,9 +694,8 @@ class DialoguePage(Page):
                     self._player.load(audio, sr, has_more=False)
                     self._player.play()
                     bar = self.ctx.shell.player_bar
-                    source = GrowableBuffer()
-                    source.append(audio)
-                    bar.set_source(source, sr)
+                    # ArraySource bọc mảng có sẵn — không copy thêm lần nữa.
+                    bar.set_source(ArraySource(audio), sr)
                     bar.set_duration(len(audio) / sr if sr else 0.0)
                     bar.set_playing(True)
                     self._set_status(f"Đang nghe thử giọng {speaker}.",
@@ -652,10 +729,14 @@ class DialoguePage(Page):
                     _, store, timeline, speed, position, was_playing = msg
                     self._speed_applying = False
                     old_speed = self._applied_speed or 1.0
+                    old_store = self._store
                     self._store = store
                     self._timeline = timeline
                     self._applied_speed = speed
                     self._sample_rate = timeline.sample_rate
+                    if (old_store is not None and old_store is not store
+                            and old_store is not self._base_store):
+                        self._cleanup_store(old_store)
                     duration = timeline.total_duration
                     new_pos = (min(position * old_speed / speed, duration)
                                if speed > 0 else 0.0)

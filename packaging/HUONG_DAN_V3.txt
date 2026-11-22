@@ -1,6 +1,6 @@
 PHẦN MỀM CHUYỂN ĐỔI VĂN BẢN THÀNH GIỌNG NÓI TỰ NHIÊN v3
 ============================================================
-Phiên bản: 3.5.2 | Windows 10/11 64-bit | Offline 100% | Không cần cài Python.
+Phiên bản: 3.5.3 | Windows 10/11 64-bit | Offline 100% | Không cần cài Python.
 
 1. CÀI ĐẶT
    Giải nén file ZIP ra một thư mục, ví dụ:

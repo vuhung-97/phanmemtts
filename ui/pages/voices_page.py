@@ -140,12 +140,21 @@ class VoicesPage(Page):
         from ui.components.voice_import_dialog import ImportVoiceDialog
 
         ImportVoiceDialog(self, on_import=self._import_portable,
-                          on_created=self._voice_created)
+                          on_created=self._voice_created,
+                          low_memory=self.ctx._model_manager.low_memory(),
+                          tts_provider=self._shared_tts)
+
+    def _shared_tts(self):
+        """Model đang chọn (dùng lại, không nạp thêm bản thứ hai)."""
+        model = self.ctx._selected_model()
+        if model is None:
+            return None
+        return self.ctx._model_manager.load_tts(model)
 
     def _voice_created(self, name: str) -> bool:
         checked = self._checked() | {f"vieneu:{name}"}
         save_enabled_voices(checked)
-        self.ctx._model_manager.unload_if(f"vieneu:{name}")
+        self.ctx._model_manager.refresh_custom_voices()
         self._rescan(keep=checked)
         self._set_status(f"Đã tạo giọng '{name}'.", theme.SUCCESS)
         return True
@@ -172,7 +181,7 @@ class VoicesPage(Page):
             return False
         checked = self._checked() | {f"vieneu:{name}"}
         save_enabled_voices(checked)
-        self.ctx._model_manager.unload_if(f"vieneu:{name}")
+        self.ctx._model_manager.refresh_custom_voices()
         self._rescan(keep=checked)
         self._set_status(f"Đã nhập giọng '{name}'.", theme.SUCCESS)
         return True
@@ -212,6 +221,7 @@ class VoicesPage(Page):
         checked = self._checked() - {mid}
         save_enabled_voices(checked)
         self.ctx._model_manager.unload_if(mid)
+        self.ctx._model_manager.refresh_custom_voices()
         self._rescan(keep=checked)
         self._set_status(f"Đã xóa giọng '{name}'.", theme.SUCCESS)
 

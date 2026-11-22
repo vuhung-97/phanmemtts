@@ -32,6 +32,37 @@ except Exception:      # thiếu hub thì lỗi sẽ hiện khi nạp model
 
 SAMPLE_RATE = 48000
 
+# ── ONNX Runtime: chế độ tiết kiệm RAM ──
+# Arena của ONNX giữ lại vùng nhớ đỉnh (đo thực tế: +1,3 GB sau vài câu dài)
+# và không trả về OS. Tắt arena -> RAM gần như phẳng, đổi lại chậm hơn ở câu dài.
+# SDK tự tạo SessionOptions nên phải thay lớp này trước khi SDK tạo session.
+_LOW_MEMORY = False
+_ORT_OPTIONS_PATCHED = False
+
+
+def _install_onnx_options() -> None:
+    """Cài shim SessionOptions (idempotent) — đọc ``_LOW_MEMORY`` lúc tạo session."""
+    global _ORT_OPTIONS_PATCHED
+    if _ORT_OPTIONS_PATCHED:
+        return
+    try:
+        import onnxruntime as ort
+    except Exception:
+        return
+    original = ort.SessionOptions
+
+    class _PatchedSessionOptions(original):
+        def __init__(self) -> None:
+            super().__init__()
+            if _LOW_MEMORY:
+                self.enable_cpu_mem_arena = False
+
+    _PatchedSessionOptions.__name__ = original.__name__
+    _PatchedSessionOptions.__qualname__ = original.__qualname__
+    ort.SessionOptions = _PatchedSessionOptions
+    _ORT_OPTIONS_PATCHED = True
+
+
 # Dấu hiệu lỗi "không tìm thấy file trong cache" của huggingface_hub.
 # Bản phát hành kèm sẵn model nên đây luôn là lỗi bộ cài thiếu file,
 # không phải lỗi mạng — thông báo gốc tiếng Anh gây hiểu nhầm.
@@ -194,21 +225,27 @@ class VieneuTTS:
     """
 
     def __init__(self, voice: str = "Hải Đăng", precision: str = "fp32",
-                 threads: int = 0, device: str = "cpu") -> None:
+                 threads: int = 0, device: str = "cpu",
+                 low_memory: bool = False) -> None:
         """Bọc SDK VieNeu v3 Turbo (48 kHz).
 
         - precision: "fp32" (chất lượng cao, mặc định) | "int8" (nhanh hơn,
           nhỏ hơn — cần CPU có VNNI).
         - threads: số thread intra-op của ONNX Runtime (0 = tự động).
         - device: luôn "cpu" — bản phát hành không kèm PyTorch/GPU.
+        - low_memory: tắt CPU memory arena của ONNX (RAM phẳng, chậm hơn).
         """
+        global _LOW_MEMORY
+        _LOW_MEMORY = bool(low_memory)
+        _install_onnx_options()
         from vieneu import Vieneu
 
         try:
             self._vieneu = Vieneu(precision=precision, threads=threads, device=device)
         except Exception as exc:
             raise _friendly_load_error(exc, precision) from exc
-        _install_custom_voices(self._vieneu)
+        self._custom_names: tuple[str, ...] = ()
+        self.refresh_custom_voices()
         self._voice = voice
         self.sample_rate = SAMPLE_RATE
 
@@ -221,6 +258,32 @@ class VieneuTTS:
         if not name:
             raise ValueError("Tên giọng rỗng.")
         self._voice = name
+
+    def refresh_custom_voices(self) -> None:
+        """Nạp lại bảng giọng tùy chỉnh (sau khi nhập/tạo/xoá) — không nạp model."""
+        vieneu = getattr(self, "_vieneu", None)
+        if vieneu is None:
+            return
+        presets = getattr(vieneu, "_preset_voices", None)
+        if not isinstance(presets, dict):
+            return
+        # Bỏ các giọng custom cũ (kể cả giọng vừa bị xoá) rồi nạp lại từ JSON.
+        for name in getattr(self, "_custom_names", ()):
+            presets.pop(name, None)
+        _install_custom_voices(vieneu)
+        self._custom_names = tuple(_read_custom_store().keys())
+
+    def close(self) -> None:
+        """Đóng engine/SDK để trả session ONNX về OS (gọi khi unload model)."""
+        vieneu = getattr(self, "_vieneu", None)
+        if vieneu is not None:
+            close = getattr(vieneu, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except Exception:
+                    pass
+        self._vieneu = None
 
     def generate(self, text: str, speed: float = 1.0, **kwargs) -> SimpleNamespace:
         if not text.strip():

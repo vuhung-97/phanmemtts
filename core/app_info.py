@@ -10,6 +10,7 @@ Thiếu file / JSON lỗi / giá trị rỗng -> dùng tên mặc định trong 
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -34,6 +35,39 @@ def _clean(value) -> str | None:
     if not text:
         return None
     return text[:MAX_NAME_LEN]
+
+
+def total_ram_gb() -> float:
+    """Tổng RAM vật lý (GB). 0.0 nếu không đọc được (không chặn app)."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            class _MemoryStatusEx(ctypes.Structure):
+                _fields_ = [
+                    ("dwLength", ctypes.c_ulong),
+                    ("dwMemoryLoad", ctypes.c_ulong),
+                    ("ullTotalPhys", ctypes.c_ulonglong),
+                    ("ullAvailPhys", ctypes.c_ulonglong),
+                    ("ullTotalPageFile", ctypes.c_ulonglong),
+                    ("ullAvailPageFile", ctypes.c_ulonglong),
+                    ("ullTotalVirtual", ctypes.c_ulonglong),
+                    ("ullAvailVirtual", ctypes.c_ulonglong),
+                    ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+                ]
+
+            status = _MemoryStatusEx()
+            status.dwLength = ctypes.sizeof(status)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+                return float(status.ullTotalPhys) / (1024 ** 3)
+        except Exception:
+            return 0.0
+        return 0.0
+    try:
+        return float(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")) \
+            / (1024 ** 3)
+    except (AttributeError, ValueError, OSError):
+        return 0.0
 
 
 def load_app_name(path: Path | str | None = None) -> str:

@@ -25,8 +25,13 @@ class ImportVoiceDialog(ctk.CTkToplevel):
     """Hộp thoại 2 tab: nhập file giọng có sẵn (.json) / tạo giọng mới từ mẫu."""
 
     def __init__(self, master, on_import: Callable[[str], bool],
-                 on_created: Callable[[str], bool] | None = None) -> None:
+                 on_created: Callable[[str], bool] | None = None,
+                 low_memory: bool = False,
+                 tts_provider: Callable[[], object] | None = None) -> None:
         super().__init__(master)
+        self._low_memory = bool(low_memory)
+        # Dùng lại model đang nạp (nếu có) thay vì nạp thêm 1 model ~1 GB.
+        self._tts_provider = tts_provider
         self.title("Thêm giọng mới")
         self.geometry("540x700")
         self.resizable(False, False)
@@ -362,10 +367,19 @@ class ImportVoiceDialog(ctk.CTkToplevel):
 
     def _create_worker(self, name: str, description: str,
                        sample: str, denoise: bool) -> None:
+        tts = None
+        owns_model = False
         try:
             from engine.vieneu_engine import VieneuTTS
 
-            tts = VieneuTTS()
+            if self._tts_provider is not None:
+                try:
+                    tts = self._tts_provider()
+                except Exception:
+                    tts = None
+            if tts is None:
+                tts = VieneuTTS(low_memory=self._low_memory)
+                owns_model = True
             tts.create_voice_from_sample(
                 name, sample, description=description, denoise=denoise)
             self._create_result = (True, name)
@@ -376,6 +390,10 @@ class ImportVoiceDialog(ctk.CTkToplevel):
                 msg += (" — Bộ cài thiếu file tạo giọng (speaker_encoder.onnx/"
                         "denoiser.onnx). Hãy chép lại thư mục 'models/' từ bộ cài gốc.")
             self._create_result = (False, msg)
+        finally:
+            # Chỉ đóng model do dialog tự nạp; model dùng chung do ModelManager giữ.
+            if owns_model and tts is not None:
+                tts.close()
 
     def _poll_create(self) -> None:
         if self._create_result is None:

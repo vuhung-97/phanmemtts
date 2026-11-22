@@ -11,6 +11,7 @@ from ui.config import save_settings
 PRECISION_VALUES = ["fp32", "int8"]
 THREAD_VALUES = [0, 2, 4, 6, 8]
 STORAGE_VALUES = ["auto", "memory", "disk"]
+ONNX_MEMORY_VALUES = ["auto", "on", "off"]
 
 PRECISION_LABELS = {
     "fp32": "FP32 — chất lượng cao (mặc định)",
@@ -27,6 +28,11 @@ STORAGE_LABELS = {
     "auto": "Tự động (RAM cho bài ngắn, đĩa cho bài dài)",
     "memory": "Luôn trong RAM (nhanh nhất, bài dài sẽ tốn bộ nhớ)",
     "disk": "Luôn ghi file tạm (bài dài không tốn RAM)",
+}
+ONNX_MEMORY_LABELS = {
+    "auto": "Tự động (bật khi máy có ≤ 16 GB RAM)",
+    "on": "Luôn tiết kiệm RAM (RAM ~1,1 GB, câu dài chậm hơn)",
+    "off": "Luôn ưu tiên tốc độ (RAM đỉnh ~2,4 GB)",
 }
 
 
@@ -88,6 +94,18 @@ class SettingsPage(Page):
         ).grid(row=row, column=1, pady=(0, theme.SPACE_SM), sticky="w")
         row += 1
 
+        row = self._section(box, "Bộ nhớ khi tổng hợp", row)
+        self.onnx_memory_combo = _combo(
+            box, list(ONNX_MEMORY_LABELS.values()), 460)
+        row = self._row(box, row, "Tiết kiệm RAM", self.onnx_memory_combo)
+        ctk.CTkLabel(
+            box, text="Bật sẽ tắt vùng đệm của ONNX Runtime: RAM gần như không "
+                       "tăng khi dùng lâu, đổi lại câu dài chậm hơn một chút.",
+            text_color=theme.TEXT_DIM, justify="left", wraplength=620,
+            font=(theme.FONT_FAMILY, theme.FONT_SIZE - 1),
+        ).grid(row=row, column=1, pady=(0, theme.SPACE_SM), sticky="w")
+        row += 1
+
         row = self._section(box, "Cách lưu âm thanh", row)
         self.storage_combo = _combo(box, list(STORAGE_LABELS.values()), 420)
         row = self._row(box, row, "Bộ nhớ", self.storage_combo)
@@ -109,7 +127,7 @@ class SettingsPage(Page):
         self.status_label.pack(anchor="w", pady=(theme.SPACE_XS, 0))
 
         for combo in (self.precision_combo, self.threads_combo,
-                      self.storage_combo):
+                      self.onnx_memory_combo, self.storage_combo):
             combo.configure(command=lambda _v: self._mark_dirty())
 
         self._load_from_settings()
@@ -143,6 +161,8 @@ class SettingsPage(Page):
             settings.get("precision", "fp32"), PRECISION_LABELS["fp32"]))
         self.threads_combo.set(THREAD_LABELS.get(
             int(settings.get("threads", 0) or 0), THREAD_LABELS[0]))
+        self.onnx_memory_combo.set(ONNX_MEMORY_LABELS.get(
+            settings.get("onnx_memory", "auto"), ONNX_MEMORY_LABELS["auto"]))
         self.storage_combo.set(STORAGE_LABELS.get(
             settings.get("storage", "auto"), STORAGE_LABELS["auto"]))
         self._dirty = False
@@ -156,7 +176,10 @@ class SettingsPage(Page):
                         if v == self.threads_combo.get()), 0)
         storage = next((k for k, v in STORAGE_LABELS.items()
                         if v == self.storage_combo.get()), "auto")
-        return {"precision": precision, "threads": threads, "storage": storage}
+        onnx_memory = next((k for k, v in ONNX_MEMORY_LABELS.items()
+                            if v == self.onnx_memory_combo.get()), "auto")
+        return {"precision": precision, "threads": threads,
+                "storage": storage, "onnx_memory": onnx_memory}
 
     def _refresh_int8(self) -> None:
         try:
@@ -201,12 +224,14 @@ class SettingsPage(Page):
         data = self._collect()
         previous = dict(getattr(self.ctx, "_settings", {}) or {})
         changed = (data["precision"] != previous.get("precision")
-                   or int(data["threads"]) != int(previous.get("threads", 0)))
+                   or int(data["threads"]) != int(previous.get("threads", 0))
+                   or data["onnx_memory"] != previous.get("onnx_memory", "auto"))
         self.ctx._settings.update(data)
         save_settings(self.ctx._settings)
         if changed:
             self.ctx._model_manager.set_runtime(
-                precision=data["precision"], threads=data["threads"])
+                precision=data["precision"], threads=data["threads"],
+                onnx_memory=data["onnx_memory"])
         self._dirty = False
         self._update_badge()
         self.ctx.shell.status("Đã lưu cài đặt.", theme.SUCCESS)
